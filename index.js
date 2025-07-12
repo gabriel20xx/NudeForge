@@ -59,10 +59,10 @@ app.post("/upload", upload.single("image"), async (req, res) => {
       return res.status(500).send("VHS_LoadImagePath node not found in workflow");
     }
 
-    // Modify widgets_values array — assuming it's structured like: ["input/image.png"]
-    if (Array.isArray(imageNode.inputs)) {
-      imageNode.inputs["image"] = uploadedPath;
-    }
+    // Replace the image input path with the uploaded file path
+    imageNode.inputs["image"] = uploadedPath;  // e.g. "input/1690012345678-myphoto.png"
+
+    console.log("Sending workflow with image path:", imageNode.inputs["image"]);
 
     // POST updated workflow
     const axiosResponse = await axios.post(COMFYUI_URL, workflow, {
