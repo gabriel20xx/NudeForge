@@ -17,7 +17,6 @@ const upload = multer({ storage });
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/processed', express.static(path.join(__dirname, 'processed')));
 
 // Home page
 app.get('/', (req, res) => {
@@ -28,7 +27,7 @@ app.get('/', (req, res) => {
 app.post('/upload', upload.single('image'), async (req, res) => {
   try {
     const uploadedFilename = req.file.filename;
-    const inputRelativePath = `input/${uploadedFilename}`; // For ComfyUI
+    const inputRelativePath = `../input/${uploadedFilename}`; // For ComfyUI
     const sharedInputPath = path.join(__dirname, 'uploads', uploadedFilename);
 
     // Load & update workflow.json
