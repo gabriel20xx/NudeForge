@@ -12,7 +12,6 @@ const INPUT_DIR = path.join(__dirname, '../input');
 const OUTPUT_DIR = path.join(__dirname, '../output');
 const WORKFLOW_PATH = path.join(__dirname, 'workflow.json');
 const COMFYUI_URL = 'http://192.168.2.50:8188/prompt';
-let workflowJson = JSON.parse(fs.readFileSync(WORKFLOW_PATH, 'utf-8'));
 
 [INPUT_DIR, OUTPUT_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -49,8 +48,8 @@ app.post('/upload', upload.single('image'), async (req, res) => {
 
     try {
         // Load workflow.json
-        const workflowRaw = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
-        const workflow = JSON.parse(workflowRaw);
+        const workflowJson = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+        const workflow = JSON.parse(workflowJson);
 
         // Find the VHS_LoadImagePath node
         const imageNode = workflow.nodes.find(node => node.type === 'VHS_LoadImagePath');
