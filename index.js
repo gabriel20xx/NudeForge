@@ -13,6 +13,7 @@ const OUTPUT_DIR = path.join(__dirname, "../output");
 const WORKFLOW_PATH = path.join(__dirname, "workflow.json");
 const COMFYUI_URL = "http://192.168.2.50:8188/prompt";
 
+// Ensure input/output directories exist
 [INPUT_DIR, OUTPUT_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -39,7 +40,7 @@ app.get("/", (req, res) => {
   res.render("index");
 });
 
-// Handle image upload and trigger processing
+// Upload and trigger workflow
 app.post("/upload", upload.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded");
 
@@ -47,52 +48,48 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   const uploadedPath = path.posix.join("input", uploadedFilename);
 
   try {
-    // Load workflow.json
     const workflowJson = fs.readFileSync(WORKFLOW_PATH, "utf-8");
     const workflow = JSON.parse(workflowJson);
 
-    // Find the VHS_LoadImagePath node
-    const imageNode = workflow.nodes.find(
-      (node) => node.type === "VHS_LoadImagePath"
+    // Find VHS_LoadImagePath node
+    const imageNode = Object.values(workflow).find(
+      (node) => node.class_type === "VHS_LoadImagePath"
     );
-    if (!imageNode)
-      return res.status(500).send("VHS_LoadImagePath node not found");
-
-    // Update image path in widgets_values
-    imageNode.widgets_values.image = uploadedPath;
-    imageNode.widgets_values.videopreview.params.filename = uploadedPath;
-
-    // Send updated workflow to ComfyUI
-    let response;
-    try {
-      response = await axios.post(COMFYUI_URL, workflow, {
-        headers: { "Content-Type": "application/json" },
-      });
-      console.log("Response:", response.data);
-    } catch (error) {
-      if (error.response) {
-        console.error("Server responded with error:", error.response.status);
-        console.error("Response data:", error.response.data);
-      } else {
-        console.error("Axios error:", error.message);
-      }
-      return res.status(500).send("ComfyUI request failed");
+    if (!imageNode) {
+      return res.status(500).send("VHS_LoadImagePath node not found in workflow");
     }
 
-    const outputs = response.data?.output?.["244"]?.["images"];
-    if (!outputs || outputs.length === 0) {
-      return res.status(500).send("No output image from ComfyUI");
+    // Modify widgets_values array — assuming it's structured like: ["input/image.png"]
+    if (Array.isArray(imageNode.inputs)) {
+      imageNode.inputs["image"] = uploadedPath;
     }
 
-    const outputImage = outputs[0].filename;
-    const outputPath = path.join("output", path.basename(outputImage));
+    // POST updated workflow
+    const axiosResponse = await axios.post(COMFYUI_URL, workflow, {
+      headers: { "Content-Type": "application/json" },
+    });
 
-    // Wait for the output file to exist (polling)
-    const outputFullPath = path.join(OUTPUT_DIR, path.basename(outputImage));
-    const waitForFile = (file, retries = 20) =>
+    console.log("Workflow sent, waiting for output...");
+
+    // Grab output filename(s)
+    const outputNode = Object.entries(axiosResponse.data).find(
+      ([key, val]) =>
+        val.class_type === "SaveImage" && val.outputs?.images?.length
+    );
+
+    const outputFilename = outputNode?.[1]?.outputs?.images?.[0]?.filename;
+    if (!outputFilename) {
+      return res.status(500).send("No output image returned from ComfyUI");
+    }
+
+    const outputRelativePath = `/output/${path.basename(outputFilename)}`;
+    const outputFullPath = path.join(OUTPUT_DIR, path.basename(outputFilename));
+
+    // Wait for file to appear
+    const waitForFile = (filePath, retries = 20) =>
       new Promise((resolve, reject) => {
         const check = () => {
-          fs.access(file, fs.constants.F_OK, (err) => {
+          fs.access(filePath, fs.constants.F_OK, (err) => {
             if (!err) return resolve();
             if (retries <= 0) return reject(new Error("Output not ready"));
             setTimeout(() => check(--retries), 500);
@@ -103,10 +100,10 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
     await waitForFile(outputFullPath);
 
-    // Respond with path to processed image
-    res.json({ outputImage: `/output/${path.basename(outputImage)}` });
+    // Send path to frontend
+    res.json({ outputImage: outputRelativePath });
   } catch (err) {
-    console.error(err);
+    console.error("Error in /upload:", err);
     res.status(500).send("Processing failed");
   }
 });
