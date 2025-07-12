@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Image Processor</title>
+    <link rel="stylesheet" href="/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <h1>🖼️ Image Processor</h1>
+
+    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+        <div class="main-container">
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <h2>Upload Image</h2>
+
+                <!-- Combined Drop + Preview Area -->
+                <div id="dropArea" class="drop-area">
+                    <p id="dropText">📂 Drag & drop or click to upload</p>
+                    <img id="previewImage" />
+                    <input id="imageInput" type="file" name="image" accept="image/*" />
+                </div>
+
+                <button type="submit">Upload</button>
+
+                <div id="progressContainer">
+                    <div id="progressBar"></div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="output-section">
+                <h2>Processed Output</h2>
+                <div class="image-box">
+                    <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
+                    <img id="outputImage" src="" alt="Processed Image" />
+                </div>
+                <a id="downloadLink" href="#" download style="display: none;">
+                    <button class="download-btn">Download</button>
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Settings Section -->
+    <div class="settings-section">
+        <h2>Settings</h2>
+        <p>Future filters and options will go here.</p>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const previewImage = document.getElementById('previewImage');
+        const dropArea = document.getElementById('dropArea');
+        const dropText = document.getElementById('dropText');
+        const uploadForm = document.getElementById('uploadForm');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+
+        function showPreview(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+                dropText.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        imageInput.addEventListener('change', () => {
+            if (imageInput.files[0]) showPreview(imageInput.files[0]);
+        });
+
+        ['dragenter', 'dragover'].forEach(event =>
+            dropArea.addEventListener(event, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.add('drag-over');
+            })
+        );
+
+        ['dragleave', 'drop'].forEach(event =>
+            dropArea.addEventListener(event, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.remove('drag-over');
+            })
+        );
+
+        dropArea.addEventListener('click', () => imageInput.click());
+
+        dropArea.addEventListener('drop', e => {
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                imageInput.files = e.dataTransfer.files;
+                showPreview(file);
+            }
+        });
+
+        uploadForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (!imageInput.files || imageInput.files.length === 0) {
+                alert('Please select an image before uploading.');
+                return;
+            }
+
+            // Proceed with upload
+            const formData = new FormData(uploadForm);
+            const xhr = new XMLHttpRequest();
+
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            xhr.upload.addEventListener('progress', e => {
+                if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                progressBar.style.width = percent + '%';
+                }
+            });
+
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                const outputImage = document.getElementById('outputImage');
+                const outputPlaceholder = document.getElementById('outputPlaceholder');
+                const downloadLink = document.getElementById('downloadLink');
+
+                outputImage.src = response.outputImage;
+                outputImage.style.display = 'block';
+                outputPlaceholder.style.display = 'none';
+
+                const filename = response.outputImage.split('/').pop();
+                downloadLink.href = response.outputImage;
+                downloadLink.setAttribute('download', filename); // Force download with a name
+                downloadLink.style.display = 'inline-block';
+
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+                }
+            };
+
+            xhr.open('POST', '/upload', true);
+            xhr.send(formData);
+            });
+    </script>
+</body>
+
+</html>
