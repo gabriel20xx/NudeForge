@@ -1,104 +1,113 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+const cors = require('cors');
 const axios = require('axios');
 
 const app = express();
-const port = 3000;
+const PORT = 3000;
 
-// Configure paths
-const inputFolder = path.join(__dirname, '../input');
-const outputFolder = path.join(__dirname, '../output');
-const workflowPath = path.join(__dirname, 'workflow.json');
+const INPUT_DIR = path.join(__dirname, '../input');
+const OUTPUT_DIR = path.join(__dirname, '../output');
+const WORKFLOW_PATH = path.join(__dirname, 'workflow.json');
+const COMFYUI_URL = 'http://192.168.2.50:8188/prompt';
+let workflowJson = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
 
-// Serve static files
-app.use('/input', express.static(inputFolder));
-app.use('/output', express.static(outputFolder));
+[INPUT_DIR, OUTPUT_DIR].forEach(dir => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
-// Set EJS as view engine
+app.use(cors());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/input', express.static(INPUT_DIR));
+app.use('/output', express.static(OUTPUT_DIR));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Multer config
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, inputFolder),
-  filename: (req, file, cb) => {
-    const safeName = Date.now() + '-' + file.originalname.replace(/\s+/g, '_');
-    cb(null, safeName);
-  },
+    destination: INPUT_DIR,
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${file.originalname}`;
+        cb(null, uniqueName);
+    }
 });
 const upload = multer({ storage });
 
-// GET: show upload form
+// Serve frontend
 app.get('/', (req, res) => {
-  res.render('index');
+    res.render('index');
 });
 
-// POST: handle upload
+// Handle image upload and trigger processing
 app.post('/upload', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).send('No file uploaded');
+    if (!req.file) return res.status(400).send('No file uploaded');
+
+    const uploadedFilename = req.file.filename;
+    const uploadedPath = path.posix.join('input', uploadedFilename);
+
+    try {
+        // Load workflow.json
+        const workflowRaw = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+        const workflow = JSON.parse(workflowRaw);
+
+        // Find the VHS_LoadImagePath node
+        const imageNode = workflow.nodes.find(node => node.type === 'VHS_LoadImagePath');
+        if (!imageNode) return res.status(500).send('VHS_LoadImagePath node not found');
+
+        // Update image path in widgets_values
+        imageNode.widgets_values.image = uploadedPath;
+        imageNode.widgets_values.videopreview.params.filename = uploadedPath;
+
+        // Send updated workflow to ComfyUI
+        try {
+          const response = await axios.post('http://192.168.2.50:8188/prompt', workflowJson, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          console.log('Response:', response.data);
+        } catch (error) {
+          if (error.response) {
+            console.error('Server responded with error:', error.response.status);
+            console.error('Response data:', error.response.data);
+          } else {
+            console.error('Axios error:', error.message);
+          }
+        }
+
+        // Get image filename from response
+        const outputs = response.data?.output?.['244']?.['images'];
+        if (!outputs || outputs.length === 0) {
+            return res.status(500).send('No output image from ComfyUI');
+        }
+
+        const outputImage = outputs[0].filename;
+        const outputPath = path.join('output', path.basename(outputImage));
+
+        // Wait for the output file to exist (polling)
+        const outputFullPath = path.join(OUTPUT_DIR, path.basename(outputImage));
+        const waitForFile = (file, retries = 20) => new Promise((resolve, reject) => {
+            const check = () => {
+                fs.access(file, fs.constants.F_OK, err => {
+                    if (!err) return resolve();
+                    if (retries <= 0) return reject(new Error('Output not ready'));
+                    setTimeout(() => check(--retries), 500);
+                });
+            };
+            check();
+        });
+
+        await waitForFile(outputFullPath);
+
+        // Respond with path to processed image
+        res.json({ outputImage: `/output/${path.basename(outputImage)}` });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Processing failed');
     }
-
-    const uploadedFileName = req.file.filename;
-    const uploadedFilePath = path.join('input', uploadedFileName); // relative for workflow
-
-    // Load and modify workflow.json
-    let workflowJson = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
-
-    // Find the VHS_LoadImagePath node
-    for (const node of Object.values(workflowJson)) {
-      if (
-        node.class_type === 'VHS_LoadImagePath' &&
-        node.inputs &&
-        node.inputs.IMAGEUPLOAD !== undefined
-      ) {
-        node.inputs.IMAGEUPLOAD = uploadedFilePath;
-        node.widgets_values = [uploadedFilePath];
-        node.videopreview = { params: { filename: uploadedFilePath } };
-      }
-    }
-
-    // Send updated workflow to ComfyUI
-    const comfyResponse = await axios.post('http://192.168.2.50:8188/prompt', workflowJson);
-    const promptId = comfyResponse.data.prompt_id;
-
-    // Poll output folder until a file with same base name appears
-    const outputFile = await waitForOutputFile(uploadedFileName);
-
-    // Render result
-    res.render('index', { inputImage: uploadedFileName, outputImage: outputFile });
-  } catch (error) {
-    console.error('Error in /upload:', error);
-    res.status(500).send('Server error');
-  }
 });
 
-// Helper: Wait for output file
-function waitForOutputFile(baseInputName, timeout = 20000, interval = 1000) {
-  const expectedName = path.parse(baseInputName).name; // Remove extension
-  const start = Date.now();
-
-  return new Promise((resolve, reject) => {
-    const check = () => {
-      fs.readdir(outputFolder, (err, files) => {
-        if (err) return reject(err);
-
-        const match = files.find(f => f.startsWith(expectedName));
-        if (match) return resolve(match);
-
-        if (Date.now() - start >= timeout) {
-          return reject(new Error('Output not found in time'));
-        }
-        setTimeout(check, interval);
-      });
-    };
-    check();
-  });
-}
-
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+app.listen(PORT, () => {
+    console.log(`✅ Server running at http://localhost:${PORT}`);
 });
