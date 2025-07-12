@@ -12,7 +12,7 @@ const INPUT_DIR = path.join(__dirname, '../input');
 const OUTPUT_DIR = path.join(__dirname, '../output');
 const WORKFLOW_PATH = path.join(__dirname, 'workflow.json');
 const COMFYUI_URL = 'http://192.168.2.50:8188/prompt';
-let workflowJson = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+let workflowJson = JSON.parse(fs.readFileSync(WORKFLOW_PATH, 'utf-8'));
 
 [INPUT_DIR, OUTPUT_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
