@@ -1,7 +1,7 @@
 {
     "id": "7cbcec68-7fa6-47bb-a38a-da689949a001",
     "revision": 0,
-    "last_node_id": 245,
+    "last_node_id": 247,
     "last_link_id": 439,
     "nodes": [
         {
@@ -259,178 +259,6 @@
             ]
         },
         {
-            "id": 233,
-            "type": "easy string",
-            "pos": [
-                -400,
-                740
-            ],
-            "size": [
-                340,
-                58
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "value",
-                    "name": "value",
-                    "type": "STRING",
-                    "widget": {
-                        "name": "value"
-                    },
-                    "link": null
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "string",
-                    "name": "string",
-                    "type": "STRING",
-                    "links": [
-                        416
-                    ]
-                }
-            ],
-            "title": "Save Path",
-            "properties": {
-                "cnr_id": "comfyui-easy-use",
-                "ver": "1.3.1",
-                "Node name for S&R": "easy string",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                "/comfy/mnt/ComfyUI/output/"
-            ]
-        },
-        {
-            "id": 231,
-            "type": "PrimitiveInt",
-            "pos": [
-                -400,
-                960
-            ],
-            "size": [
-                340,
-                82
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "value",
-                    "name": "value",
-                    "type": "INT",
-                    "widget": {
-                        "name": "value"
-                    },
-                    "link": null
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "INT",
-                    "name": "INT",
-                    "type": "INT",
-                    "links": [
-                        394,
-                        395
-                    ]
-                }
-            ],
-            "title": "Height",
-            "properties": {
-                "cnr_id": "comfy-core",
-                "ver": "0.3.43",
-                "Node name for S&R": "PrimitiveInt",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                1080,
-                "fixed"
-            ]
-        },
-        {
-            "id": 184,
-            "type": "MarkdownNote",
-            "pos": [
-                -940,
-                -170
-            ],
-            "size": [
-                510,
-                350
-            ],
-            "flags": {},
-            "order": 6,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [],
-            "title": "Model links",
-            "properties": {
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                "[tutorial](http://docs.comfy.org/tutorials/flux/flux-1-kontext-dev)\n\n**diffusion model**\n\n- [flux1-dev-kontext_fp8_scaled.safetensors](https://huggingface.co/Comfy-Org/flux1-kontext-dev_ComfyUI/resolve/main/split_files/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors)\n\n**vae**\n\n- [ae.safetensors](https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/blob/main/split_files/vae/ae.safetensors)\n\n**text encoder**\n\n- [clip_l.safetensors](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/clip_l.safetensors)\n- [t5xxl_fp16.safetensors](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors) or [t5xxl_fp8_e4m3fn_scaled.safetensors](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors)\n\nModel Storage Location\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 diffusion_models/\n│   │   └── flux1-dev-kontext_fp8_scaled.safetensors\n│   ├── 📂 vae/\n│   │   └── ae.safetensor\n│   └── 📂 text_encoders/\n│       ├── clip_l.safetensors\n│       └── t5xxl_fp16.safetensors or t5xxl_fp8_e4m3fn_scaled.safetensors\n```\n"
-            ],
-            "color": "#432",
-            "bgcolor": "#653"
-        },
-        {
-            "id": 185,
-            "type": "MarkdownNote",
-            "pos": [
-                -940,
-                230
-            ],
-            "size": [
-                510,
-                88
-            ],
-            "flags": {},
-            "order": 7,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [],
-            "title": "About VRAM",
-            "properties": {
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                "For reference:\n- **fp8_scaled**: Requires about 20GB of VRAM.\n- **Original**: Requires about 32GB of VRAM.\n"
-            ],
-            "color": "#432",
-            "bgcolor": "#653"
-        },
-        {
-            "id": 186,
-            "type": "MarkdownNote",
-            "pos": [
-                -940,
-                370
-            ],
-            "size": [
-                510,
-                630
-            ],
-            "flags": {},
-            "order": 8,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [],
-            "title": "Flux Kontext Prompt Techniques",
-            "properties": {
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                "\n## Flux Kontext Prompt Techniques\n\n### 1. Basic Modifications\n- Simple and direct: `\"Change the car color to red\"`\n- Maintain style: `\"Change to daytime while maintaining the same style of the painting\"`\n\n### 2. Style Transfer\n**Principles:**\n- Clearly name style: `\"Transform to Bauhaus art style\"`\n- Describe characteristics: `\"Transform to oil painting with visible brushstrokes, thick paint texture\"`\n- Preserve composition: `\"Change to Bauhaus style while maintaining the original composition\"`\n\n### 3. Character Consistency\n**Framework:**\n- Specific description: `\"The woman with short black hair\"` instead of \"she\"\n- Preserve features: `\"while maintaining the same facial features, hairstyle, and expression\"`\n- Step-by-step modifications: Change background first, then actions\n\n### 4. Text Editing\n- Use quotes: `\"Replace 'joy' with 'BFL'\"`\n- Maintain format: `\"Replace text while maintaining the same font style\"`\n\n## Common Problem Solutions\n\n### Character Changes Too Much\n❌ Wrong: `\"Transform the person into a Viking\"`\n✅ Correct: `\"Change the clothes to be a viking warrior while preserving facial features\"`\n\n### Composition Position Changes\n❌ Wrong: `\"Put him on a beach\"`\n✅ Correct: `\"Change the background to a beach while keeping the person in the exact same position, scale, and pose\"`\n\n### Style Application Inaccuracy\n❌ Wrong: `\"Make it a sketch\"`\n✅ Correct: `\"Convert to pencil sketch with natural graphite lines, cross-hatching, and visible paper texture\"`\n\n## Core Principles\n\n1. **Be Specific and Clear** - Use precise descriptions, avoid vague terms\n2. **Step-by-step Editing** - Break complex modifications into multiple simple steps\n3. **Explicit Preservation** - State what should remain unchanged\n4. **Verb Selection** - Use \"change\", \"replace\" rather than \"transform\"\n\n## Best Practice Templates\n\n**Object Modification:**\n`\"Change [object] to [new state], keep [content to preserve] unchanged\"`\n\n**Style Transfer:**\n`\"Transform to [specific style], while maintaining [composition/character/other] unchanged\"`\n\n**Background Replacement:**\n`\"Change the background to [new background], keep the subject in the exact same position and pose\"`\n\n**Text Editing:**\n`\"Replace '[original text]' with '[new text]', maintain the same font style\"`\n\n> **Remember:** The more specific, the better. Kontext excels at understanding detailed instructions and maintaining consistency. "
-            ],
-            "color": "#432",
-            "bgcolor": "#653"
-        },
-        {
             "id": 239,
             "type": "KSamplerAdvanced",
             "pos": [
@@ -442,7 +270,7 @@
                 350
             ],
             "flags": {},
-            "order": 21,
+            "order": 15,
             "mode": 0,
             "inputs": [
                 {
@@ -569,7 +397,7 @@
             },
             "widgets_values": [
                 "enable",
-                659204269483819,
+                366793558250572,
                 "randomize",
                 20,
                 1,
@@ -592,7 +420,7 @@
                 130
             ],
             "flags": {},
-            "order": 16,
+            "order": 10,
             "mode": 0,
             "inputs": [
                 {
@@ -650,7 +478,7 @@
             "flags": {
                 "collapsed": false
             },
-            "order": 22,
+            "order": 16,
             "mode": 0,
             "inputs": [
                 {
@@ -700,7 +528,7 @@
             "flags": {
                 "collapsed": false
             },
-            "order": 17,
+            "order": 11,
             "mode": 0,
             "inputs": [
                 {
@@ -749,7 +577,7 @@
             "flags": {
                 "collapsed": false
             },
-            "order": 18,
+            "order": 12,
             "mode": 0,
             "inputs": [
                 {
@@ -791,7 +619,7 @@
             "flags": {
                 "collapsed": false
             },
-            "order": 20,
+            "order": 14,
             "mode": 0,
             "inputs": [
                 {
@@ -843,7 +671,7 @@
                 46
             ],
             "flags": {},
-            "order": 19,
+            "order": 13,
             "mode": 0,
             "inputs": [
                 {
@@ -882,15 +710,15 @@
             "id": 220,
             "type": "easy imageScaleDownToSize",
             "pos": [
-                270,
-                510
+                530,
+                640
             ],
             "size": [
                 220,
                 82
             ],
             "flags": {},
-            "order": 25,
+            "order": 19,
             "mode": 0,
             "inputs": [
                 {
@@ -940,272 +768,6 @@
             ]
         },
         {
-            "id": 42,
-            "type": "FluxKontextImageScale",
-            "pos": [
-                -20,
-                520
-            ],
-            "size": [
-                250,
-                26
-            ],
-            "flags": {
-                "collapsed": false
-            },
-            "order": 14,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "image",
-                    "name": "image",
-                    "type": "IMAGE",
-                    "link": 438
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "IMAGE",
-                    "name": "IMAGE",
-                    "type": "IMAGE",
-                    "links": [
-                        222
-                    ]
-                }
-            ],
-            "properties": {
-                "cnr_id": "comfy-core",
-                "ver": "0.3.38",
-                "Node name for S&R": "FluxKontextImageScale",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": []
-        },
-        {
-            "id": 225,
-            "type": "ResizeLongestToNode",
-            "pos": [
-                -20,
-                590
-            ],
-            "size": [
-                250,
-                82
-            ],
-            "flags": {},
-            "order": 12,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "image",
-                    "name": "image",
-                    "type": "IMAGE",
-                    "link": null
-                },
-                {
-                    "localized_name": "size",
-                    "name": "size",
-                    "type": "INT",
-                    "widget": {
-                        "name": "size"
-                    },
-                    "link": 395
-                },
-                {
-                    "localized_name": "method",
-                    "name": "method",
-                    "type": "COMBO",
-                    "widget": {
-                        "name": "method"
-                    },
-                    "link": null
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "IMAGE",
-                    "name": "IMAGE",
-                    "type": "IMAGE",
-                    "links": []
-                }
-            ],
-            "properties": {
-                "cnr_id": "comfyui-logicutils",
-                "ver": "1.7.2",
-                "Node name for S&R": "ResizeLongestToNode",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                1080,
-                "NEAREST"
-            ]
-        },
-        {
-            "id": 226,
-            "type": "Image_Size_Extractor",
-            "pos": [
-                -20,
-                720
-            ],
-            "size": [
-                250,
-                108
-            ],
-            "flags": {},
-            "order": 15,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "image",
-                    "name": "image",
-                    "type": "IMAGE",
-                    "link": 439
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "width",
-                    "name": "width",
-                    "type": "INT",
-                    "links": [
-                        386
-                    ]
-                },
-                {
-                    "localized_name": "height",
-                    "name": "height",
-                    "type": "INT",
-                    "links": [
-                        387
-                    ]
-                }
-            ],
-            "properties": {
-                "cnr_id": "kaytool",
-                "ver": "f4c80b009194d51a13a94f06d37847110a174c52",
-                "Node name for S&R": "Image_Size_Extractor",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": []
-        },
-        {
-            "id": 227,
-            "type": "ResizeImageNode",
-            "pos": [
-                -20,
-                880
-            ],
-            "size": [
-                250,
-                106
-            ],
-            "flags": {},
-            "order": 24,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "image",
-                    "name": "image",
-                    "type": "IMAGE",
-                    "link": 385
-                },
-                {
-                    "localized_name": "width",
-                    "name": "width",
-                    "type": "INT",
-                    "widget": {
-                        "name": "width"
-                    },
-                    "link": 386
-                },
-                {
-                    "localized_name": "height",
-                    "name": "height",
-                    "type": "INT",
-                    "widget": {
-                        "name": "height"
-                    },
-                    "link": 387
-                },
-                {
-                    "localized_name": "method",
-                    "name": "method",
-                    "type": "COMBO",
-                    "widget": {
-                        "name": "method"
-                    },
-                    "link": null
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "IMAGE",
-                    "name": "IMAGE",
-                    "type": "IMAGE",
-                    "links": []
-                }
-            ],
-            "properties": {
-                "cnr_id": "comfyui-logicutils",
-                "ver": "1.7.2",
-                "Node name for S&R": "ResizeImageNode",
-                "widget_ue_connectable": {
-                    "width": false,
-                    "height": false
-                }
-            },
-            "widgets_values": [
-                512,
-                512,
-                "NEAREST"
-            ]
-        },
-        {
-            "id": 241,
-            "type": "CurrentTimestamp",
-            "pos": [
-                -400,
-                850
-            ],
-            "size": [
-                340,
-                58
-            ],
-            "flags": {},
-            "order": 9,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "format_string",
-                    "name": "format_string",
-                    "type": "STRING",
-                    "widget": {
-                        "name": "format_string"
-                    },
-                    "link": null
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "STRING",
-                    "name": "STRING",
-                    "type": "STRING",
-                    "links": [
-                        435
-                    ]
-                }
-            ],
-            "properties": {
-                "cnr_id": "comfyui-logicutils",
-                "ver": "1.7.2",
-                "Node name for S&R": "CurrentTimestamp",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": [
-                "%Y-%m-%d_%H-%M-%S"
-            ]
-        },
-        {
             "id": 202,
             "type": "Power Lora Loader (rgthree)",
             "pos": [
@@ -1217,7 +779,7 @@
                 238
             ],
             "flags": {},
-            "order": 11,
+            "order": 6,
             "mode": 0,
             "inputs": [
                 {
@@ -1302,15 +864,15 @@
             "id": 214,
             "type": "ImageUpscaleWithModel",
             "pos": [
-                270,
-                420
+                530,
+                550
             ],
             "size": [
                 221.98202514648438,
                 46
             ],
             "flags": {},
-            "order": 23,
+            "order": 17,
             "mode": 0,
             "inputs": [
                 {
@@ -1345,50 +907,6 @@
             "widgets_values": []
         },
         {
-            "id": 237,
-            "type": "MergeString",
-            "pos": [
-                270,
-                690
-            ],
-            "size": [
-                220,
-                46
-            ],
-            "flags": {},
-            "order": 13,
-            "mode": 0,
-            "inputs": [
-                {
-                    "localized_name": "input1",
-                    "name": "input1",
-                    "type": "*",
-                    "link": 416
-                },
-                {
-                    "localized_name": "input2",
-                    "name": "input2",
-                    "type": "*",
-                    "link": 435
-                }
-            ],
-            "outputs": [
-                {
-                    "localized_name": "STRING",
-                    "name": "STRING",
-                    "type": "STRING",
-                    "links": []
-                }
-            ],
-            "properties": {
-                "cnr_id": "comfyui-logicutils",
-                "ver": "1.7.2",
-                "Node name for S&R": "MergeString",
-                "widget_ue_connectable": {}
-            },
-            "widgets_values": []
-        },
-        {
             "id": 200,
             "type": "LayerUtility: SaveImagePlus",
             "pos": [
@@ -1400,7 +918,7 @@
                 474
             ],
             "flags": {},
-            "order": 26,
+            "order": 20,
             "mode": 0,
             "inputs": [
                 {
@@ -1515,14 +1033,14 @@
             "type": "VHS_LoadImagePath",
             "pos": [
                 -20,
-                110
+                100
             ],
             "size": [
-                235.24609375,
-                540.4578247070312
+                250,
+                568
             ],
             "flags": {},
-            "order": 10,
+            "order": 4,
             "mode": 0,
             "inputs": [
                 {
@@ -1580,11 +1098,11 @@
             "properties": {
                 "cnr_id": "comfyui-videohelpersuite",
                 "ver": "a7ce59e381934733bfae03b1be029756d6ce936d",
-                "widget_ue_connectable": {},
-                "Node name for S&R": "VHS_LoadImagePath"
+                "Node name for S&R": "VHS_LoadImagePath",
+                "widget_ue_connectable": {}
             },
             "widgets_values": {
-                "image": "input/sample.jpg",
+                "image": "input/Snapchat-94456132.jpg",
                 "custom_width": 0,
                 "custom_height": 0,
                 "videopreview": {
@@ -1593,12 +1111,281 @@
                     "params": {
                         "custom_width": 0,
                         "custom_height": 0,
-                        "filename": "input/sample.jpg",
+                        "filename": "input/Snapchat-94456132.jpg",
                         "type": "path",
                         "format": "video/jpg"
                     }
                 }
             }
+        },
+        {
+            "id": 42,
+            "type": "FluxKontextImageScale",
+            "pos": [
+                270,
+                420
+            ],
+            "size": [
+                220,
+                26
+            ],
+            "flags": {
+                "collapsed": false
+            },
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "image",
+                    "name": "image",
+                    "type": "IMAGE",
+                    "link": 438
+                }
+            ],
+            "outputs": [
+                {
+                    "localized_name": "IMAGE",
+                    "name": "IMAGE",
+                    "type": "IMAGE",
+                    "links": [
+                        222
+                    ]
+                }
+            ],
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.3.38",
+                "Node name for S&R": "FluxKontextImageScale",
+                "widget_ue_connectable": {}
+            },
+            "widgets_values": []
+        },
+        {
+            "id": 225,
+            "type": "ResizeLongestToNode",
+            "pos": [
+                270,
+                490
+            ],
+            "size": [
+                220,
+                82
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "image",
+                    "name": "image",
+                    "type": "IMAGE",
+                    "link": null
+                },
+                {
+                    "localized_name": "size",
+                    "name": "size",
+                    "type": "INT",
+                    "widget": {
+                        "name": "size"
+                    },
+                    "link": 395
+                },
+                {
+                    "localized_name": "method",
+                    "name": "method",
+                    "type": "COMBO",
+                    "widget": {
+                        "name": "method"
+                    },
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "localized_name": "IMAGE",
+                    "name": "IMAGE",
+                    "type": "IMAGE",
+                    "links": []
+                }
+            ],
+            "properties": {
+                "cnr_id": "comfyui-logicutils",
+                "ver": "1.7.2",
+                "Node name for S&R": "ResizeLongestToNode",
+                "widget_ue_connectable": {}
+            },
+            "widgets_values": [
+                1080,
+                "NEAREST"
+            ]
+        },
+        {
+            "id": 226,
+            "type": "Image_Size_Extractor",
+            "pos": [
+                270,
+                620
+            ],
+            "size": [
+                220,
+                110
+            ],
+            "flags": {},
+            "order": 8,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "image",
+                    "name": "image",
+                    "type": "IMAGE",
+                    "link": 439
+                }
+            ],
+            "outputs": [
+                {
+                    "localized_name": "width",
+                    "name": "width",
+                    "type": "INT",
+                    "links": [
+                        386
+                    ]
+                },
+                {
+                    "localized_name": "height",
+                    "name": "height",
+                    "type": "INT",
+                    "links": [
+                        387
+                    ]
+                }
+            ],
+            "properties": {
+                "cnr_id": "kaytool",
+                "ver": "f4c80b009194d51a13a94f06d37847110a174c52",
+                "Node name for S&R": "Image_Size_Extractor",
+                "widget_ue_connectable": {}
+            },
+            "widgets_values": []
+        },
+        {
+            "id": 227,
+            "type": "ResizeImageNode",
+            "pos": [
+                270,
+                780
+            ],
+            "size": [
+                220,
+                110
+            ],
+            "flags": {},
+            "order": 18,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "image",
+                    "name": "image",
+                    "type": "IMAGE",
+                    "link": 385
+                },
+                {
+                    "localized_name": "width",
+                    "name": "width",
+                    "type": "INT",
+                    "widget": {
+                        "name": "width"
+                    },
+                    "link": 386
+                },
+                {
+                    "localized_name": "height",
+                    "name": "height",
+                    "type": "INT",
+                    "widget": {
+                        "name": "height"
+                    },
+                    "link": 387
+                },
+                {
+                    "localized_name": "method",
+                    "name": "method",
+                    "type": "COMBO",
+                    "widget": {
+                        "name": "method"
+                    },
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "localized_name": "IMAGE",
+                    "name": "IMAGE",
+                    "type": "IMAGE",
+                    "links": []
+                }
+            ],
+            "properties": {
+                "cnr_id": "comfyui-logicutils",
+                "ver": "1.7.2",
+                "Node name for S&R": "ResizeImageNode",
+                "widget_ue_connectable": {
+                    "width": false,
+                    "height": false
+                }
+            },
+            "widgets_values": [
+                512,
+                512,
+                "NEAREST"
+            ]
+        },
+        {
+            "id": 231,
+            "type": "PrimitiveInt",
+            "pos": [
+                -400,
+                750
+            ],
+            "size": [
+                340,
+                82
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "value",
+                    "name": "value",
+                    "type": "INT",
+                    "widget": {
+                        "name": "value"
+                    },
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "localized_name": "INT",
+                    "name": "INT",
+                    "type": "INT",
+                    "links": [
+                        394,
+                        395
+                    ]
+                }
+            ],
+            "title": "Height",
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.3.43",
+                "Node name for S&R": "PrimitiveInt",
+                "widget_ue_connectable": {}
+            },
+            "widgets_values": [
+                1080,
+                "fixed"
+            ]
         }
     ],
     "links": [
@@ -1755,14 +1542,6 @@
             "INT"
         ],
         [
-            416,
-            233,
-            0,
-            237,
-            0,
-            "*"
-        ],
-        [
             429,
             202,
             0,
@@ -1803,14 +1582,6 @@
             "LATENT"
         ],
         [
-            435,
-            241,
-            0,
-            237,
-            1,
-            "*"
-        ],
-        [
             438,
             244,
             0,
@@ -1848,7 +1619,7 @@
                 -30,
                 30,
                 270,
-                400
+                870
             ],
             "color": "#3f789e",
             "font_size": 24,
@@ -1897,8 +1668,8 @@
             "id": 8,
             "title": "Scaler",
             "bounding": [
-                260,
-                350,
+                520,
+                480,
                 240,
                 250
             ],
@@ -1936,10 +1707,10 @@
             "id": 13,
             "title": "Resizing",
             "bounding": [
-                -30,
-                450,
-                270,
-                540
+                260,
+                350,
+                240,
+                550
             ],
             "color": "#3f789e",
             "font_size": 24,
@@ -1952,20 +1723,7 @@
                 -410,
                 670,
                 360,
-                380
-            ],
-            "color": "#3f789e",
-            "font_size": 24,
-            "flags": {}
-        },
-        {
-            "id": 15,
-            "title": "Path Merger",
-            "bounding": [
-                260,
-                620,
-                240,
-                120
+                180
             ],
             "color": "#3f789e",
             "font_size": 24,
@@ -1975,10 +1733,10 @@
     "config": {},
     "extra": {
         "ds": {
-            "scale": 0.7627768444385489,
+            "scale": 0.7627768444385491,
             "offset": [
-                915.7768525459414,
-                296.5673044252219
+                1137.0304895404108,
+                385.6717536965242
             ]
         },
         "frontendVersion": "1.23.2",

@@ -13,6 +13,10 @@ const OUTPUT_DIR = path.join(__dirname, '../output');
 const WORKFLOW_PATH = path.join(__dirname, 'workflow.json');
 const COMFYUI_URL = 'http://192.168.2.50:8188/prompt';
 
+[INPUT_DIR, OUTPUT_DIR].forEach(dir => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
+
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/input', express.static(INPUT_DIR));
@@ -40,7 +44,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
 
     const uploadedFilename = req.file.filename;
-    const uploadedPath = path.join('input', uploadedFilename);
+    const uploadedPath = path.posix.join('input', uploadedFilename);
 
     try {
         // Load workflow.json
@@ -56,7 +60,19 @@ app.post('/upload', upload.single('image'), async (req, res) => {
         imageNode.widgets_values.videopreview.params.filename = uploadedPath;
 
         // Send updated workflow to ComfyUI
-        const response = await axios.post(COMFYUI_URL, workflow);
+        try {
+          const response = await axios.post('http://192.168.2.50:8188/prompt', workflowJson, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          console.log('Response:', response.data);
+        } catch (error) {
+          if (error.response) {
+            console.error('Server responded with error:', error.response.status);
+            console.error('Response data:', error.response.data);
+          } else {
+            console.error('Axios error:', error.message);
+          }
+        }
 
         // Get image filename from response
         const outputs = response.data?.output?.['244']?.['images'];
