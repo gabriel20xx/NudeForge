@@ -2,94 +2,95 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cors = require('cors');
 const axios = require('axios');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-// Storage config
+const INPUT_DIR = path.join(__dirname, '../input');
+const OUTPUT_DIR = path.join(__dirname, '../output');
+const WORKFLOW_PATH = path.join(__dirname, 'workflow.json');
+const COMFYUI_URL = 'http://192.168.2.50:8188/prompt';
+
+app.use(cors());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/input', express.static(INPUT_DIR));
+app.use('/output', express.static(OUTPUT_DIR));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// Multer config
 const storage = multer.diskStorage({
-  destination: 'uploads/',
-  filename: (_, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+    destination: INPUT_DIR,
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${file.originalname}`;
+        cb(null, uniqueName);
+    }
 });
 const upload = multer({ storage });
 
-app.set('view engine', 'ejs');
-app.use(express.static('public'));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Home page
+// Serve frontend
 app.get('/', (req, res) => {
-  res.render('index', { inputImage: null, outputImage: null });
+    res.render('index');
 });
 
-// Upload and process image
+// Handle image upload and trigger processing
 app.post('/upload', upload.single('image'), async (req, res) => {
-  try {
+    if (!req.file) return res.status(400).send('No file uploaded');
+
     const uploadedFilename = req.file.filename;
-    const inputRelativePath = `../input/${uploadedFilename}`; // For ComfyUI
-    const sharedInputPath = path.join(__dirname, 'uploads', uploadedFilename);
+    const uploadedPath = path.join('input', uploadedFilename);
 
-    // Load & update workflow.json
-    const workflowPath = path.join(__dirname, 'workflow.json');
-    const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf8'));
-
-    // Update image path in VHS_LoadImagePath node
-    for (const node of Object.values(workflow.prompt)) {
-      if (node.type === 'VHS_LoadImagePath') {
-        if (node.inputs?.image) {
-          node.inputs.image = inputRelativePath;
-        }
-        if (node.widgets_values) {
-          node.widgets_values.image = inputRelativePath;
-          if (node.widgets_values.videopreview?.params) {
-            node.widgets_values.videopreview.params.filename = inputRelativePath;
-          }
-        }
-      }
-    }
-
-    // Send to ComfyUI
-    const response = await axios.post('http://192.168.2.50:8188/prompt', workflow);
-    const prompt_id = response.data.prompt_id;
-
-    console.log('✅ Prompt sent. Waiting for output...');
-
-    // Wait for result
-    const outputImage = await waitForComfyImage(prompt_id);
-
-    res.render('index', {
-      inputImage: '/uploads/' + uploadedFilename,
-      outputImage
-    });
-  } catch (err) {
-    console.error('❌ Upload error:', err);
-    res.status(500).send('Error processing image');
-  }
-});
-
-// Poll for result
-async function waitForComfyImage(prompt_id, timeout = 30000) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
     try {
-      const { data } = await axios.get(`http://192.168.2.50:8188/history/${prompt_id}`);
-      const outputs = data.outputs;
-      for (const key in outputs) {
-        const images = outputs[key].images;
-        if (images?.length) {
-          const image = images[0];
-          return `http://192.168.2.50:8188/view?filename=${image.filename}&subfolder=${image.subfolder}&type=output`;
+        // Load workflow.json
+        const workflowRaw = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+        const workflow = JSON.parse(workflowRaw);
+
+        // Find the VHS_LoadImagePath node
+        const imageNode = workflow.nodes.find(node => node.type === 'VHS_LoadImagePath');
+        if (!imageNode) return res.status(500).send('VHS_LoadImagePath node not found');
+
+        // Update image path in widgets_values
+        imageNode.widgets_values.image = uploadedPath;
+        imageNode.widgets_values.videopreview.params.filename = uploadedPath;
+
+        // Send updated workflow to ComfyUI
+        const response = await axios.post(COMFYUI_URL, workflow);
+
+        // Get image filename from response
+        const outputs = response.data?.output?.['244']?.['images'];
+        if (!outputs || outputs.length === 0) {
+            return res.status(500).send('No output image from ComfyUI');
         }
-      }
-    } catch (_) {
-      // ignore
+
+        const outputImage = outputs[0].filename;
+        const outputPath = path.join('output', path.basename(outputImage));
+
+        // Wait for the output file to exist (polling)
+        const outputFullPath = path.join(OUTPUT_DIR, path.basename(outputImage));
+        const waitForFile = (file, retries = 20) => new Promise((resolve, reject) => {
+            const check = () => {
+                fs.access(file, fs.constants.F_OK, err => {
+                    if (!err) return resolve();
+                    if (retries <= 0) return reject(new Error('Output not ready'));
+                    setTimeout(() => check(--retries), 500);
+                });
+            };
+            check();
+        });
+
+        await waitForFile(outputFullPath);
+
+        // Respond with path to processed image
+        res.json({ outputImage: `/output/${path.basename(outputImage)}` });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Processing failed');
     }
-    await new Promise(res => setTimeout(res, 1000));
-  }
-  throw new Error('Timed out waiting for ComfyUI output');
-}
+});
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+    console.log(`✅ Server running at http://localhost:${PORT}`);
 });
