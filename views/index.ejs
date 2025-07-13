@@ -29,8 +29,7 @@
             <div class="output-section">
                 <h2>Processed Output</h2>
                 <div id="outputArea" class="image-box">
-                    <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
-                    <p class="progressPercentage"></p>
+                    <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.<br><span class="progressPercentage"></span></p>
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
                 </div>
                 <a id="downloadLink" href="#" download style="display:none;">
@@ -58,7 +57,8 @@
         const queueSizeSpan = document.getElementById('queueSize');
         const processingStatusSpan = document.getElementById('processingStatus');
         const yourPositionSpan = document.getElementById('yourPosition');
-        const progressPercentageSpan = document.getElementsByClassName('progressPercentage');
+        // Changed to querySelectorAll for class selection
+        const progressPercentageSpans = document.querySelectorAll('.progressPercentage'); 
 
         // State Variables
         let currentRequestId = null;
@@ -69,7 +69,6 @@
 
         socket.on('connect', () => {
             console.log('Socket.IO: Connected to server.');
-            // Only attempt to rejoin if currentRequestId is set (e.g., after a refresh)
             if (currentRequestId) {
                 socket.emit('joinRoom', currentRequestId);
                 console.log(`Socket.IO: Rejoining room ${currentRequestId}`);
@@ -79,6 +78,13 @@
         socket.on('disconnect', () => {
             console.log('Socket.IO: Disconnected from server.');
         });
+
+        // Helper to update all progress percentage spans
+        function updateProgressPercentage(text) {
+            progressPercentageSpans.forEach(span => {
+                span.textContent = text;
+            });
+        }
 
         // Listen for processing progress updates from the server
         socket.on('processingProgress', (progress) => {
@@ -96,9 +102,9 @@
                 return;
             }
 
-            progressPercentageSpan.textContent = `: ${percentage}%`;
+            updateProgressPercentage(`: ${percentage}%`); // Use the new helper function
             processingStatusSpan.textContent = 'Processing';
-            outputPlaceholder.textContent = 'Processing your image...'; // Update placeholder text
+            outputPlaceholder.textContent = 'Processing your image...';
         });
 
         // Listen for immediate queue updates (e.g., when your turn comes)
@@ -106,13 +112,11 @@
             console.log('Socket.IO: Received queueUpdate:', data);
             queueSizeSpan.textContent = data.queueSize;
 
-            // This block is for *general* queue updates for the current request,
-            // not specifically for completion.
             if (currentRequestId && data.requestId === currentRequestId) {
                 if (data.status === 'processing') {
                     yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
-                    // progressPercentageSpan is updated by 'processingProgress' event
+                    updateProgressPercentage(''); // Clear progress percentage
                     outputPlaceholder.textContent = 'Processing your image...';
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
@@ -120,23 +124,20 @@
                 } else if (data.status === 'pending') {
                     yourPositionSpan.textContent = `${data.yourPosition}`;
                     processingStatusSpan.textContent = 'Waiting';
-                    progressPercentageSpan.textContent = '';
+                    updateProgressPercentage(''); // Clear progress percentage
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     downloadLink.style.display = 'none';
                 }
             } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
-                // This is the global idle state. Ensure it doesn't override a just-shown image.
-                // It should only reset the UI if truly idle AND no specific request is active.
-                // The `fetchQueueStatus` function handles the final cleanup and setting to idle.
                 processingStatusSpan.textContent = 'Idle';
                 yourPositionSpan.textContent = 'N/A';
-                progressPercentageSpan.textContent = '';
+                updateProgressPercentage(''); // Clear progress percentage
                 outputPlaceholder.textContent = 'Your processed image will appear here.';
                 outputPlaceholder.style.display = 'block';
-                outputImage.style.display = 'none'; // Ensure hidden if completely idle
-                downloadLink.style.display = 'none'; // Ensure hidden if completely idle
+                outputImage.style.display = 'none';
+                downloadLink.style.display = 'none';
             }
         });
 
@@ -144,29 +145,17 @@
         // Handle processing completion via Socket.IO
         socket.on('processingComplete', (data) => {
             console.log('Socket.IO: Received processingComplete event with data:', data);
-            // Check if the completed request is the one we are currently tracking
-            // AND the requestId in the data matches our tracked one, AND it has an outputImage
             if (currentRequestId && data.requestId === currentRequestId && data.outputImage) {
                 console.log(`Frontend: Condition met for processingComplete. Request ID: ${currentRequestId}.`);
                 yourPositionSpan.textContent = 'Done!';
                 processingStatusSpan.textContent = 'Complete';
-                progressPercentageSpan.textContent = '';
+                updateProgressPercentage(''); // Clear progress percentage
 
-                // This is the CRITICAL call that makes the image and download link visible
                 displayResult(data.outputImage);
-
-                // *** IMPORTANT FIX: DO NOT CLEAR currentRequestId HERE! ***
-                // Let the `fetchQueueStatus` polling mechanism (specifically the 'completed' case)
-                // be the definitive place to clear currentRequestId and stop polling.
-                // This prevents `fetchQueueStatus` from immediately overriding the UI state.
-
-                // If you *must* stop polling immediately here, you'd need a more complex state
-                // management to ensure `fetchQueueStatus` doesn't re-hide the image.
-                // For now, removing `currentRequestId = null;` is the key.
 
                 if (pollingIntervalId) {
                     clearInterval(pollingIntervalId);
-                    pollingIntervalId = null; // Stop polling now that we received completion via Socket.IO
+                    pollingIntervalId = null;
                     console.log('Frontend: Polling stopped by processingComplete event.');
                 }
             } else {
@@ -176,7 +165,7 @@
                     'data.outputImage exists:', !!data.outputImage
                 );
             }
-            fetchQueueStatus(); // Still call this to ensure global queue status updates
+            fetchQueueStatus();
         });
 
         // Listen for processing failure
@@ -186,9 +175,9 @@
                 console.error(`Frontend: Processing failed for tracked request ID ${currentRequestId}.`);
                 yourPositionSpan.textContent = 'Error!';
                 processingStatusSpan.textContent = 'Failed';
-                progressPercentageSpan.textContent = '';
+                updateProgressPercentage(''); // Clear progress percentage
                 displayError(data.errorMessage || 'Unknown processing error.');
-                currentRequestId = null; // Clear current request ID on failure
+                currentRequestId = null;
                 if (pollingIntervalId) {
                     clearInterval(pollingIntervalId);
                     pollingIntervalId = null;
@@ -197,26 +186,25 @@
             } else {
                 console.warn('Frontend: Processing failed for an untracked request or without request ID:', data);
             }
-            fetchQueueStatus(); // Update overall queue status
+            fetchQueueStatus();
         });
 
         // --- UI Helper Functions ---
         function resetUIForNewUpload() {
             console.log('Frontend: Resetting UI for a new upload.');
             outputImage.style.display = 'none';
-            outputImage.src = ''; // Clear previous image source
+            outputImage.src = '';
             outputPlaceholder.style.display = 'block';
-            outputPlaceholder.style.color = '#fff'; // Reset color in case of previous error
+            outputPlaceholder.style.color = '#fff';
             outputPlaceholder.textContent = 'Uploading...';
             downloadLink.style.display = 'none';
             downloadLink.href = '#';
-            currentRequestId = null; // Clear old request ID
+            currentRequestId = null;
             yourPositionSpan.textContent = 'Submitting...';
             processingStatusSpan.textContent = 'Uploading...';
-            progressPercentageSpan.textContent = '';
+            updateProgressPercentage(''); // Clear progress percentage
             queueSizeSpan.textContent = '0';
 
-            // Ensure polling is stopped for the previous request if a new one starts
             if (pollingIntervalId) {
                 clearInterval(pollingIntervalId);
                 pollingIntervalId = null;
@@ -236,26 +224,24 @@
             outputImage.src = imageUrl;
             console.log('Frontend: outputImage.src set to:', outputImage.src);
 
-            // Add detailed onload/onerror handlers for the image element
-            // These handlers ensure the display property is set AFTER the image is confirmed loaded.
             outputImage.onload = () => {
                 console.log('Frontend: Image loaded successfully from:', outputImage.src);
-                outputImage.style.display = 'block'; // Make the image visible
-                outputPlaceholder.style.display = 'none'; // Hide the placeholder
+                outputImage.style.display = 'block';
+                outputPlaceholder.style.display = 'none';
                 console.log('Frontend: Output image displayed. Placeholder hidden.');
             };
 
             outputImage.onerror = () => {
                 console.error('Frontend: Failed to load image from:', outputImage.src);
                 displayError("Failed to load processed image. Check console for network errors.");
-                outputImage.style.display = 'none'; // Ensure image is hidden on error
-                outputPlaceholder.style.display = 'block'; // Show placeholder with error message
+                outputImage.style.display = 'none';
+                outputPlaceholder.style.display = 'block';
             };
 
             const filename = imageUrl.split('/').pop();
             downloadLink.href = imageUrl;
             downloadLink.setAttribute('download', filename);
-            downloadLink.style.display = 'inline-block'; // Make the download link visible
+            downloadLink.style.display = 'inline-block';
             console.log('Frontend: Download link set and displayed for filename:', filename);
         }
 
@@ -322,7 +308,7 @@
                 return;
             }
 
-            resetUIForNewUpload(); // Clear UI for new upload
+            resetUIForNewUpload();
 
             const formData = new FormData();
             formData.append('image', inputImage.files[0]);
@@ -342,7 +328,7 @@
                 if (xhr.readyState === 4) {
                     if (xhr.status === 202) {
                         const response = JSON.parse(xhr.responseText);
-                        currentRequestId = response.requestId; // Set currentRequestId here
+                        currentRequestId = response.requestId;
                         console.log(`Frontend: Upload successful. Request ID: ${currentRequestId}. Response:`, response);
 
                         socket.emit('joinRoom', currentRequestId);
@@ -351,22 +337,21 @@
                         queueSizeSpan.textContent = response.queueSize;
                         yourPositionSpan.textContent = response.yourPosition > 0 ? response.yourPosition : 'Processing';
                         processingStatusSpan.textContent = 'Waiting';
-                        progressPercentageSpan.textContent = '';
+                        updateProgressPercentage(''); // Clear percentage as it's now 'Waiting'
                         outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
                         console.log('Frontend: UI updated to waiting state.');
 
-                        // Start polling if not already started
                         if (!pollingIntervalId) {
                             pollingIntervalId = setInterval(fetchQueueStatus, 2000);
                             console.log('Frontend: Started queue status polling.');
                         }
-                        fetchQueueStatus(); // Immediate fetch to update status
+                        fetchQueueStatus();
                     } else {
                         const errorResponse = xhr.responseText || 'Unknown error';
                         alert('Upload failed: ' + errorResponse);
                         console.error('Frontend: Upload failed with status', xhr.status, 'Error:', errorResponse);
                         displayError('Upload failed: ' + errorResponse);
-                        currentRequestId = null; // Clear ID on upload failure
+                        currentRequestId = null;
                         if (pollingIntervalId) {
                             clearInterval(pollingIntervalId);
                             pollingIntervalId = null;
@@ -374,7 +359,7 @@
                         }
                         yourPositionSpan.textContent = 'Error';
                         processingStatusSpan.textContent = 'Failed';
-                        progressPercentageSpan.textContent = '';
+                        updateProgressPercentage(''); // Clear percentage on error
                     }
                 }
             };
@@ -401,14 +386,12 @@
 
                 queueSizeSpan.textContent = data.queueSize;
 
-                // If a current request is being tracked
                 if (currentRequestId) {
-                    // Update specific status based on what server reports for *this* requestId
                     switch (data.status) {
                         case 'pending':
                             yourPositionSpan.textContent = `${data.yourPosition}`;
                             processingStatusSpan.textContent = 'Waiting';
-                            progressPercentageSpan.textContent = '';
+                            updateProgressPercentage('');
                             outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                             outputPlaceholder.style.display = 'block';
                             outputImage.style.display = 'none';
@@ -423,20 +406,18 @@
                             outputImage.style.display = 'none';
                             downloadLink.style.display = 'none';
                             console.log('Frontend: Polling updated: Status processing.');
-                            // Progress percentage is mainly from Socket.IO's 'processingProgress' event
                             break;
                         case 'completed':
                             yourPositionSpan.textContent = 'Done!';
                             processingStatusSpan.textContent = 'Complete';
-                            progressPercentageSpan.textContent = '';
-                            // This part handles display if Socket.IO message was missed
+                            updateProgressPercentage('');
                             if (data.result && data.result.outputImage) {
                                 console.log('Frontend: Polling detected completed status with image, calling displayResult.');
                                 displayResult(data.result.outputImage);
                             } else {
                                 console.warn('Frontend: Polling detected completed status but no outputImage in data.result. This should not happen if backend is correct.');
                             }
-                            currentRequestId = null; // Clear ID after completion is confirmed
+                            currentRequestId = null;
                             if (pollingIntervalId) {
                                 clearInterval(pollingIntervalId);
                                 pollingIntervalId = null;
@@ -446,9 +427,9 @@
                         case 'failed':
                             yourPositionSpan.textContent = 'Error!';
                             processingStatusSpan.textContent = 'Failed';
-                            progressPercentageSpan.textContent = '';
+                            updateProgressPercentage('');
                             displayError(data.result.errorMessage || 'Unknown processing error from polling.');
-                            currentRequestId = null; // Clear ID on failure
+                            currentRequestId = null;
                             if (pollingIntervalId) {
                                 clearInterval(pollingIntervalId);
                                 pollingIntervalId = null;
@@ -457,37 +438,33 @@
                             break;
                         default:
                             yourPositionSpan.textContent = 'N/A';
-                            progressPercentageSpan.textContent = '';
+                            updateProgressPercentage('');
                             console.log('Frontend: Polling updated: Unknown status encountered for current request.');
                             break;
                     }
-                }
-                // Handle global idle state if no specific request is being tracked
-                else if (!data.isProcessing && data.queueSize === 0) {
+                } else if (!data.isProcessing && data.queueSize === 0) {
                     processingStatusSpan.textContent = 'Idle';
                     yourPositionSpan.textContent = 'N/A';
-                    progressPercentageSpan.textContent = '';
+                    updateProgressPercentage('');
                     outputPlaceholder.textContent = 'Your processed image will appear here.';
                     outputPlaceholder.style.display = 'block';
-                    outputImage.style.display = 'none'; // Only hide if truly idle
-                    downloadLink.style.display = 'none'; // Only hide if truly idle
+                    outputImage.style.display = 'none';
+                    downloadLink.style.display = 'none';
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
                         pollingIntervalId = null;
                         console.log('Frontend: Polling stopped as queue is idle and no current request.');
                     }
                 } else {
-                    // This covers cases where no specific request is tracked, but queue is not empty or processing
                     console.log('Frontend: Polling: Not tracking a specific request, and queue is not idle. Waiting for upload.');
                 }
             } catch (error) {
                 console.error('Frontend: Error fetching queue status:', error);
-                // Only show error for tracked request or general system error
                 if (currentRequestId || processingStatusSpan.textContent !== 'Idle') {
                     queueSizeSpan.textContent = 'Error';
                     processingStatusSpan.textContent = 'Error';
                     yourPositionSpan.textContent = 'Error';
-                    progressPercentageSpan.textContent = '';
+                    updateProgressPercentage('');
                     displayError('Failed to get status. Please check connection.');
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
@@ -498,10 +475,8 @@
             }
         }
 
-        // Initial fetch and start polling when the page loads
-        // This ensures UI is up-to-date even on refresh.
         fetchQueueStatus();
-        if (!pollingIntervalId) { // Prevent multiple intervals if already started
+        if (!pollingIntervalId) {
             pollingIntervalId = setInterval(fetchQueueStatus, 2000);
             console.log('Frontend: Initial polling started.');
         }
