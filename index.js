@@ -459,6 +459,7 @@ app.get("/queue-status", (req, res) => {
   let resultData = null;
 
   if (requestId) {
+    // A specific requestId was provided
     if (requestId === currentlyProcessingRequestId) {
       yourPosition = 0;
       status = "processing";
@@ -483,13 +484,12 @@ app.get("/queue-status", (req, res) => {
           `GET /queue-status: Request ${requestId} status is '${status}'.`
         );
       } else {
+        // This is the specific change: only log if a requestId was actually sent.
         console.log(
           `GET /queue-status: Request ${requestId} not found (might be old or completed).`
         );
       }
     }
-  } else {
-    console.log(`GET /queue-status: No requestId provided.`);
   }
 
   res.json({
