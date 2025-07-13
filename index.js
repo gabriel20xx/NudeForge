@@ -67,27 +67,29 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 
   const uploadedFilename = req.file.filename;
-  // Use path.basename to ensure only the filename is used if req.file.filename somehow contains a path
   const uploadedBasename = path.basename(uploadedFilename);
-  const uploadedPathForComfyUI = path.posix.join("input", uploadedBasename); // Path as ComfyUI expects it
+  const uploadedPathForComfyUI = path.posix.join("input", uploadedBasename);
 
   console.log(`POST /upload: Uploaded file: ${uploadedFilename}`);
   console.log(`POST /upload: Path for ComfyUI: ${uploadedPathForComfyUI}`);
 
   try {
+    // --- Step 1: Record existing files in OUTPUT_DIR before ComfyUI generates a new one ---
+    console.log(`POST /upload: Scanning OUTPUT_DIR before ComfyUI call...`);
+    const filesBeforeComfyUI = new Set(fs.readdirSync(OUTPUT_DIR));
+    console.log(`POST /upload: Files in OUTPUT_DIR before: ${Array.from(filesBeforeComfyUI).join(', ')}`);
+
     console.log(`POST /upload: Reading workflow file from ${WORKFLOW_PATH}...`);
     const workflowJson = fs.readFileSync(WORKFLOW_PATH, "utf-8");
     let workflow = JSON.parse(workflowJson);
     console.log(`POST /upload: Workflow JSON parsed successfully.`);
 
-    // Access the actual nodes within the "prompt" key
     workflow = workflow.prompt;
     if (!workflow) {
       console.error(`POST /upload: Workflow JSON does not contain a "prompt" key.`);
       return res.status(500).send("Invalid workflow.json format: Missing 'prompt' key.");
     }
 
-    // Find CLIPTextEncode node and update its text
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
     );
@@ -99,7 +101,6 @@ app.post("/upload", upload.single("image"), async (req, res) => {
       console.warn(`POST /upload: CLIPTextEncode node not found in workflow. Prompt will not be changed.`);
     }
 
-    // Find VHS_LoadImagePath node
     const imageNode = Object.values(workflow).find(
       (node) => node.class_type === "VHS_LoadImagePath"
     );
@@ -110,11 +111,9 @@ app.post("/upload", upload.single("image"), async (req, res) => {
         .send("VHS_LoadImagePath node not found in workflow. Please check your workflow.json.");
     }
 
-    // Replace the image input path with the uploaded file path
     imageNode.inputs["image"] = uploadedPathForComfyUI;
     console.log(`POST /upload: VHS_LoadImagePath node updated with image path: ${imageNode.inputs["image"]}`);
 
-    // Re-wrap the workflow in the "prompt" key before sending to ComfyUI
     const comfyUIRequestBody = { prompt: workflow };
     console.log(`POST /upload: Sending workflow to ComfyUI at ${COMFYUI_URL}...`);
     const axiosResponse = await axios.post(COMFYUI_URL, comfyUIRequestBody, {
@@ -123,43 +122,40 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     console.log(`POST /upload: Workflow sent to ComfyUI. Response status: ${axiosResponse.status}`);
     console.log(`POST /upload: ComfyUI response data:`, axiosResponse.data);
 
-    // This part is the most critical and needs a more robust solution for production.
-    // ComfyUI's /prompt endpoint typically returns a prompt_id. You'd then poll /history.
-    // For now, we'll assume a file is saved to OUTPUT_DIR and wait for it.
-    // The workflow should be configured in ComfyUI to save images to the 'output' folder.
+    const expectedOutputPrefix = "Nudified";
 
-    // A placeholder for the expected output filename. In a real app, you'd get this from ComfyUI history.
-    // Based on your workflow, the SaveImagePlus node has a prefix "Nudified".
-    // We'll search for a file starting with "Nudified" that appeared recently.
-    const expectedOutputPrefix = "Nudified"; // From your workflow's SaveImagePlus node
+    console.log(`POST /upload: Waiting for NEW output file with prefix "${expectedOutputPrefix}" in ${OUTPUT_DIR}...`);
 
-    console.log(`POST /upload: Waiting for output file with prefix "${expectedOutputPrefix}" in ${OUTPUT_DIR}...`);
-
-    const findNewOutputFile = async (directory, prefix, retries = 1000, delay = 1000) => {
+    const findNewOutputFile = async (directory, prefix, filesAlreadyExist, retries = 100, delay = 1000) => {
+      let foundNewFile = null;
       for (let i = 0; i < retries; i++) {
-        const files = fs.readdirSync(directory);
-        const newFiles = files.filter(file => file.startsWith(prefix));
+        const filesAfterComfyUI = fs.readdirSync(directory);
+        const newFiles = filesAfterComfyUI.filter(file =>
+          file.startsWith(prefix) && !filesAlreadyExist.has(file)
+        );
+
         if (newFiles.length > 0) {
-          // Sort by modification time (descending) to get the latest file
+          // Sort by modification time (descending) to get the latest file among the *new* ones
           newFiles.sort((a, b) => {
             const statA = fs.statSync(path.join(directory, a)).mtime.getTime();
             const statB = fs.statSync(path.join(directory, b)).mtime.getTime();
             return statB - statA;
           });
-          console.log(`POST /upload: Found new output file: ${newFiles[0]}`);
-          return newFiles[0];
+          foundNewFile = newFiles[0];
+          console.log(`POST /upload: Found NEW output file: ${foundNewFile}`);
+          return foundNewFile;
         }
         console.log(`POST /upload: No new output file found yet (attempt ${i + 1}/${retries}). Retrying in ${delay / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
-      throw new Error(`Timeout: No output file with prefix "${prefix}" found in ${directory}`);
+      throw new Error(`Timeout: No NEW output file with prefix "${prefix}" found in ${directory} after ${retries} attempts.`);
     };
 
-    const outputFilename = await findNewOutputFile(OUTPUT_DIR, expectedOutputPrefix);
+    // --- Step 2: Call the modified findNewOutputFile with the list of existing files ---
+    const outputFilename = await findNewOutputFile(OUTPUT_DIR, expectedOutputPrefix, filesBeforeComfyUI);
     const outputRelativePath = `/output/${outputFilename}`;
     const outputFullPath = path.join(OUTPUT_DIR, outputFilename);
 
-    // One final check to ensure the file is fully written
     await new Promise((resolve, reject) => {
       fs.access(outputFullPath, fs.constants.F_OK, (err) => {
         if (err) {
