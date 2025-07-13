@@ -23,7 +23,7 @@
                 <div id="dropArea" class="drop-area image-box">
                     <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
                     <img id="previewImage" />
-                    <input id="imageInput" type="file" name="image" accept="image/*" />
+                    <input id="inputImage" type="file" name="image" accept="image/*" />
                 </div>
                 <button class="upload-btn" type="submit">Upload</button>
             </div>
@@ -46,7 +46,7 @@
     </div>
 
     <script>
-        const imageInput = document.getElementById('imageInput');
+        const inputImage = document.getElementById('inputImage');
         const previewImage = document.getElementById('previewImage');
         const dropArea = document.getElementById('dropArea');
         const dropText = document.getElementById('dropText');
@@ -118,8 +118,8 @@
             reader.readAsDataURL(file);
         }
 
-        imageInput.addEventListener('change', () => {
-            if (imageInput.files[0]) showPreview(imageInput.files[0]);
+        inputImage.addEventListener('change', () => {
+            if (inputImage.files[0]) showPreview(inputImage.files[0]);
         });
 
         ['dragenter', 'dragover'].forEach(event =>
@@ -138,12 +138,12 @@
             })
         );
 
-        dropArea.addEventListener('click', () => imageInput.click());
+        dropArea.addEventListener('click', () => inputImage.click());
 
         dropArea.addEventListener('drop', e => {
             const file = e.dataTransfer.files[0];
             if (file) {
-                imageInput.files = e.dataTransfer.files;
+                inputImage.files = e.dataTransfer.files;
                 showPreview(file);
             }
         });
@@ -152,7 +152,7 @@
         uploadForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
-            if (!imageInput.files || imageInput.files.length === 0) {
+            if (!inputImage.files || inputImage.files.length === 0) {
                 alert('Please select an image before uploading.');
                 return;
             }
@@ -160,7 +160,7 @@
             resetUIForNewUpload(); // Reset UI state for a new upload
 
             const formData = new FormData();
-            formData.append('image', imageInput.files[0]);
+            formData.append('image', inputImage.files[0]);
 
             const xhr = new XMLHttpRequest();
 
