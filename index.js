@@ -58,12 +58,15 @@ const upload = multer({ storage });
 const processingQueue = [];
 let isProcessing = false; // Flag to indicate if ComfyUI is currently processing
 
+// Store results or errors for requests
+const requestStatus = {}; // { requestId: { status: 'pending'|'processing'|'completed'|'failed', data: any } }
+let currentlyProcessingRequestId = null; // Track the ID of the request currently being processed
+
 /**
  * Processes the next item in the queue if ComfyUI is not busy.
  */
 async function processQueue() {
-  // Update queue size for frontend immediately when processing starts/ends
-  updateFrontendQueueSize(); // This is just a log, client polls
+  updateFrontendQueueSize();
 
   if (isProcessing || processingQueue.length === 0) {
     return; // Already processing or queue is empty
@@ -71,14 +74,16 @@ async function processQueue() {
 
   isProcessing = true;
   const {
-    req,
-    res,
     requestId,
     uploadedFilename,
     uploadedBasename,
     uploadedPathForComfyUI,
     filesBeforeComfyUI,
   } = processingQueue.shift();
+
+  currentlyProcessingRequestId = requestId;
+  requestStatus[requestId].status = "processing";
+
   console.log(
     `Queue: Starting processing for requestId: ${requestId}, filename: ${uploadedFilename}. ${processingQueue.length} items remaining.`
   );
@@ -93,8 +98,7 @@ async function processQueue() {
 
     if (!workflow) {
       console.error(`Processing Queue: Workflow JSON is not valid`);
-      res.status(500).send("Invalid workflow.json format."); // Send response
-      return; // Exit
+      throw new Error("Invalid workflow.json format.");
     }
 
     const clipTextNode = Object.values(workflow).find(
@@ -136,12 +140,9 @@ async function processQueue() {
       console.error(
         `Processing Queue: VHS_LoadImagePath node not found in workflow.`
       );
-      res
-        .status(500)
-        .send(
-          "VHS_LoadImagePath node not found in workflow. Please check your workflow.json."
-        ); // Send response
-      return; // Exit
+      throw new Error(
+        "VHS_LoadImagePath node not found in workflow. Please check your workflow.json."
+      );
     }
 
     imageNode.inputs["image"] = uploadedPathForComfyUI;
@@ -199,7 +200,7 @@ async function processQueue() {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
       throw new Error(
-        `Timeout: No NEW output file  found in ${directory} after ${retries} attempts.`
+        `Timeout: No NEW output file found in ${directory} after ${retries} attempts.`
       );
     };
 
@@ -228,9 +229,10 @@ async function processQueue() {
     });
 
     console.log(
-      `Processing Queue: Sending output image path to client for requestId ${requestId}: ${outputRelativePath}`
+      `Processing Queue: Setting status to completed for requestId ${requestId}: ${outputRelativePath}`
     );
-    res.json({ outputImage: outputRelativePath });
+    requestStatus[requestId].status = "completed";
+    requestStatus[requestId].data = { outputImage: outputRelativePath };
   } catch (err) {
     console.error(
       `Processing Queue: Error during processing for requestId ${requestId}, filename ${uploadedFilename}:`
@@ -247,9 +249,14 @@ async function processQueue() {
     } else {
       console.error(`Error message: ${err.message}`);
     }
-    res.status(500).send("Processing failed. Check server logs for details.");
+    requestStatus[requestId].status = "failed";
+    requestStatus[requestId].data = {
+      error: "Processing failed. Check server logs for details.",
+      errorMessage: err.message, // Provide a more specific error message
+    };
   } finally {
     isProcessing = false; // Mark processing as complete
+    currentlyProcessingRequestId = null; // Clear the currently processing ID
     processQueue(); // Attempt to process the next item in the queue
   }
 }
@@ -263,43 +270,39 @@ app.get("/", (req, res) => {
 
 // New endpoint to get queue size and position
 app.get("/queue-status", (req, res) => {
-  // Renamed from /queue-size to be more generic
   const requestId = req.query.requestId; // Get requestId from query parameter
-  let positionInQueue = -1; // -1 means not found
+  let yourPosition = -1; // -1 means not found
+  let status = "unknown";
+  let resultData = null;
 
   if (requestId) {
-    // Find the index of the request with the given ID
-    positionInQueue = processingQueue.findIndex(
-      (item) => item.requestId === requestId
-    );
-    // If the item is currently being processed, it's not in the queue anymore, but its status is 'processing'
-    // For simplicity, we'll say its position is 0 (or 'now processing') if it was the last one picked up
-    // A more robust solution might track the currently processing item separately.
-    // Here, if it's not in the queue, it means it's either processed or being processed.
-    if (positionInQueue === -1 && isProcessing) {
-      // If the client's request *just* got picked up, it's no longer in the queue,
-      // but it's the one currently being processed.
-      // We can signal this by setting position to 0.
-      // This is a simplification; ideally, you'd track the `currentlyProcessingRequestId`.
-      // For now, if they ask for their ID and it's not in the queue but something IS processing,
-      // we assume it's them.
-      // This needs refinement for absolute accuracy if multiple clients are polling VERY rapidly.
-      // Best practice: ComfyUI's /history endpoint combined with websocket
-      // updates for the client's specific job.
-      // For a simple polling solution:
-      // If client's request ID is not in queue AND isProcessing is true, it implies client's request
-      // is the one being processed.
-      // However, `processingQueue.shift()` already removes it.
-      // A better way is for the server to explicitly keep track of `currentProcessingRequestId`.
-      // For this simple queue, if it's not in queue, it's already past it.
-      // We return -1 if not found in queue.
+    if (requestId === currentlyProcessingRequestId) {
+      yourPosition = 0; // Currently processing
+      status = "processing";
+    } else {
+      // Find the index of the request with the given ID in the queue
+      const queueIndex = processingQueue.findIndex(
+        (item) => item.requestId === requestId
+      );
+      if (queueIndex !== -1) {
+        yourPosition = queueIndex + 1; // +1 for 1-based indexing
+        status = "pending";
+      } else if (requestStatus[requestId]) {
+        // Check if the request has completed or failed
+        status = requestStatus[requestId].status;
+        resultData = requestStatus[requestId].data;
+        // If completed or failed, we can remove it from requestStatus after a while
+        // or let the client handle cleanup. For now, keep it.
+      }
     }
   }
 
   res.json({
     queueSize: processingQueue.length,
     isProcessing: isProcessing,
-    yourPosition: positionInQueue === -1 ? -1 : positionInQueue + 1, // +1 for 1-based indexing
+    yourPosition: yourPosition,
+    status: status, // pending, processing, completed, failed, unknown
+    result: resultData, // Contains outputImage or error
   });
 });
 
@@ -329,10 +332,11 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     ).join(", ")}`
   );
 
+  // Initialize status for this request
+  requestStatus[requestId] = { status: "pending" };
+
   // Add the request details to the queue
   processingQueue.push({
-    req,
-    res,
     requestId, // Store the unique ID with the request
     uploadedFilename,
     uploadedBasename,
