@@ -16,7 +16,7 @@ h1 {
 
 /* Progress Bar Styles */
 #progressContainer {
-  width: 100%;
+  width: 96%;
   height: 8px;
   background: black;
   margin-top: 1em;
