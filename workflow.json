@@ -326,7 +326,7 @@
   },
   "244": {
     "inputs": {
-      "image": "input/",
+      "image": "input/example.png",
       "custom_width": 0,
       "custom_height": 0
     },
