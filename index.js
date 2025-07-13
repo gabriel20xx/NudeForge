@@ -77,10 +77,9 @@ async function processQueue() {
     let workflow = JSON.parse(workflowJson);
     console.log(`Processing Queue: Workflow JSON parsed successfully.`);
 
-    workflow = workflow.prompt;
     if (!workflow) {
-      console.error(`Processing Queue: Workflow JSON does not contain a "prompt" key.`);
-      res.status(500).send("Invalid workflow.json format: Missing 'prompt' key."); // Send response
+      console.error(`Processing Queue: Workflow JSON does not valid`);
+      res.status(500).send("Invalid workflow.json format."); // Send response
       return; // Exit
     }
 
@@ -93,6 +92,16 @@ async function processQueue() {
       console.log(`Processing Queue: CLIPTextEncode node updated with new prompt.`);
     } else {
       console.warn(`Processing Queue: CLIPTextEncode node not found in workflow. Prompt will not be changed.`);
+    }
+
+    const inputNameNode = Object.values(workflow).find(
+      (node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name"
+    );
+    if (inputNameNode) {
+      inputNameNode.inputs.value = uploadedBasename;
+      console.log(`Processing Queue: PrimitiveString node updated with input name.`);
+    } else {
+      console.warn(`Processing Queue: PrimitiveString node with title "Input Name" not found in workflow. Input name will not be set.`);
     }
 
     const imageNode = Object.values(workflow).find(
