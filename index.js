@@ -86,10 +86,9 @@ async function processQueue() {
     `Queue: Starting processing for requestId: ${requestId}, filename: ${uploadedFilename}. ${processingQueue.length} items remaining.`
   );
 
-  const inputFileNameWithoutExt = path.parse(uploadedFilename).name;
-  const expectedOutputFilename = `${inputFileNameWithoutExt}-nudified.png`; // Ensure this matches ComfyUI output
-  const expectedOutputFullPath = path.join(OUTPUT_DIR, expectedOutputFilename);
-  const expectedOutputRelativePath = `/output/${expectedOutputFilename}`;
+  const inputFileNameWithoutExt = path.parse(uploadedFilename).name; // e.g., "myimage-uuidpart"
+  // The expected suffix of the output file from ComfyUI
+  const expectedOutputSuffix = `${inputFileNameWithoutExt}-nudified.png`; // Or .jpg, based on your ComfyUI workflow output
 
 
   try {
@@ -127,6 +126,10 @@ async function processQueue() {
         node._meta?.title === "Input Name"
     );
     if (inputNameNode) {
+      // This value is what ComfyUI will use as its base prefix.
+      // E.g., if this is "myimage-uuidpart", ComfyUI's Save Image node
+      // configured with "${input_name}-nudified" will produce "myimage-uuidpart-nudified.png"
+      // and then prepend its timestamp.
       inputNameNode.inputs.value = inputFileNameWithoutExt;
       console.log(
         `Processing Queue: PrimitiveString node (Input Name) updated with: ${inputFileNameWithoutExt}`
@@ -166,38 +169,46 @@ async function processQueue() {
 
     // --- Wait for the specific output file to appear (Indefinite Loop) ---
     console.log(
-      `Processing Queue: Continuously waiting for expected output file: ${expectedOutputFilename}...`
+      `Processing Queue: Continuously waiting for expected output file ending with: ${expectedOutputSuffix}...`
     );
 
+    let foundOutputFilename = null;
     let retryCount = 0;
     const delayBetweenChecks = 500; // Check every 0.5 seconds
 
     while (true) { // Loop indefinitely
       try {
-        await fs.promises.access(expectedOutputFullPath, fs.constants.F_OK);
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small buffer for file system writes
-        console.log(`Processing Queue: Found and accessed expected output file: ${path.basename(expectedOutputFullPath)}`);
-        break; // Exit the loop if file is found
-      } catch (err) {
-        if (err.code === 'ENOENT') {
+        const filesInOutputDir = await fs.promises.readdir(OUTPUT_DIR);
+        foundOutputFilename = filesInOutputDir.find(file => file.endsWith(expectedOutputSuffix));
+
+        if (foundOutputFilename) {
+          const fullPath = path.join(OUTPUT_DIR, foundOutputFilename);
+          // Verify file is fully written/accessible
+          await fs.promises.access(fullPath, fs.constants.F_OK);
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small buffer for file system writes
+          console.log(`Processing Queue: Found and accessed expected output file: ${foundOutputFilename}`);
+          break; // Exit the loop if file is found
+        } else {
           retryCount++;
-          if (retryCount % 10 === 0) { // Log every 10th retry to avoid spam
-            console.log(`Processing Queue: Still waiting for ${path.basename(expectedOutputFullPath)} (checks: ${retryCount}).`);
+          if (retryCount % 10 === 0) {
+            console.log(`Processing Queue: Still waiting for file ending with ${expectedOutputSuffix} (checks: ${retryCount}).`);
           }
           await new Promise((resolve) => setTimeout(resolve, delayBetweenChecks));
-        } else {
-          // Other file access errors are more critical; log and re-throw to fail the job
-          console.error(`Processing Queue: Critical error accessing file ${expectedOutputFullPath}: ${err.message}`);
-          throw err; // Re-throw to mark the job as failed
         }
+      } catch (err) {
+        // Handle errors during readdir or access (e.g., directory not found, permissions)
+        console.error(`Processing Queue: Error while waiting for output file: ${err.message}`);
+        throw err; // Re-throw to mark the job as failed
       }
     }
 
+    const finalOutputRelativePath = `/output/${foundOutputFilename}`;
+
     console.log(
-      `Processing Queue: Setting status to completed for requestId ${requestId}: ${expectedOutputRelativePath}`
+      `Processing Queue: Setting status to completed for requestId ${requestId}: ${finalOutputRelativePath}`
     );
     requestStatus[requestId].status = "completed";
-    requestStatus[requestId].data = { outputImage: expectedOutputRelativePath };
+    requestStatus[requestId].data = { outputImage: finalOutputRelativePath };
   } catch (err) {
     console.error(
       `Processing Queue: Error during processing for requestId ${requestId}, filename ${uploadedFilename}:`
@@ -229,9 +240,6 @@ async function processQueue() {
     processQueue();
   }
 }
-
-// ... rest of the server code (queue-status, upload, app.listen) remains the same ...
-// It's copied below for completeness but no changes are made to it.
 
 // Serve frontend
 app.get("/", (req, res) => {
