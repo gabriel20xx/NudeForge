@@ -2,7 +2,7 @@ body {
   font-family: 'Segoe UI', sans-serif;
   margin: 0;
   padding: 0;
-  background: #f9f9f9;
+  background: black;
   color: #333;
   text-align: center;
 }
@@ -32,9 +32,9 @@ h1 {
 .drop-area {
   width: 100%;
   height: 600px;
-  border: 2px dashed #999;
+  border: 2px dashed darkorange;
   border-radius: 8px;
-  background: #f0f0f0;
+  background: black;
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -47,12 +47,12 @@ h1 {
 }
 
 .drop-area.drag-over {
-  background: #e0e0ff;
+  background: black;
   border-color: darkorange;
 }
 
 .drop-area p {
-  color: #888;
+  color: black;
   font-size: 1rem;
   text-align: center;
 }
@@ -71,7 +71,7 @@ input[type="file"] {
 .image-box {
   width: 100%;
   height: 600px; /* Match .drop-area */
-  background: #fff;
+  background: black;
   border: 2px dashed darkorange; /* Match outline color */
   border-radius: 8px;
   position: relative;
@@ -100,7 +100,7 @@ input[type="file"] {
 }
 
 .placeholder, #previewPlaceholder {
-  color: #888;
+  color: white;
   padding: 1em;
 }
 
@@ -129,7 +129,7 @@ button:hover {
 }
 
 .settings-section {
-  background: #eeeeee;
+  background: black;
   padding: 2rem;
   margin: 2rem;
   border-radius: 12px;
@@ -138,7 +138,7 @@ button:hover {
 #progressContainer {
   width: 100%;
   height: 8px;
-  background: #ddd;
+  background: black;
   margin-top: 1em;
   border-radius: 4px;
   overflow: hidden;
