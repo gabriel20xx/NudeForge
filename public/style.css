@@ -14,13 +14,6 @@ h1 {
     margin: 0;
 }
 
-/* Removed all progress bar specific styles */
-#progressContainer,
-#progressBar {
-    display: none !important; /* Force hide if any JS accidentally tries to show it */
-}
-
-
 .main-container {
     display: flex;
     flex-wrap: wrap;

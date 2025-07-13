@@ -56,7 +56,7 @@
         const queueSizeSpan = document.getElementById('queueSize');
         const processingStatusSpan = document.getElementById('processingStatus');
         const yourPositionSpan = document.getElementById('yourPosition');
-        const progressPercentageSpan = document.getElementById('progressPercentage'); // NEW: Get the progress span
+        const progressPercentageSpan = document.getElementById('progressPercentage');
 
         let currentRequestId = null;
         let pollingIntervalId = null;
@@ -66,6 +66,7 @@
 
         socket.on('connect', () => {
             console.log('Socket.IO: Connected to server.');
+            // Only attempt to rejoin if currentRequestId is set (e.g., after a refresh)
             if (currentRequestId) {
                 socket.emit('joinRoom', currentRequestId);
                 console.log(`Socket.IO: Rejoining room ${currentRequestId}`);
@@ -79,26 +80,26 @@
         // Listen for processing progress updates from the server
         socket.on('processingProgress', (progress) => {
             console.log('Socket.IO: Received processingProgress:', progress);
-            if (currentRequestId && (processingStatusSpan.textContent === 'Processing' || processingStatusSpan.textContent.startsWith('Processing:'))) {
-                let percentage;
+            // Ensure this progress is for the currently tracked request
+            // The server emits progress to the specific room, so we don't need to check currentRequestId here
+            let percentage;
 
-                if (progress.type === "global_steps") {
-                    percentage = Math.round((progress.value / progress.max) * 100);
-                } else {
-                    // Fallback, though with backend changes, this should ideally be "global_steps"
-                    percentage = Math.round((progress.value / progress.max) * 100);
-                }
-
-                if (isNaN(percentage)) {
-                    console.warn('Invalid percentage received:', progress);
-                    return;
-                }
-
-                // UPDATE THE STATUS DISPLAY WITH PERCENTAGE
-                progressPercentageSpan.textContent = `: ${percentage}%`;
-                processingStatusSpan.textContent = 'Processing'; // Ensure base text is 'Processing'
-                outputPlaceholder.textContent = 'Processing your image...'; // Keep this generic message
+            if (progress.type === "global_steps") {
+                percentage = Math.round((progress.value / progress.max) * 100);
+            } else {
+                // Fallback, should ideally not be hit with current backend setup
+                percentage = Math.round((progress.value / progress.max) * 100);
             }
+
+            if (isNaN(percentage)) {
+                console.warn('Invalid percentage received:', progress);
+                return;
+            }
+
+            // Update the status display with percentage
+            progressPercentageSpan.textContent = `: ${percentage}%`;
+            processingStatusSpan.textContent = 'Processing'; // Ensure base text is 'Processing'
+            outputPlaceholder.textContent = 'Processing your image...'; // Keep this generic message
         });
 
         // Listen for immediate queue updates (e.g., when your turn comes)
@@ -106,17 +107,17 @@
             console.log('Socket.IO: Received queueUpdate:', data);
             queueSizeSpan.textContent = data.queueSize;
 
-            if (data.requestId === currentRequestId) {
+            // Update status relevant to the current user's request
+            if (currentRequestId && data.requestId === currentRequestId) {
                 if (data.status === 'processing') {
                     yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
-                    progressPercentageSpan.textContent = ''; // Clear percentage if it was there
-                    // Handle initial progress if sent with queueUpdate
-                    if (data.progress) {
+                    progressPercentageSpan.textContent = ''; // Clear percentage for initial state
+                    if (data.progress) { // If initial progress is sent with queueUpdate
                         const percentage = Math.round((data.progress.value / data.progress.max) * 100);
                         progressPercentageSpan.textContent = `: ${percentage}%`;
                     }
-                    outputPlaceholder.textContent = 'Processing your image...'; // Initial message
+                    outputPlaceholder.textContent = 'Processing your image...';
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     downloadLink.style.display = 'none';
@@ -131,6 +132,7 @@
                     downloadLink.style.display = 'none';
                 }
             } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
+                // Global idle state when no request is active
                 processingStatusSpan.textContent = 'Idle';
                 yourPositionSpan.textContent = 'N/A';
                 progressPercentageSpan.textContent = ''; // Clear percentage
@@ -143,37 +145,47 @@
 
         // Listen for processing completion
         socket.on('processingComplete', (data) => {
-            if (data.requestId === currentRequestId) {
-                console.log('Socket.IO: Processing complete:', data);
+            // Check if the completed request is the one we are currently tracking
+            if (currentRequestId && data.outputImage) {
+                console.log('Socket.IO: Processing complete for current request:', data);
                 yourPositionSpan.textContent = 'Done!';
                 processingStatusSpan.textContent = 'Complete';
                 progressPercentageSpan.textContent = ''; // Clear percentage on completion
-                if (data.outputImage) {
-                    displayResult(data.outputImage);
-                }
-                currentRequestId = null;
+
+                // *** THIS IS THE KEY FIX ***
+                // The outputImage is directly in `data.outputImage`
+                displayResult(data.outputImage);
+
+                currentRequestId = null; // Clear the request ID as processing is done
                 if (pollingIntervalId) {
                     clearInterval(pollingIntervalId);
                     pollingIntervalId = null;
                 }
+            } else {
+                console.log('Socket.IO: Processing complete, but not for current request or no image received:', data);
             }
+            // Always fetch queue status to update global queue info
             fetchQueueStatus();
         });
 
         // Listen for processing failure
         socket.on('processingFailed', (data) => {
-            if (data.requestId === currentRequestId) {
+            // Check if the failed request is the one we are currently tracking
+            if (currentRequestId && data.requestId === currentRequestId) {
                 console.error('Socket.IO: Processing failed:', data);
                 yourPositionSpan.textContent = 'Error!';
                 processingStatusSpan.textContent = 'Failed';
                 progressPercentageSpan.textContent = ''; // Clear percentage on failure
                 displayError(data.errorMessage || 'Unknown processing error.');
-                currentRequestId = null;
+                currentRequestId = null; // Clear the request ID as processing is done
                 if (pollingIntervalId) {
                     clearInterval(pollingIntervalId);
                     pollingIntervalId = null;
                 }
+            } else {
+                console.error('Socket.IO: Processing failed for an untracked request:', data);
             }
+            // Always fetch queue status to update global queue info
             fetchQueueStatus();
         });
 
@@ -183,10 +195,10 @@
             outputImage.src = '';
             outputPlaceholder.style.display = 'block';
             outputPlaceholder.style.color = '#fff'; // Ensure placeholder text is visible
-            outputPlaceholder.textContent = 'Uploading...'; // Initial upload message, no percentage here
+            outputPlaceholder.textContent = 'Uploading...'; // Initial upload message
             downloadLink.style.display = 'none';
             downloadLink.href = '#';
-            currentRequestId = null;
+            currentRequestId = null; // Reset currentRequestId
             yourPositionSpan.textContent = 'Submitting...';
             processingStatusSpan.textContent = 'Uploading...';
             progressPercentageSpan.textContent = ''; // Clear percentage
@@ -200,8 +212,13 @@
 
         function displayResult(imageUrl) {
             outputImage.src = imageUrl;
-            outputImage.style.display = 'block';
-            outputPlaceholder.style.display = 'none'; // Hide placeholder once image is loaded
+            outputImage.onload = () => { // Ensure image is loaded before displaying
+                outputImage.style.display = 'block';
+                outputPlaceholder.style.display = 'none'; // Hide placeholder once image is loaded
+            };
+            outputImage.onerror = () => { // Handle image loading errors
+                displayError("Failed to load processed image.");
+            };
 
             const filename = imageUrl.split('/').pop();
             downloadLink.href = imageUrl;
@@ -267,7 +284,7 @@
                 return;
             }
 
-            resetUIForNewUpload();
+            resetUIForNewUpload(); // Reset UI at the start of a new upload
 
             const formData = new FormData();
             formData.append('image', inputImage.files[0]);
@@ -277,7 +294,6 @@
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) {
                     const percent = (e.loaded / e.total) * 100;
-                    // Update processingStatusSpan directly for upload progress
                     processingStatusSpan.textContent = `Uploading: ${Math.round(percent)}%`;
                 }
             });
@@ -286,9 +302,9 @@
                 if (xhr.readyState === 4) {
                     if (xhr.status === 202) {
                         const response = JSON.parse(xhr.responseText);
-                        currentRequestId = response.requestId;
+                        currentRequestId = response.requestId; // Store the requestId
 
-                        socket.emit('joinRoom', currentRequestId);
+                        socket.emit('joinRoom', currentRequestId); // Join the specific room
                         console.log(`Frontend: Sent 'joinRoom' for Request ID: ${currentRequestId}`);
 
                         queueSizeSpan.textContent = response.queueSize;
@@ -297,16 +313,20 @@
                         progressPercentageSpan.textContent = ''; // Clear any upload percentage
                         outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
 
+                        // Start polling after successful upload
                         if (!pollingIntervalId) {
                             pollingIntervalId = setInterval(fetchQueueStatus, 2000);
                         }
+                        // Immediately fetch status to reflect the new queue state
                         fetchQueueStatus();
 
                     } else {
-                        alert('Upload failed: ' + xhr.responseText);
-                        console.error('Upload error:', xhr.responseText);
-                        displayError('Upload failed: ' + xhr.responseText);
-                        currentRequestId = null;
+                        // Handle upload failure
+                        const errorResponse = xhr.responseText || 'Unknown error';
+                        alert('Upload failed: ' + errorResponse);
+                        console.error('Upload error:', errorResponse);
+                        displayError('Upload failed: ' + errorResponse);
+                        currentRequestId = null; // Clear request ID on failure
                         if (pollingIntervalId) {
                             clearInterval(pollingIntervalId);
                             pollingIntervalId = null;
@@ -335,83 +355,85 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                // console.log('Polling queue status:', data);
+                console.log('Polling queue status:', data);
 
                 queueSizeSpan.textContent = data.queueSize;
-                processingStatusSpan.textContent = data.isProcessing ? 'Busy' : 'Idle';
+                // processingStatusSpan is mainly updated by socket.io events
+                // Only update it from polling if no specific request is being tracked or to reset to Idle
+                if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
+                     processingStatusSpan.textContent = 'Idle';
+                     yourPositionSpan.textContent = 'N/A';
+                     progressPercentageSpan.textContent = '';
+                     outputPlaceholder.textContent = 'Your processed image will appear here.';
+                     outputPlaceholder.style.display = 'block';
+                     outputImage.style.display = 'none';
+                     downloadLink.style.display = 'none';
+                     if (pollingIntervalId) {
+                         clearInterval(pollingIntervalId);
+                         pollingIntervalId = null;
+                     }
+                }
 
-                if (currentRequestId) {
-                    if (data.requestId === currentRequestId || data.yourPosition !== -1 || data.status === 'processing' || data.status === 'completed' || data.status === 'failed') {
-                        switch (data.status) {
-                            case 'pending':
-                                yourPositionSpan.textContent = `${data.yourPosition}`;
-                                processingStatusSpan.textContent = 'Waiting';
-                                progressPercentageSpan.textContent = ''; // Clear percentage
-                                outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
-                                outputPlaceholder.style.display = 'block';
-                                outputImage.style.display = 'none';
-                                downloadLink.style.display = 'none';
-                                break;
-                            case 'processing':
-                                yourPositionSpan.textContent = 'Processing';
-                                processingStatusSpan.textContent = 'Processing';
-                                // The actual percentage will come from Socket.IO's 'processingProgress' event
-                                // but we ensure the initial state is set
-                                outputPlaceholder.textContent = 'Processing your image...';
-                                outputPlaceholder.style.display = 'block';
-                                outputImage.style.display = 'none';
-                                downloadLink.style.display = 'none';
-                                break;
-                            case 'completed':
-                                yourPositionSpan.textContent = 'Done!';
-                                processingStatusSpan.textContent = 'Complete';
-                                progressPercentageSpan.textContent = ''; // Clear percentage
+
+                // If we have a currentRequestId, update its specific status
+                if (currentRequestId && (data.requestId === currentRequestId || data.yourPosition !== -1 || data.status)) {
+                    switch (data.status) {
+                        case 'pending':
+                            yourPositionSpan.textContent = `${data.yourPosition}`;
+                            processingStatusSpan.textContent = 'Waiting';
+                            progressPercentageSpan.textContent = '';
+                            outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
+                            outputPlaceholder.style.display = 'block';
+                            outputImage.style.display = 'none';
+                            downloadLink.style.display = 'none';
+                            break;
+                        case 'processing':
+                            yourPositionSpan.textContent = 'Processing';
+                            processingStatusSpan.textContent = 'Processing';
+                            // Progress percentage comes from Socket.IO, keep this placeholder
+                            outputPlaceholder.textContent = 'Processing your image...';
+                            outputPlaceholder.style.display = 'block';
+                            outputImage.style.display = 'none';
+                            downloadLink.style.display = 'none';
+                            break;
+                        case 'completed':
+                            yourPositionSpan.textContent = 'Done!';
+                            processingStatusSpan.textContent = 'Complete';
+                            progressPercentageSpan.textContent = '';
+                            // The `processingComplete` Socket.IO event will handle displayResult
+                            if (data.result && data.result.outputImage) {
                                 displayResult(data.result.outputImage);
-                                currentRequestId = null;
-                                if (pollingIntervalId) {
-                                    clearInterval(pollingIntervalId);
-                                    pollingIntervalId = null;
-                                }
-                                break;
-                            case 'failed':
-                                yourPositionSpan.textContent = 'Error!';
-                                processingStatusSpan.textContent = 'Failed';
-                                progressPercentageSpan.textContent = ''; // Clear percentage
-                                displayError(data.result.errorMessage || 'Unknown processing error.');
-                                currentRequestId = null;
-                                if (pollingIntervalId) {
-                                    clearInterval(pollingIntervalId);
-                                    pollingIntervalId = null;
-                                }
-                                break;
-                            default:
-                                yourPositionSpan.textContent = 'N/A';
-                                progressPercentageSpan.textContent = ''; // Clear percentage
-                                break;
-                        }
-                    }
-                } else {
-                    yourPositionSpan.textContent = 'N/A';
-                    progressPercentageSpan.textContent = ''; // Clear percentage
-                    if (!data.isProcessing && data.queueSize === 0) {
-                        processingStatusSpan.textContent = 'Idle';
-                        outputPlaceholder.textContent = 'Your processed image will appear here.'; // Reset to default
-                        outputPlaceholder.style.display = 'block';
-                        outputImage.style.display = 'none';
-                        downloadLink.style.display = 'none';
-                        if (pollingIntervalId) {
-                            clearInterval(pollingIntervalId);
-                            pollingIntervalId = null;
-                        }
+                            }
+                            currentRequestId = null;
+                            if (pollingIntervalId) {
+                                clearInterval(pollingIntervalId);
+                                pollingIntervalId = null;
+                            }
+                            break;
+                        case 'failed':
+                            yourPositionSpan.textContent = 'Error!';
+                            processingStatusSpan.textContent = 'Failed';
+                            progressPercentageSpan.textContent = '';
+                            displayError(data.result.errorMessage || 'Unknown processing error.');
+                            currentRequestId = null;
+                            if (pollingIntervalId) {
+                                clearInterval(pollingIntervalId);
+                                pollingIntervalId = null;
+                            }
+                            break;
+                        default:
+                            yourPositionSpan.textContent = 'N/A';
+                            progressPercentageSpan.textContent = '';
+                            break;
                     }
                 }
             } catch (error) {
                 console.error('Error fetching queue status:', error);
-                if (currentRequestId) {
+                if (currentRequestId) { // Only show error if a request was active
                     queueSizeSpan.textContent = 'Error';
                     processingStatusSpan.textContent = 'Error';
                     yourPositionSpan.textContent = 'Error';
-                    progressPercentageSpan.textContent = ''; // Clear percentage
+                    progressPercentageSpan.textContent = '';
                     displayError('Failed to get status. Please check connection.');
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
@@ -421,6 +443,7 @@
             }
         }
 
+        // Initial fetch and start polling
         fetchQueueStatus();
         if (!pollingIntervalId) {
             pollingIntervalId = setInterval(fetchQueueStatus, 2000);
