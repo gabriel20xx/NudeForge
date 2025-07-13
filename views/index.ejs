@@ -6,6 +6,7 @@
     <title>Image Nudifier</title>
     <link rel="stylesheet" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
@@ -13,7 +14,7 @@
 
     <form id="uploadForm" enctype="multipart/form-data">
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
-                id="processingStatus">Idle</span>, Your
+                id="processingStatus">Idle</span><span id="progressPercentage"></span>, Your
             Position: <span id="yourPosition">N/A</span></p>
         <div class="main-container">
             <div class="upload-section">
@@ -42,15 +43,12 @@
         <h2>Settings</h2>
         <p>Future filters and options will go here.</p>
     </div>
-
-    <script src="/socket.io/socket.io.js"></script>
     <script>
         const inputImage = document.getElementById('inputImage');
         const previewImage = document.getElementById('previewImage');
         const dropArea = document.getElementById('dropArea');
         const dropText = document.getElementById('dropText');
         const uploadForm = document.getElementById('uploadForm');
-        // Removed progressBar and progressContainer variables as they are no longer used for display
         const outputImage = document.getElementById('outputImage');
         const outputPlaceholder = document.getElementById('outputPlaceholder');
         const downloadLink = document.getElementById('downloadLink');
@@ -58,6 +56,7 @@
         const queueSizeSpan = document.getElementById('queueSize');
         const processingStatusSpan = document.getElementById('processingStatus');
         const yourPositionSpan = document.getElementById('yourPosition');
+        const progressPercentageSpan = document.getElementById('progressPercentage'); // NEW: Get the progress span
 
         let currentRequestId = null;
         let pollingIntervalId = null;
@@ -80,18 +79,14 @@
         // Listen for processing progress updates from the server
         socket.on('processingProgress', (progress) => {
             console.log('Socket.IO: Received processingProgress:', progress);
-            if (currentRequestId && processingStatusSpan.textContent === 'Processing') {
+            if (currentRequestId && (processingStatusSpan.textContent === 'Processing' || processingStatusSpan.textContent.startsWith('Processing:'))) {
                 let percentage;
-                let progressText;
 
-                // We now assume 'progress' type with value/max is the primary source
                 if (progress.type === "global_steps") {
                     percentage = Math.round((progress.value / progress.max) * 100);
-                    progressText = `Processing: ${percentage}%`; // Simplified text for placeholder
                 } else {
                     // Fallback, though with backend changes, this should ideally be "global_steps"
                     percentage = Math.round((progress.value / progress.max) * 100);
-                    progressText = `Processing: ${percentage}%`;
                 }
 
                 if (isNaN(percentage)) {
@@ -99,10 +94,10 @@
                     return;
                 }
 
-                // Update the outputPlaceholder directly with the progress text
-                outputPlaceholder.textContent = progressText;
-                outputPlaceholder.style.display = 'block'; // Ensure placeholder is visible during processing
-                outputImage.style.display = 'none'; // Hide output image if it was previously shown
+                // UPDATE THE STATUS DISPLAY WITH PERCENTAGE
+                progressPercentageSpan.textContent = `: ${percentage}%`;
+                processingStatusSpan.textContent = 'Processing'; // Ensure base text is 'Processing'
+                outputPlaceholder.textContent = 'Processing your image...'; // Keep this generic message
             }
         });
 
@@ -110,12 +105,17 @@
         socket.on('queueUpdate', (data) => {
             console.log('Socket.IO: Received queueUpdate:', data);
             queueSizeSpan.textContent = data.queueSize;
-            processingStatusSpan.textContent = data.isProcessing ? 'Busy' : 'Idle';
 
             if (data.requestId === currentRequestId) {
                 if (data.status === 'processing') {
                     yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
+                    progressPercentageSpan.textContent = ''; // Clear percentage if it was there
+                    // Handle initial progress if sent with queueUpdate
+                    if (data.progress) {
+                        const percentage = Math.round((data.progress.value / data.progress.max) * 100);
+                        progressPercentageSpan.textContent = `: ${percentage}%`;
+                    }
                     outputPlaceholder.textContent = 'Processing your image...'; // Initial message
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
@@ -124,6 +124,7 @@
                 } else if (data.status === 'pending') {
                     yourPositionSpan.textContent = `${data.yourPosition}`;
                     processingStatusSpan.textContent = 'Waiting';
+                    progressPercentageSpan.textContent = ''; // Clear percentage
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
@@ -132,6 +133,7 @@
             } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
                 processingStatusSpan.textContent = 'Idle';
                 yourPositionSpan.textContent = 'N/A';
+                progressPercentageSpan.textContent = ''; // Clear percentage
                 outputPlaceholder.textContent = 'Your processed image will appear here.'; // Reset to default
                 outputPlaceholder.style.display = 'block';
                 outputImage.style.display = 'none';
@@ -145,6 +147,7 @@
                 console.log('Socket.IO: Processing complete:', data);
                 yourPositionSpan.textContent = 'Done!';
                 processingStatusSpan.textContent = 'Complete';
+                progressPercentageSpan.textContent = ''; // Clear percentage on completion
                 if (data.outputImage) {
                     displayResult(data.outputImage);
                 }
@@ -163,6 +166,7 @@
                 console.error('Socket.IO: Processing failed:', data);
                 yourPositionSpan.textContent = 'Error!';
                 processingStatusSpan.textContent = 'Failed';
+                progressPercentageSpan.textContent = ''; // Clear percentage on failure
                 displayError(data.errorMessage || 'Unknown processing error.');
                 currentRequestId = null;
                 if (pollingIntervalId) {
@@ -173,19 +177,19 @@
             fetchQueueStatus();
         });
 
-
         // --- UI Helper Functions ---
         function resetUIForNewUpload() {
             outputImage.style.display = 'none';
             outputImage.src = '';
             outputPlaceholder.style.display = 'block';
             outputPlaceholder.style.color = '#fff'; // Ensure placeholder text is visible
-            outputPlaceholder.textContent = 'Uploading: 0%'; // Initial upload progress message
+            outputPlaceholder.textContent = 'Uploading...'; // Initial upload message, no percentage here
             downloadLink.style.display = 'none';
             downloadLink.href = '#';
             currentRequestId = null;
             yourPositionSpan.textContent = 'Submitting...';
             processingStatusSpan.textContent = 'Uploading...';
+            progressPercentageSpan.textContent = ''; // Clear percentage
             queueSizeSpan.textContent = '0';
 
             if (pollingIntervalId) {
@@ -193,8 +197,6 @@
                 pollingIntervalId = null;
             }
         }
-
-        // Removed displayProcessingMessage as its functionality is now merged directly into socket.on('processingProgress') and other handlers
 
         function displayResult(imageUrl) {
             outputImage.src = imageUrl;
@@ -214,7 +216,6 @@
             outputImage.style.display = 'none';
             downloadLink.style.display = 'none';
         }
-
 
         // --- Image Preview and Drag/Drop ---
         function showPreview(file) {
@@ -276,9 +277,8 @@
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) {
                     const percent = (e.loaded / e.total) * 100;
-                    // Update outputPlaceholder directly for upload progress
-                    outputPlaceholder.textContent = `Uploading: ${Math.round(percent)}%`;
-                    processingStatusSpan.textContent = 'Uploading';
+                    // Update processingStatusSpan directly for upload progress
+                    processingStatusSpan.textContent = `Uploading: ${Math.round(percent)}%`;
                 }
             });
 
@@ -293,7 +293,8 @@
 
                         queueSizeSpan.textContent = response.queueSize;
                         yourPositionSpan.textContent = response.yourPosition > 0 ? response.yourPosition : 'Processing';
-                        processingStatusSpan.textContent = 'Waiting for server...';
+                        processingStatusSpan.textContent = 'Waiting'; // Initial status for processing queue
+                        progressPercentageSpan.textContent = ''; // Clear any upload percentage
                         outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
 
                         if (!pollingIntervalId) {
@@ -312,6 +313,7 @@
                         }
                         yourPositionSpan.textContent = 'Error';
                         processingStatusSpan.textContent = 'Failed';
+                        progressPercentageSpan.textContent = ''; // Clear percentage
                     }
                 }
             };
@@ -343,6 +345,8 @@
                         switch (data.status) {
                             case 'pending':
                                 yourPositionSpan.textContent = `${data.yourPosition}`;
+                                processingStatusSpan.textContent = 'Waiting';
+                                progressPercentageSpan.textContent = ''; // Clear percentage
                                 outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                                 outputPlaceholder.style.display = 'block';
                                 outputImage.style.display = 'none';
@@ -350,13 +354,18 @@
                                 break;
                             case 'processing':
                                 yourPositionSpan.textContent = 'Processing';
-                                outputPlaceholder.textContent = 'Processing your image...'; // Initial message before Socket.IO kicks in
+                                processingStatusSpan.textContent = 'Processing';
+                                // The actual percentage will come from Socket.IO's 'processingProgress' event
+                                // but we ensure the initial state is set
+                                outputPlaceholder.textContent = 'Processing your image...';
                                 outputPlaceholder.style.display = 'block';
                                 outputImage.style.display = 'none';
                                 downloadLink.style.display = 'none';
                                 break;
                             case 'completed':
                                 yourPositionSpan.textContent = 'Done!';
+                                processingStatusSpan.textContent = 'Complete';
+                                progressPercentageSpan.textContent = ''; // Clear percentage
                                 displayResult(data.result.outputImage);
                                 currentRequestId = null;
                                 if (pollingIntervalId) {
@@ -366,6 +375,8 @@
                                 break;
                             case 'failed':
                                 yourPositionSpan.textContent = 'Error!';
+                                processingStatusSpan.textContent = 'Failed';
+                                progressPercentageSpan.textContent = ''; // Clear percentage
                                 displayError(data.result.errorMessage || 'Unknown processing error.');
                                 currentRequestId = null;
                                 if (pollingIntervalId) {
@@ -375,11 +386,13 @@
                                 break;
                             default:
                                 yourPositionSpan.textContent = 'N/A';
+                                progressPercentageSpan.textContent = ''; // Clear percentage
                                 break;
                         }
                     }
                 } else {
                     yourPositionSpan.textContent = 'N/A';
+                    progressPercentageSpan.textContent = ''; // Clear percentage
                     if (!data.isProcessing && data.queueSize === 0) {
                         processingStatusSpan.textContent = 'Idle';
                         outputPlaceholder.textContent = 'Your processed image will appear here.'; // Reset to default
@@ -398,6 +411,7 @@
                     queueSizeSpan.textContent = 'Error';
                     processingStatusSpan.textContent = 'Error';
                     yourPositionSpan.textContent = 'Error';
+                    progressPercentageSpan.textContent = ''; // Clear percentage
                     displayError('Failed to get status. Please check connection.');
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
