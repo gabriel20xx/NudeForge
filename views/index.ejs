@@ -1,15 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Image Processor</title>
+    <title>Image Nudifier</title>
     <link rel="stylesheet" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+
 <body>
-    <h1>🖼️ Image Processor</h1>
+    <h1>Image Nudifier</h1>
 
     <form id="uploadForm" enctype="multipart/form-data">
+        <p id="queueStatus">Queue: <span id="queueSize">0</span>, Status: <span id="processingStatus">Idle</span>, Your
+            Position: <span id="yourPosition">N/A</span></p>
+        <div id="progressContainer" style="display:none;">
+            <div id="progressBar"></div>
+        </div>
         <div class="main-container">
             <div class="upload-section">
                 <h2>Upload Image</h2>
@@ -22,14 +29,10 @@
 
                 <button type="submit">Upload</button>
 
-                <div id="progressContainer" style="display:none;">
-                    <div id="progressBar"></div>
-                </div>
             </div>
 
             <div class="output-section">
                 <h2>Processed Output</h2>
-                <p id="queueStatus">Queue: <span id="queueSize">0</span>, Status: <span id="processingStatus">Idle</span>, Your Position: <span id="yourPosition">N/A</span></p>
                 <div class="image-box">
                     <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
@@ -290,4 +293,5 @@
 
     </script>
 </body>
+
 </html>
