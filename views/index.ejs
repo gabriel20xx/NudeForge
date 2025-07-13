@@ -30,7 +30,6 @@
                 <h2>Processed Output</h2>
                 <div id="outputArea" class="image-box">
                     <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
-                    <p><span class="progressPercentage"></span></p>
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
                 </div>
                 <a id="downloadLink" href="#" download style="display:none;">
@@ -105,7 +104,7 @@
 
             updateProgressPercentage(`: ${percentage}%`); // Use the new helper function
             processingStatusSpan.textContent = 'Processing';
-            outputPlaceholder.textContent = 'Processing your image...';
+            outputPlaceholder.textContent = `Processing your image: ${percentage}% Done`;
         });
 
         // Listen for immediate queue updates (e.g., when your turn comes)
