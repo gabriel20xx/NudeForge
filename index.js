@@ -135,7 +135,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
     console.log(`POST /upload: Waiting for output file with prefix "${expectedOutputPrefix}" in ${OUTPUT_DIR}...`);
 
-    const findNewOutputFile = async (directory, prefix, retries = 30, delay = 1000) => {
+    const findNewOutputFile = async (directory, prefix, retries = 1000, delay = 1000) => {
       for (let i = 0; i < retries; i++) {
         const files = fs.readdirSync(directory);
         const newFiles = files.filter(file => file.startsWith(prefix));
