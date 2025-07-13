@@ -92,24 +92,66 @@ function connectToComfyUIWebSocket() {
   };
 
   comfyUiWs.onmessage = (event) => {
-    const message = JSON.parse(event.data);
-    if (message.type === "progress" && currentlyProcessingRequestId) {
-      // ComfyUI sends progress as { value, max }
-      const progress = {
-        value: message.data.value,
-        max: message.data.max,
-        step: message.data.value, // ComfyUI provides 'value' which can be interpreted as current step
-        steps: message.data.max,  // ComfyUI provides 'max' which can be interpreted as total steps
-      };
-      // Emit progress to the specific client
-      io.to(currentlyProcessingRequestId).emit("processingProgress", progress);
-      // console.log(`Emitted progress for ${currentlyProcessingRequestId}: ${progress.value}/${progress.max}`);
-    } else if (message.type === "execution_start") {
-        console.log(`ComfyUI execution started for client ID: ${message.data.client_id}`);
-        // Optionally, emit a "processingStarted" event
+    try {
+      const message = JSON.parse(event.data);
+
+      // --- Debugging for all incoming WebSocket messages ---
+      // console.log(`ComfyUI WebSocket: Received message type: ${message.type}`);
+      // if (message.type !== "progress") { // Avoid excessive logging for progress
+      //   console.log("ComfyUI WebSocket: Received message data:", JSON.stringify(message, null, 2));
+      // }
+      // --- End Debugging for all incoming WebSocket messages ---
+
+      if (message.type === "progress" && currentlyProcessingRequestId) {
+        const progress = {
+          value: message.data.value,
+          max: message.data.max,
+          step: message.data.value,
+          steps: message.data.max,
+        };
+        // Emit progress to the specific client
+        io.to(currentlyProcessingRequestId).emit("processingProgress", progress);
+        console.log(
+          `ComfyUI Progress: Emitting progress for client ${currentlyProcessingRequestId}: ${progress.value}/${progress.max}`
+        );
+      } else if (message.type === "execution_start") {
+        console.log(
+          `ComfyUI WebSocket: Execution started for client ID: ${message.data.client_id}`
+        );
         if (currentlyProcessingRequestId) {
-            io.to(currentlyProcessingRequestId).emit("processingStarted");
+          io.to(currentlyProcessingRequestId).emit("processingStarted");
+          console.log(
+            `ComfyUI WebSocket: Emitted 'processingStarted' for client ${currentlyProcessingRequestId}`
+          );
         }
+      } else if (message.type === "execution_cached") {
+        console.log(`ComfyUI WebSocket: Execution cached for nodes: ${message.data.nodes_ran_from_cache}`);
+      } else if (message.type === "execution_interrupted") {
+        console.error(`ComfyUI WebSocket: Execution interrupted! Reason: ${message.data.reason}`);
+        if (currentlyProcessingRequestId) {
+          io.to(currentlyProcessingRequestId).emit("processingFailed", {
+            error: "ComfyUI execution interrupted.",
+            errorMessage: message.data.reason,
+          });
+        }
+      } else if (message.type === "status") {
+        console.log(`ComfyUI WebSocket Status: Sid: ${message.data.sid}, Status: ${message.data.status.exec_info.queue_remaining} items in queue.`);
+      } else if (message.type === "executing") {
+        console.log(`ComfyUI WebSocket Executing: Node: ${message.data.node}, Prompt ID: ${message.data.prompt_id}`);
+        if (message.data.node === null && currentlyProcessingRequestId) {
+            // This often signifies the end of execution for a prompt
+            console.log(`ComfyUI WebSocket: Prompt execution completed for client ${currentlyProcessingRequestId}.`);
+            // You might want to consider triggering a final check for the output file here
+            // or rely on the file system watcher in processQueue to confirm completion.
+        }
+      } else {
+        console.log(`ComfyUI WebSocket: Unhandled message type: ${message.type}. Data:`, JSON.stringify(message, null, 2));
+      }
+    } catch (parseError) {
+      console.error(
+        `ComfyUI WebSocket: Error parsing message from ComfyUI: ${parseError.message}`,
+        event.data
+      );
     }
   };
 
@@ -135,6 +177,9 @@ async function processQueue() {
   updateFrontendQueueSize();
 
   if (isProcessing || processingQueue.length === 0) {
+    console.log(
+      `Queue: Not processing. isProcessing: ${isProcessing}, Queue length: ${processingQueue.length}`
+    );
     return;
   }
 
@@ -154,7 +199,9 @@ async function processQueue() {
     yourPosition: 0,
     status: "processing",
   });
-
+  console.log(
+    `Queue: Client ${requestId} notified: status 'processing', queue position 0.`
+  );
 
   console.log(
     `Queue: Starting processing for requestId: ${requestId}, filename: ${uploadedFilename}. ${processingQueue.length} items remaining.`
@@ -234,8 +281,9 @@ async function processQueue() {
       headers: { "Content-Type": "application/json" },
     });
     console.log(
-      `Processing Queue: Workflow sent to ComfyUI. Response status: ${axiosResponse.status}`
+      `Processing Queue: Workflow sent to ComfyUI. Response status: ${axiosResponse.status}, ComfyUI prompt ID: ${axiosResponse.data.prompt_id}`
     );
+    // You might want to store axiosResponse.data.prompt_id if you want to explicitly track ComfyUI's internal prompt IDs.
 
     // --- Wait for the specific output file to appear (Indefinite Loop) ---
     console.log(
@@ -290,6 +338,9 @@ async function processQueue() {
     io.to(requestId).emit("processingComplete", {
       outputImage: finalOutputRelativePath,
     });
+    console.log(
+      `Queue: Emitted 'processingComplete' for client ${requestId} with output: ${finalOutputRelativePath}`
+    );
   } catch (err) {
     console.error(
       `Processing Queue: Error during processing for requestId ${requestId}, filename ${uploadedFilename}:`
@@ -315,10 +366,16 @@ async function processQueue() {
       error: "Processing failed. Check server logs for details.",
       errorMessage: err.message,
     });
+    console.log(
+      `Queue: Emitted 'processingFailed' for client ${requestId}. Error: ${err.message}`
+    );
   } finally {
     isProcessing = false;
     currentlyProcessingRequestId = null;
-    processQueue();
+    console.log(
+      `Queue: Finished processing for requestId. isProcessing set to false. Calling processQueue again.`
+    );
+    processQueue(); // Process next item in queue
   }
 }
 
@@ -339,6 +396,9 @@ app.get("/queue-status", (req, res) => {
     if (requestId === currentlyProcessingRequestId) {
       yourPosition = 0;
       status = "processing";
+      console.log(
+        `GET /queue-status: Request ${requestId} is currently processing.`
+      );
     } else {
       const queueIndex = processingQueue.findIndex(
         (item) => item.requestId === requestId
@@ -346,11 +406,21 @@ app.get("/queue-status", (req, res) => {
       if (queueIndex !== -1) {
         yourPosition = queueIndex + 1;
         status = "pending";
+        console.log(
+          `GET /queue-status: Request ${requestId} is pending at position ${yourPosition}.`
+        );
       } else if (requestStatus[requestId]) {
         status = requestStatus[requestId].status;
         resultData = requestStatus[requestId].data;
+        console.log(
+          `GET /queue-status: Request ${requestId} status is '${status}'.`
+        );
+      } else {
+        console.log(`GET /queue-status: Request ${requestId} not found.`);
       }
     }
+  } else {
+    console.log(`GET /queue-status: No requestId provided.`);
   }
 
   res.json({
@@ -390,48 +460,46 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     uploadedPathForComfyUI,
   });
   console.log(
-    `POST /upload: Added ${uploadedFilename} (ID: ${requestId}) to queue. Queue size: ${processingQueue.length}`
+    `POST /upload: Added ${uploadedFilename} (ID: ${requestId}) to queue. Current queue size: ${processingQueue.length}`
   );
 
-  // When a new request is added to the queue, associate the client's socket with the requestId
-  // This assumes the client sends its socket ID or the requestId is shared.
-  // For this example, we'll assume the client will listen for events on its requestId.
-  // The client will need to join a "room" named after its requestId.
-
-  processQueue();
+  processQueue(); // Attempt to process queue immediately
 
   res.status(202).json({
     message: "Image uploaded and added to queue.",
     requestId: requestId,
     queueSize: processingQueue.length,
-    yourPosition: processingQueue.length,
+    yourPosition: processingQueue.length, // Initial position in queue
   });
 });
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+  console.log(`Socket.IO: Client connected: ${socket.id}`);
 
   // Client requests to join a room specific to their requestId
   socket.on("joinRoom", (requestId) => {
     socket.join(requestId);
-    console.log(`Socket ${socket.id} joined room ${requestId}`);
+    console.log(`Socket.IO: Socket ${socket.id} joined room ${requestId}`);
   });
 
   socket.on("disconnect", () => {
-    console.log(`Client disconnected: ${socket.id}`);
+    console.log(`Socket.IO: Client disconnected: ${socket.id}`);
+  });
+
+  socket.on("error", (err) => {
+    console.error(`Socket.IO: Socket error for ${socket.id}:`, err.message);
   });
 });
 
 
 function updateFrontendQueueSize() {
   console.log(
-    `Current queue size: ${processingQueue.length}, isProcessing: ${isProcessing}`
+    `Queue Status: Current queue size: ${processingQueue.length}, isProcessing: ${isProcessing}`
   );
 }
 
 server.listen(PORT, () => {
-  // Change app.listen to server.listen
   console.log(`✅ Server running at http://localhost:${PORT}`);
   updateFrontendQueueSize();
 });
