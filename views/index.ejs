@@ -11,7 +11,6 @@
 
     <form id="uploadForm" enctype="multipart/form-data">
         <div class="main-container">
-            <!-- Upload Section -->
             <div class="upload-section">
                 <h2>Upload Image</h2>
 
@@ -28,7 +27,6 @@
                 </div>
             </div>
 
-            <!-- Output Section -->
             <div class="output-section">
                 <h2>Processed Output</h2>
                 <div class="image-box">
@@ -36,13 +34,12 @@
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
                 </div>
                 <a id="downloadLink" href="#" download style="display:none;">
-                    <button class="download-btn">Download</button>
+                    <button class="download-btn" type="button">Download</button>
                 </a>
             </div>
         </div>
     </form>
 
-    <!-- Settings Section -->
     <div class="settings-section">
         <h2>Settings</h2>
         <p>Future filters and options will go here.</p>
@@ -56,6 +53,10 @@
         const uploadForm = document.getElementById('uploadForm');
         const progressBar = document.getElementById('progressBar');
         const progressContainer = document.getElementById('progressContainer');
+        const outputImage = document.getElementById('outputImage'); // Get reference here
+        const outputPlaceholder = document.getElementById('outputPlaceholder'); // Get reference here
+        const downloadLink = document.getElementById('downloadLink'); // Get reference here
+
 
         function showPreview(file) {
             const reader = new FileReader();
@@ -113,6 +114,12 @@
             progressContainer.style.display = 'block';
             progressBar.style.width = '0%';
 
+            // Hide previous output and download link when a new upload starts
+            outputImage.style.display = 'none';
+            outputPlaceholder.style.display = 'block';
+            downloadLink.style.display = 'none';
+
+
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) {
                     const percent = (e.loaded / e.total) * 100;
@@ -126,9 +133,10 @@
 
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
-                        const outputImage = document.getElementById('outputImage');
-                        const outputPlaceholder = document.getElementById('outputPlaceholder');
-                        const downloadLink = document.getElementById('downloadLink');
+                        // These elements are already defined globally or should be if used often
+                        // const outputImage = document.getElementById('outputImage');
+                        // const outputPlaceholder = document.getElementById('outputPlaceholder');
+                        // const downloadLink = document.getElementById('downloadLink');
 
                         outputImage.src = response.outputImage;
                         outputImage.style.display = 'block';
