@@ -73,7 +73,12 @@
     }
   },
   "42": {
-    "inputs": {},
+    "inputs": {
+      "image": [
+        "244",
+        0
+      ]
+    },
     "class_type": "FluxKontextImageScale",
     "_meta": {
       "title": "FluxKontextImageScale"
