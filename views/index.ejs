@@ -15,9 +15,6 @@
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
                 id="processingStatus">Idle</span>, Your
             Position: <span id="yourPosition">N/A</span></p>
-        <div id="progressContainer">
-            <div id="progressBar" data-percentage="0%"></div>
-        </div>
         <div class="main-container">
             <div class="upload-section">
                 <h2>Upload Image</h2>
@@ -53,8 +50,7 @@
         const dropArea = document.getElementById('dropArea');
         const dropText = document.getElementById('dropText');
         const uploadForm = document.getElementById('uploadForm');
-        const progressBar = document.getElementById('progressBar');
-        const progressContainer = document.getElementById('progressContainer');
+        // Removed progressBar and progressContainer variables as they are no longer used for display
         const outputImage = document.getElementById('outputImage');
         const outputPlaceholder = document.getElementById('outputPlaceholder');
         const downloadLink = document.getElementById('downloadLink');
@@ -91,11 +87,11 @@
                 // We now assume 'progress' type with value/max is the primary source
                 if (progress.type === "global_steps") {
                     percentage = Math.round((progress.value / progress.max) * 100);
-                    progressText = `${percentage}% (${progress.value}/${progress.max} steps)`;
+                    progressText = `Processing: ${percentage}%`; // Simplified text for placeholder
                 } else {
                     // Fallback, though with backend changes, this should ideally be "global_steps"
                     percentage = Math.round((progress.value / progress.max) * 100);
-                    progressText = `${percentage}%`;
+                    progressText = `Processing: ${percentage}%`;
                 }
 
                 if (isNaN(percentage)) {
@@ -103,10 +99,10 @@
                     return;
                 }
 
-                progressBar.style.width = `${percentage}%`;
-                progressBar.setAttribute('data-percentage', `${percentage}%`);
-                outputPlaceholder.textContent = `Processing image: ${progressText}`;
-                progressContainer.style.display = 'block'; // Ensure progress bar is visible
+                // Update the outputPlaceholder directly with the progress text
+                outputPlaceholder.textContent = progressText;
+                outputPlaceholder.style.display = 'block'; // Ensure placeholder is visible during processing
+                outputImage.style.display = 'none'; // Hide output image if it was previously shown
             }
         });
 
@@ -120,22 +116,26 @@
                 if (data.status === 'processing') {
                     yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
-                    outputPlaceholder.textContent = 'Processing your image...';
-                    progressContainer.style.display = 'block';
-                    progressBar.style.width = '0%';
-                    progressBar.setAttribute('data-percentage', '0%');
+                    outputPlaceholder.textContent = 'Processing your image...'; // Initial message
+                    outputPlaceholder.style.display = 'block';
+                    outputImage.style.display = 'none';
+                    downloadLink.style.display = 'none';
+
                 } else if (data.status === 'pending') {
                     yourPositionSpan.textContent = `${data.yourPosition}`;
                     processingStatusSpan.textContent = 'Waiting';
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
-                    progressContainer.style.display = 'none';
+                    outputPlaceholder.style.display = 'block';
+                    outputImage.style.display = 'none';
+                    downloadLink.style.display = 'none';
                 }
             } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
                 processingStatusSpan.textContent = 'Idle';
                 yourPositionSpan.textContent = 'N/A';
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0%';
-                progressBar.setAttribute('data-percentage', '0%');
+                outputPlaceholder.textContent = 'Your processed image will appear here.'; // Reset to default
+                outputPlaceholder.style.display = 'block';
+                outputImage.style.display = 'none';
+                downloadLink.style.display = 'none';
             }
         });
 
@@ -153,9 +153,6 @@
                     clearInterval(pollingIntervalId);
                     pollingIntervalId = null;
                 }
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0%';
-                progressBar.setAttribute('data-percentage', '0%');
             }
             fetchQueueStatus();
         });
@@ -172,9 +169,6 @@
                     clearInterval(pollingIntervalId);
                     pollingIntervalId = null;
                 }
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0%';
-                progressBar.setAttribute('data-percentage', '0%');
             }
             fetchQueueStatus();
         });
@@ -185,8 +179,8 @@
             outputImage.style.display = 'none';
             outputImage.src = '';
             outputPlaceholder.style.display = 'block';
-            outputPlaceholder.style.color = '#333';
-            outputPlaceholder.textContent = 'Your processed image will appear here.';
+            outputPlaceholder.style.color = '#fff'; // Ensure placeholder text is visible
+            outputPlaceholder.textContent = 'Uploading: 0%'; // Initial upload progress message
             downloadLink.style.display = 'none';
             downloadLink.href = '#';
             currentRequestId = null;
@@ -194,27 +188,18 @@
             processingStatusSpan.textContent = 'Uploading...';
             queueSizeSpan.textContent = '0';
 
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressBar.setAttribute('data-percentage', '0%');
-
             if (pollingIntervalId) {
                 clearInterval(pollingIntervalId);
                 pollingIntervalId = null;
             }
         }
 
-        function displayProcessingMessage(message) {
-            outputPlaceholder.textContent = message;
-            outputPlaceholder.style.display = 'block';
-            outputImage.style.display = 'none';
-            downloadLink.style.display = 'none';
-        }
+        // Removed displayProcessingMessage as its functionality is now merged directly into socket.on('processingProgress') and other handlers
 
         function displayResult(imageUrl) {
             outputImage.src = imageUrl;
             outputImage.style.display = 'block';
-            outputPlaceholder.style.display = 'none';
+            outputPlaceholder.style.display = 'none'; // Hide placeholder once image is loaded
 
             const filename = imageUrl.split('/').pop();
             downloadLink.href = imageUrl;
@@ -291,8 +276,7 @@
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) {
                     const percent = (e.loaded / e.total) * 100;
-                    progressBar.style.width = percent + '%';
-                    progressBar.setAttribute('data-percentage', `${Math.round(percent)}%`);
+                    // Update outputPlaceholder directly for upload progress
                     outputPlaceholder.textContent = `Uploading: ${Math.round(percent)}%`;
                     processingStatusSpan.textContent = 'Uploading';
                 }
@@ -312,9 +296,6 @@
                         processingStatusSpan.textContent = 'Waiting for server...';
                         outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
 
-                        progressBar.style.width = '0%';
-                        progressBar.setAttribute('data-percentage', '0%');
-
                         if (!pollingIntervalId) {
                             pollingIntervalId = setInterval(fetchQueueStatus, 2000);
                         }
@@ -331,7 +312,6 @@
                         }
                         yourPositionSpan.textContent = 'Error';
                         processingStatusSpan.textContent = 'Failed';
-                        progressContainer.style.display = 'none';
                     }
                 }
             };
@@ -364,12 +344,16 @@
                             case 'pending':
                                 yourPositionSpan.textContent = `${data.yourPosition}`;
                                 outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
-                                progressContainer.style.display = 'none';
+                                outputPlaceholder.style.display = 'block';
+                                outputImage.style.display = 'none';
+                                downloadLink.style.display = 'none';
                                 break;
                             case 'processing':
                                 yourPositionSpan.textContent = 'Processing';
-                                outputPlaceholder.textContent = 'Processing your image...';
-                                progressContainer.style.display = 'block';
+                                outputPlaceholder.textContent = 'Processing your image...'; // Initial message before Socket.IO kicks in
+                                outputPlaceholder.style.display = 'block';
+                                outputImage.style.display = 'none';
+                                downloadLink.style.display = 'none';
                                 break;
                             case 'completed':
                                 yourPositionSpan.textContent = 'Done!';
@@ -379,9 +363,6 @@
                                     clearInterval(pollingIntervalId);
                                     pollingIntervalId = null;
                                 }
-                                progressContainer.style.display = 'none';
-                                progressBar.style.width = '0%';
-                                progressBar.setAttribute('data-percentage', '0%');
                                 break;
                             case 'failed':
                                 yourPositionSpan.textContent = 'Error!';
@@ -391,9 +372,6 @@
                                     clearInterval(pollingIntervalId);
                                     pollingIntervalId = null;
                                 }
-                                progressContainer.style.display = 'none';
-                                progressBar.style.width = '0%';
-                                progressBar.setAttribute('data-percentage', '0%');
                                 break;
                             default:
                                 yourPositionSpan.textContent = 'N/A';
@@ -404,9 +382,10 @@
                     yourPositionSpan.textContent = 'N/A';
                     if (!data.isProcessing && data.queueSize === 0) {
                         processingStatusSpan.textContent = 'Idle';
-                        progressContainer.style.display = 'none';
-                        progressBar.style.width = '0%';
-                        progressBar.setAttribute('data-percentage', '0%');
+                        outputPlaceholder.textContent = 'Your processed image will appear here.'; // Reset to default
+                        outputPlaceholder.style.display = 'block';
+                        outputImage.style.display = 'none';
+                        downloadLink.style.display = 'none';
                         if (pollingIntervalId) {
                             clearInterval(pollingIntervalId);
                             pollingIntervalId = null;

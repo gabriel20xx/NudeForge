@@ -153,14 +153,11 @@ function connectToComfyUIWebSocket() {
         currentlyProcessingRequestId
       ) {
         // Log this for debugging, but we won't use it for the main progress bar
-        // if the 'progress' message is available and preferred.
-        // If 'progress' messages are not always sent or are insufficient,
-        // you might re-evaluate, but for "Global Steps", 'progress' is direct.
         const nodes = message.data.nodes;
         let runningNodesCount = 0;
         let finishedNodesCount = 0;
         const currentRequestTotalNodes =
-          requestStatus[currentlyProcessingRequestId].totalNodesInWorkflow || 0; // Still useful for logging node count
+          requestStatus[currentlyProcessingRequestId].totalNodesInWorkflow || 0;
 
         for (const nodeId in nodes) {
           if (nodes.hasOwnProperty(nodeId)) {
@@ -175,17 +172,15 @@ function connectToComfyUIWebSocket() {
         console.log(
           `ComfyUI Progress (Type: progress_state - Node Status): Client ${currentlyProcessingRequestId}: Finished: ${finishedNodesCount}/${currentRequestTotalNodes}, Running: ${runningNodesCount}`
         );
-        // We are no longer emitting this directly to the frontend 'processingProgress'
-        // as the primary source for the *bar*, but you could emit to a different event
-        // if you want node-level details separately.
+        // Do not emit 'processingProgress' here from 'progress_state' as 'progress' is more direct for overall bar.
       } else if (messageType === "execution_start") {
         console.log(
           `ComfyUI WebSocket: Execution started for client ID: ${message.data.client_id}`
         );
         if (currentlyProcessingRequestId) {
-          io.to(currentlyProcessingRequestId).emit("processingStarted");
+          // No longer emitting 'processingStarted' as frontend will update based on `queueUpdate` and `processingProgress`
           console.log(
-            `ComfyUI WebSocket: Emitted 'processingStarted' for client ${currentlyProcessingRequestId}`
+            `ComfyUI WebSocket: Processing started for client ${currentlyProcessingRequestId}`
           );
         }
       } else if (messageType === "executing") {
@@ -251,6 +246,10 @@ async function processQueue() {
     queueSize: processingQueue.length,
     yourPosition: 0,
     status: "processing",
+    // When processing starts, also send an initial progress message
+    // This makes sure the frontend placeholder immediately updates to 'Processing: 0%'
+    // or 'Processing your image...' as soon as it's the client's turn.
+    progress: { value: 0, max: 100, type: "global_steps" } // Assuming 0% initial progress
   });
   console.log(
     `Queue: Client ${requestId} notified: status 'processing', queue position 0.`
@@ -433,15 +432,8 @@ async function processQueue() {
     isProcessing = false;
     currentlyProcessingRequestId = null;
     // Clean up the request status object when processing is done for it
-    if (
-      requestStatus[requestId] &&
-      requestStatus[requestId].status !== "completed" &&
-      requestStatus[requestId].status !== "failed"
-    ) {
-      // If it's not explicitly completed or failed, ensure it's marked as such.
-      // Or simply remove it if you don't need its history after processing.
-      // For now, let's keep it to allow clients to query for completion status.
-    }
+    // Or you could keep it for a certain duration for history/debug, but it's not strictly necessary for this flow.
+    delete requestStatus[requestId]; // Clean up to prevent memory leaks for completed/failed requests
     console.log(
       `Queue: Finished processing for requestId. isProcessing set to false. Calling processQueue again.`
     );
@@ -480,13 +472,14 @@ app.get("/queue-status", (req, res) => {
           `GET /queue-status: Request ${requestId} is pending at position ${yourPosition}.`
         );
       } else if (requestStatus[requestId]) {
+        // Retrieve status for a request that has completed or failed but not yet cleaned up
         status = requestStatus[requestId].status;
         resultData = requestStatus[requestId].data;
         console.log(
           `GET /queue-status: Request ${requestId} status is '${status}'.`
         );
       } else {
-        console.log(`GET /queue-status: Request ${requestId} not found.`);
+        console.log(`GET /queue-status: Request ${requestId} not found (might be old or completed).`);
       }
     }
   } else {
@@ -522,6 +515,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   console.log(`POST /upload: Path for ComfyUI: ${uploadedPathForComfyUI}`);
 
   // Initialize request status with a placeholder for totalNodesInWorkflow
+  // totalNodesInWorkflow will be set later once workflow.json is loaded in processQueue
   requestStatus[requestId] = { status: "pending", totalNodesInWorkflow: 0 };
 
   processingQueue.push({
