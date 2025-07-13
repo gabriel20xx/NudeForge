@@ -12,7 +12,8 @@
     <h1>Image Nudifier</h1>
 
     <form id="uploadForm" enctype="multipart/form-data">
-        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span id="processingStatus">Idle</span>, Your
+        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
+                id="processingStatus">Idle</span>, Your
             Position: <span id="yourPosition">N/A</span></p>
         <div id="progressContainer">
             <div id="progressBar" data-percentage="0%"></div>
@@ -64,7 +65,6 @@
 
         let currentRequestId = null;
         let pollingIntervalId = null;
-        let latestOverallPercentage = 0; // Keep track of the highest percentage received
 
         // --- Socket.IO Setup ---
         const socket = io();
@@ -88,47 +88,14 @@
                 let percentage;
                 let progressText;
 
-                if (progress.type === "overall_percentage") {
-                    percentage = progress.value;
-                    progressText = `${percentage}% (${progress.finishedNodes}/${progress.totalNodes} nodes finished)`;
-                    // Only update if this percentage is higher or equal to prevent jumps back
-                    if (percentage >= latestOverallPercentage) {
-                        latestOverallPercentage = percentage;
-                    } else {
-                        // If a lower percentage comes (e.g., due to different message type or re-queueing part of workflow),
-                        // we stick to the highest known, unless it's a very clear reset (which ComfyUI usually handles).
-                        // For overall progress, we want a monotonic increase.
-                        console.log(`Skipping lower percentage: ${percentage}% < ${latestOverallPercentage}%`);
-                        return; // Don't update if it's a regression
-                    }
-                } else if (progress.type === "global_steps") {
-                    // We can choose to ignore this if "overall_percentage" is the primary
-                    // source of truth for global progress to prevent overwriting.
-                    // Or, if you want *some* progress before nodes finish,
-                    // ensure it doesn't cause a regression.
-                    // For now, let's prioritize overall_percentage if it's available.
-                    if (latestOverallPercentage > 0) { // If overall_percentage has already reported, stick to it
-                        console.log(`Ignoring global_steps progress as overall_percentage is active. Current: ${latestOverallPercentage}%`);
-                        return;
-                    }
+                // We now assume 'progress' type with value/max is the primary source
+                if (progress.type === "global_steps") {
                     percentage = Math.round((progress.value / progress.max) * 100);
                     progressText = `${percentage}% (${progress.value}/${progress.max} steps)`;
-                    if (percentage >= latestOverallPercentage) {
-                        latestOverallPercentage = percentage;
-                    } else {
-                        console.log(`Skipping lower percentage for global_steps: ${percentage}% < ${latestOverallPercentage}%`);
-                        return;
-                    }
-
                 } else {
+                    // Fallback, though with backend changes, this should ideally be "global_steps"
                     percentage = Math.round((progress.value / progress.max) * 100);
                     progressText = `${percentage}%`;
-                    if (percentage >= latestOverallPercentage) {
-                        latestOverallPercentage = percentage;
-                    } else {
-                        console.log(`Skipping lower percentage for unknown type: ${percentage}% < ${latestOverallPercentage}%`);
-                        return;
-                    }
                 }
 
                 if (isNaN(percentage)) {
@@ -139,7 +106,7 @@
                 progressBar.style.width = `${percentage}%`;
                 progressBar.setAttribute('data-percentage', `${percentage}%`);
                 outputPlaceholder.textContent = `Processing image: ${progressText}`;
-                progressContainer.style.display = 'block';
+                progressContainer.style.display = 'block'; // Ensure progress bar is visible
             }
         });
 
@@ -157,13 +124,11 @@
                     progressContainer.style.display = 'block';
                     progressBar.style.width = '0%';
                     progressBar.setAttribute('data-percentage', '0%');
-                    latestOverallPercentage = 0; // Reset for new processing job
                 } else if (data.status === 'pending') {
                     yourPositionSpan.textContent = `${data.yourPosition}`;
                     processingStatusSpan.textContent = 'Waiting';
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                     progressContainer.style.display = 'none';
-                    latestOverallPercentage = 0; // Reset as we're not processing
                 }
             } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
                 processingStatusSpan.textContent = 'Idle';
@@ -171,7 +136,6 @@
                 progressContainer.style.display = 'none';
                 progressBar.style.width = '0%';
                 progressBar.setAttribute('data-percentage', '0%');
-                latestOverallPercentage = 0; // Reset if system is idle
             }
         });
 
@@ -192,7 +156,6 @@
                 progressContainer.style.display = 'none';
                 progressBar.style.width = '0%';
                 progressBar.setAttribute('data-percentage', '0%');
-                latestOverallPercentage = 0; // Reset on completion
             }
             fetchQueueStatus();
         });
@@ -212,7 +175,6 @@
                 progressContainer.style.display = 'none';
                 progressBar.style.width = '0%';
                 progressBar.setAttribute('data-percentage', '0%');
-                latestOverallPercentage = 0; // Reset on failure
             }
             fetchQueueStatus();
         });
@@ -235,7 +197,6 @@
             progressContainer.style.display = 'block';
             progressBar.style.width = '0%';
             progressBar.setAttribute('data-percentage', '0%');
-            latestOverallPercentage = 0; // IMPORTANT: Reset this on new upload
 
             if (pollingIntervalId) {
                 clearInterval(pollingIntervalId);
@@ -404,14 +365,11 @@
                                 yourPositionSpan.textContent = `${data.yourPosition}`;
                                 outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                                 progressContainer.style.display = 'none';
-                                latestOverallPercentage = 0; // Reset
                                 break;
                             case 'processing':
                                 yourPositionSpan.textContent = 'Processing';
                                 outputPlaceholder.textContent = 'Processing your image...';
                                 progressContainer.style.display = 'block';
-                                // The actual progress bar update will happen via Socket.IO's 'processingProgress'
-                                // Ensure latestOverallPercentage is not reset here if it's already increasing from Socket.IO
                                 break;
                             case 'completed':
                                 yourPositionSpan.textContent = 'Done!';
@@ -424,7 +382,6 @@
                                 progressContainer.style.display = 'none';
                                 progressBar.style.width = '0%';
                                 progressBar.setAttribute('data-percentage', '0%');
-                                latestOverallPercentage = 0; // Reset on completion
                                 break;
                             case 'failed':
                                 yourPositionSpan.textContent = 'Error!';
@@ -437,7 +394,6 @@
                                 progressContainer.style.display = 'none';
                                 progressBar.style.width = '0%';
                                 progressBar.setAttribute('data-percentage', '0%');
-                                latestOverallPercentage = 0; // Reset on failure
                                 break;
                             default:
                                 yourPositionSpan.textContent = 'N/A';
@@ -455,7 +411,6 @@
                             clearInterval(pollingIntervalId);
                             pollingIntervalId = null;
                         }
-                        latestOverallPercentage = 0; // Reset if system is idle
                     }
                 }
             } catch (error) {
