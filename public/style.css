@@ -32,6 +32,7 @@ h1 {
   background: darkorange;
   width: 96%;
   transition: width 0.3s ease-in-out;
+  border: 2px solid darkorange;
   color: white;
   text-align: center;
   line-height: 8px;
