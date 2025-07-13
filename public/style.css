@@ -99,7 +99,7 @@ input[type="file"] {
   object-fit: contain;
 }
 
-.placeholder, #previewPlaceholder {
+.placeholder {
   color: white;
   padding: 1em;
 }
