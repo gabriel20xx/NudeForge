@@ -318,11 +318,6 @@ async function processQueue() {
   } finally {
     isProcessing = false;
     currentlyProcessingRequestId = null;
-    fs.unlink(path.join(INPUT_DIR, uploadedFilename), (err) => {
-      if (err)
-        console.error(`Error deleting input file ${uploadedFilename}:`, err);
-      else console.log(`Deleted input file: ${uploadedFilename}`);
-    });
     processQueue();
   }
 }
