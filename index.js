@@ -126,7 +126,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
     console.log(`POST /upload: Waiting for NEW output file with prefix "${expectedOutputPrefix}" in ${OUTPUT_DIR}...`);
 
-    const findNewOutputFile = async (directory, prefix, filesAlreadyExist, retries = 100, delay = 1000) => {
+    const findNewOutputFile = async (directory, prefix, filesAlreadyExist, retries = 1000, delay = 1000) => {
       let foundNewFile = null;
       for (let i = 0; i < retries; i++) {
         const filesAfterComfyUI = fs.readdirSync(directory);
