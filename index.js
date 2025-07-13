@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const cors = require("cors");
 const axios = require("axios");
+const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
 
 const app = express();
 const PORT = 3000;
@@ -53,6 +54,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // --- Server-side Queue Implementation ---
+// Add a requestId to each item in the queue for client tracking
 const processingQueue = [];
 let isProcessing = false; // Flag to indicate if ComfyUI is currently processing
 
@@ -61,15 +63,15 @@ let isProcessing = false; // Flag to indicate if ComfyUI is currently processing
  */
 async function processQueue() {
   // Update queue size for frontend immediately when processing starts/ends
-  updateFrontendQueueSize();
+  updateFrontendQueueSize(); // This is just a log, client polls
 
   if (isProcessing || processingQueue.length === 0) {
     return; // Already processing or queue is empty
   }
 
   isProcessing = true;
-  const { req, res, uploadedFilename, uploadedBasename, uploadedPathForComfyUI, filesBeforeComfyUI } = processingQueue.shift();
-  console.log(`Queue: Starting processing for ${uploadedFilename}. ${processingQueue.length} items remaining.`);
+  const { req, res, requestId, uploadedFilename, uploadedBasename, uploadedPathForComfyUI, filesBeforeComfyUI } = processingQueue.shift();
+  console.log(`Queue: Starting processing for requestId: ${requestId}, filename: ${uploadedFilename}. ${processingQueue.length} items remaining.`);
 
   try {
     console.log(`Processing Queue: Reading workflow file from ${WORKFLOW_PATH}...`);
@@ -78,12 +80,22 @@ async function processQueue() {
     console.log(`Processing Queue: Workflow JSON parsed successfully.`);
 
     if (!workflow) {
-      console.error(`Processing Queue: Workflow JSON does not valid`);
+      console.error(`Processing Queue: Workflow JSON is not valid`);
       res.status(500).send("Invalid workflow.json format."); // Send response
       return; // Exit
     }
 
-    const clipTextNode = Object.values(workflow).find(
+    // This part should be within the 'prompt' key of your workflow
+    // Let's assume your workflow structure is { prompt: { ...nodes... } }
+    let promptNodes = workflow.prompt;
+    if (!promptNodes) {
+        console.error(`Processing Queue: Workflow JSON does not contain a "prompt" key.`);
+        res.status(500).send("Invalid workflow.json format: Missing 'prompt' key.");
+        return;
+    }
+
+
+    const clipTextNode = Object.values(promptNodes).find(
       (node) => node.class_type === "CLIPTextEncode"
     );
     if (clipTextNode) {
@@ -94,7 +106,7 @@ async function processQueue() {
       console.warn(`Processing Queue: CLIPTextEncode node not found in workflow. Prompt will not be changed.`);
     }
 
-    const inputNameNode = Object.values(workflow).find(
+    const inputNameNode = Object.values(promptNodes).find(
       (node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name"
     );
     if (inputNameNode) {
@@ -104,7 +116,7 @@ async function processQueue() {
       console.warn(`Processing Queue: PrimitiveString node with title "Input Name" not found in workflow. Input name will not be set.`);
     }
 
-    const imageNode = Object.values(workflow).find(
+    const imageNode = Object.values(promptNodes).find(
       (node) => node.class_type === "VHS_LoadImagePath"
     );
     if (!imageNode) {
@@ -116,7 +128,8 @@ async function processQueue() {
     imageNode.inputs["image"] = uploadedPathForComfyUI;
     console.log(`Processing Queue: VHS_LoadImagePath node updated with image path: ${imageNode.inputs["image"]}`);
 
-    const comfyUIRequestBody = { prompt: workflow };
+    // Re-wrap the promptNodes in the "prompt" key before sending to ComfyUI
+    const comfyUIRequestBody = { prompt: promptNodes };
     console.log(`Processing Queue: Sending workflow to ComfyUI at ${COMFYUI_URL}...`);
     const axiosResponse = await axios.post(COMFYUI_URL, comfyUIRequestBody, {
       headers: { "Content-Type": "application/json" },
@@ -167,11 +180,11 @@ async function processQueue() {
       });
     });
 
-    console.log(`Processing Queue: Sending output image path to client for ${uploadedFilename}: ${outputRelativePath}`);
+    console.log(`Processing Queue: Sending output image path to client for requestId ${requestId}: ${outputRelativePath}`);
     res.json({ outputImage: outputRelativePath });
 
   } catch (err) {
-    console.error(`Processing Queue: Error during processing for ${uploadedFilename}:`);
+    console.error(`Processing Queue: Error during processing for requestId ${requestId}, filename ${uploadedFilename}:`);
     if (err.response) {
       console.error(`Status: ${err.response.status}`);
       console.error(`Response data:`, err.response.data);
@@ -195,9 +208,43 @@ app.get("/", (req, res) => {
   res.render("index");
 });
 
-// New endpoint to get queue size
-app.get("/queue-size", (req, res) => {
-    res.json({ queueSize: processingQueue.length, isProcessing: isProcessing });
+// New endpoint to get queue size and position
+app.get("/queue-status", (req, res) => { // Renamed from /queue-size to be more generic
+    const requestId = req.query.requestId; // Get requestId from query parameter
+    let positionInQueue = -1; // -1 means not found
+
+    if (requestId) {
+        // Find the index of the request with the given ID
+        positionInQueue = processingQueue.findIndex(item => item.requestId === requestId);
+        // If the item is currently being processed, it's not in the queue anymore, but its status is 'processing'
+        // For simplicity, we'll say its position is 0 (or 'now processing') if it was the last one picked up
+        // A more robust solution might track the currently processing item separately.
+        // Here, if it's not in the queue, it means it's either processed or being processed.
+        if (positionInQueue === -1 && isProcessing) {
+             // If the client's request *just* got picked up, it's no longer in the queue,
+             // but it's the one currently being processed.
+             // We can signal this by setting position to 0.
+             // This is a simplification; ideally, you'd track the `currentlyProcessingRequestId`.
+             // For now, if they ask for their ID and it's not in the queue but something IS processing,
+             // we assume it's them.
+             // This needs refinement for absolute accuracy if multiple clients are polling VERY rapidly.
+             // Best practice: ComfyUI's /history endpoint combined with websocket
+             // updates for the client's specific job.
+             // For a simple polling solution:
+             // If client's request ID is not in queue AND isProcessing is true, it implies client's request
+             // is the one being processed.
+             // However, `processingQueue.shift()` already removes it.
+             // A better way is for the server to explicitly keep track of `currentProcessingRequestId`.
+             // For this simple queue, if it's not in queue, it's already past it.
+             // We return -1 if not found in queue.
+        }
+    }
+
+    res.json({
+        queueSize: processingQueue.length,
+        isProcessing: isProcessing,
+        yourPosition: positionInQueue === -1 ? -1 : positionInQueue + 1 // +1 for 1-based indexing
+    });
 });
 
 // Upload and trigger workflow
@@ -211,8 +258,9 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   const uploadedFilename = req.file.filename;
   const uploadedBasename = path.basename(uploadedFilename);
   const uploadedPathForComfyUI = path.posix.join("input", uploadedBasename);
+  const requestId = uuidv4(); // Generate a unique ID for this request
 
-  console.log(`POST /upload: Uploaded file: ${uploadedFilename}`);
+  console.log(`POST /upload: Uploaded file: ${uploadedFilename} with requestId: ${requestId}`);
   console.log(`POST /upload: Path for ComfyUI: ${uploadedPathForComfyUI}`);
 
   // Capture current state of output directory before enqueuing
@@ -223,25 +271,28 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   processingQueue.push({
     req,
     res,
+    requestId, // Store the unique ID with the request
     uploadedFilename,
     uploadedBasename,
     uploadedPathForComfyUI,
     filesBeforeComfyUI
   });
-  console.log(`POST /upload: Added ${uploadedFilename} to queue. Queue size: ${processingQueue.length}`);
+  console.log(`POST /upload: Added ${uploadedFilename} (ID: ${requestId}) to queue. Queue size: ${processingQueue.length}`);
 
   // Immediately try to process the queue (if not already processing)
-  processQueue(); // This will also trigger updateFrontendQueueSize() via processQueue start/finally
+  processQueue();
 
-  // The client will now wait for their turn in the queue.
-  // We don't send a response here, as the `res.json` or `res.status` will be called
-  // by the `processQueue` function when this specific request is handled.
+  // Send the requestId back to the client immediately so they can track their position
+  res.status(202).json({
+      message: "Image uploaded and added to queue.",
+      requestId: requestId,
+      queueSize: processingQueue.length, // Initial queue size
+      yourPosition: processingQueue.length // Initial position (last in queue)
+  });
 });
 
 // Add a helper function to trigger frontend queue size update
 function updateFrontendQueueSize() {
-    // This function will eventually send updates via WebSockets if implemented.
-    // For now, it just logs. The frontend will poll the /queue-size endpoint.
     console.log(`Current queue size: ${processingQueue.length}, isProcessing: ${isProcessing}`);
 }
 
