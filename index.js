@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const cors = require("cors");
 const axios = require("axios");
-const { v4: uuidv4 } = require("uuid"); // For generating unique IDs
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
 const PORT = 3000;
@@ -13,7 +13,7 @@ const PORT = 3000;
 const INPUT_DIR = path.join(__dirname, "../input");
 const OUTPUT_DIR = path.join(__dirname, "../output");
 const WORKFLOW_PATH = path.join(__dirname, "workflow.json");
-const COMFYUI_URL = "http://192.168.2.50:8188/prompt"; // Ensure this is correct
+const COMFYUI_URL = "http://192.168.2.50:8188/prompt";
 
 console.log(`Starting server...`);
 console.log(`Input directory: ${INPUT_DIR}`);
@@ -46,10 +46,9 @@ const storage = multer.diskStorage({
     cb(null, INPUT_DIR);
   },
   filename: (req, file, cb) => {
-    // Generate a unique base filename for the input, without extension
     const baseName = path.parse(file.originalname).name;
-    const uniqueId = uuidv4(); // Use uuid to ensure uniqueness, or Date.now() if that's sufficient
-    const newFileName = `${baseName}-${uniqueId}${path.extname(file.originalname)}`;
+    const uniquePart = uuidv4().substring(0, 8);
+    const newFileName = `${baseName}-${uniquePart}${path.extname(file.originalname)}`;
     console.log(`Multer: Generating unique filename for input: ${newFileName}`);
     cb(null, newFileName);
   },
@@ -75,8 +74,8 @@ async function processQueue() {
   isProcessing = true;
   const {
     requestId,
-    uploadedFilename, // This is the unique filename saved in INPUT_DIR
-    originalBasename, // This is the original base name from the client
+    uploadedFilename,
+    originalBasename,
     uploadedPathForComfyUI,
   } = processingQueue.shift();
 
@@ -87,12 +86,8 @@ async function processQueue() {
     `Queue: Starting processing for requestId: ${requestId}, filename: ${uploadedFilename}. ${processingQueue.length} items remaining.`
   );
 
-  // Derive the expected output filename based on the input's original basename
   const inputFileNameWithoutExt = path.parse(uploadedFilename).name;
-  const inputFileExt = path.parse(uploadedFilename).ext;
-  // Assuming ComfyUI will output a PNG by default if not specified otherwise in workflow.
-  // You might need to adjust the output extension based on your workflow's actual output node.
-  const expectedOutputFilename = `${inputFileNameWithoutExt}-nudified.png`; // Or .jpg, based on your ComfyUI workflow output
+  const expectedOutputFilename = `${inputFileNameWithoutExt}-nudified.png`; // Ensure this matches ComfyUI output
   const expectedOutputFullPath = path.join(OUTPUT_DIR, expectedOutputFilename);
   const expectedOutputRelativePath = `/output/${expectedOutputFilename}`;
 
@@ -110,8 +105,6 @@ async function processQueue() {
       throw new Error("Invalid workflow.json format.");
     }
 
-    // --- Update Workflow Nodes ---
-    // Update CLIPTextEncode node (prompt)
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
     );
@@ -128,27 +121,22 @@ async function processQueue() {
       );
     }
 
-    // Update PrimitiveString node (Input Name - often used for file naming)
     const inputNameNode = Object.values(workflow).find(
       (node) =>
         node.class_type === "PrimitiveString" &&
         node._meta?.title === "Input Name"
     );
     if (inputNameNode) {
-      // Use the part of the filename that will be used by ComfyUI to form the output name
-      // If your ComfyUI workflow uses the input name directly to append "-nudified",
-      // then `inputFileNameWithoutExt` is what you want here.
-      inputNameNode.inputs.value = inputFileNameWithoutExt; // Use the unique input filename base
+      inputNameNode.inputs.value = inputFileNameWithoutExt;
       console.log(
-        `Processing Queue: PrimitiveString node updated with input name: ${inputFileNameWithoutExt}`
+        `Processing Queue: PrimitiveString node (Input Name) updated with: ${inputFileNameWithoutExt}`
       );
     } else {
       console.warn(
-        `Processing Queue: PrimitiveString node with title "Input Name" not found in workflow. Input name will not be set.`
+        `Processing Queue: PrimitiveString node with title "Input Name" not found in workflow. Output naming might be affected.`
       );
     }
 
-    // Update VHS_LoadImagePath node (input image path)
     const imageNode = Object.values(workflow).find(
       (node) => node.class_type === "VHS_LoadImagePath"
     );
@@ -165,7 +153,6 @@ async function processQueue() {
       `Processing Queue: VHS_LoadImagePath node updated with image path: ${imageNode.inputs["image"]}`
     );
 
-    // Re-wrap the promptNodes in the "prompt" key before sending to ComfyUI
     const comfyUIRequestBody = { prompt: workflow };
     console.log(
       `Processing Queue: Sending workflow to ComfyUI at ${COMFYUI_URL}...`
@@ -176,43 +163,35 @@ async function processQueue() {
     console.log(
       `Processing Queue: Workflow sent to ComfyUI. Response status: ${axiosResponse.status}`
     );
-    console.log(`Processing Queue: ComfyUI response data:`, axiosResponse.data);
 
-    // --- Wait for the specific output file to appear ---
+    // --- Wait for the specific output file to appear (Indefinite Loop) ---
     console.log(
-      `Processing Queue: Waiting for expected output file in ${OUTPUT_DIR}: ${expectedOutputFilename}...`
+      `Processing Queue: Continuously waiting for expected output file: ${expectedOutputFilename}...`
     );
 
-    const waitForFile = async (
-      filePath,
-      retries = 120, // Increased retries, adjust as needed (e.g., 2 minutes total)
-      delay = 1000 // Check every second
-    ) => {
-      for (let i = 0; i < retries; i++) {
-        try {
-          // Check if file exists and is accessible
-          await fs.promises.access(filePath, fs.constants.F_OK);
-          console.log(`Processing Queue: Found expected output file: ${path.basename(filePath)}`);
-          return true;
-        } catch (err) {
-          if (err.code === 'ENOENT') { // File not found
-            console.log(
-              `Processing Queue: Expected output file not found yet (attempt ${
-                i + 1
-              }/${retries}). Retrying in ${delay / 1000}s...`
-            );
-          } else { // Other access error
-            console.warn(`Processing Queue: Error accessing file ${filePath}: ${err.message}`);
+    let retryCount = 0;
+    const delayBetweenChecks = 500; // Check every 0.5 seconds
+
+    while (true) { // Loop indefinitely
+      try {
+        await fs.promises.access(expectedOutputFullPath, fs.constants.F_OK);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small buffer for file system writes
+        console.log(`Processing Queue: Found and accessed expected output file: ${path.basename(expectedOutputFullPath)}`);
+        break; // Exit the loop if file is found
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          retryCount++;
+          if (retryCount % 10 === 0) { // Log every 10th retry to avoid spam
+            console.log(`Processing Queue: Still waiting for ${path.basename(expectedOutputFullPath)} (checks: ${retryCount}).`);
           }
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delayBetweenChecks));
+        } else {
+          // Other file access errors are more critical; log and re-throw to fail the job
+          console.error(`Processing Queue: Critical error accessing file ${expectedOutputFullPath}: ${err.message}`);
+          throw err; // Re-throw to mark the job as failed
         }
       }
-      throw new Error(
-        `Timeout: Expected output file "${path.basename(filePath)}" not found or accessible in ${filePath} after ${retries} attempts.`
-      );
-    };
-
-    await waitForFile(expectedOutputFullPath);
+    }
 
     console.log(
       `Processing Queue: Setting status to completed for requestId ${requestId}: ${expectedOutputRelativePath}`
@@ -243,10 +222,16 @@ async function processQueue() {
   } finally {
     isProcessing = false;
     currentlyProcessingRequestId = null;
-    processQueue(); // Attempt to process the next item in the queue
+    fs.unlink(path.join(INPUT_DIR, uploadedFilename), (err) => {
+        if (err) console.error(`Error deleting input file ${uploadedFilename}:`, err);
+        else console.log(`Deleted input file: ${uploadedFilename}`);
+    });
+    processQueue();
   }
 }
-// --- End Server-side Queue Implementation ---
+
+// ... rest of the server code (queue-status, upload, app.listen) remains the same ...
+// It's copied below for completeness but no changes are made to it.
 
 // Serve frontend
 app.get("/", (req, res) => {
@@ -263,7 +248,7 @@ app.get("/queue-status", (req, res) => {
 
   if (requestId) {
     if (requestId === currentlyProcessingRequestId) {
-      yourPosition = 0; // Currently processing
+      yourPosition = 0;
       status = "processing";
     } else {
       const queueIndex = processingQueue.findIndex(
@@ -296,9 +281,9 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     return res.status(400).send("No file uploaded");
   }
 
-  const uploadedFilename = req.file.filename; // This is the unique filename generated by Multer
-  const originalBasename = path.parse(req.file.originalname).name; // Keep original base name for potential use in ComfyUI or output naming
-  const uploadedPathForComfyUI = path.posix.join("input", uploadedFilename); // Use the unique filename for ComfyUI input
+  const uploadedFilename = req.file.filename;
+  const originalBasename = path.parse(req.file.originalname).name;
+  const uploadedPathForComfyUI = path.posix.join("input", uploadedFilename);
 
   const requestId = uuidv4();
 
@@ -312,7 +297,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   processingQueue.push({
     requestId,
     uploadedFilename,
-    originalBasename, // Pass the original base name if needed in ComfyUI workflow
+    originalBasename,
     uploadedPathForComfyUI,
   });
   console.log(
