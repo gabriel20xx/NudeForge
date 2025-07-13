@@ -191,7 +191,7 @@ async function processQueue() {
           );
           return foundNewFile;
         }
-        console.log(
+        console.log( 
           `Processing Queue: No new output file found yet (attempt ${
             i + 1
           }/${retries}). Retrying in ${delay / 1000}s...`
