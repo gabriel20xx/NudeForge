@@ -309,10 +309,8 @@ async function processQueue() {
     `Queue: Starting processing for requestId: ${requestId}, filename: ${uploadedFilename}. ${processingQueue.length} items remaining.`
   );
 
-  const inputFileNameWithoutExt = path.parse(uploadedFilename).name; // e.g., "b4a94f00-boobs_like_these_are_gods_gift_to_men_640_high_35"
-
-  // *** EXACT MODIFICATION HERE: Now includes _00001 before .png ***
-  const expectedOutputSuffix = `${inputFileNameWithoutExt}-nudified_00001.png`; // Example: "b4a94f00-boobs_like_these_are_gods_gift_to_men_640_high_35-nudified_00001.png"
+  const inputFileNameWithoutExt = path.parse(uploadedFilename).name;
+  const expectedOutputSuffix = `${inputFileNameWithoutExt}-nudified_00001.png`;
 
   try {
     console.log(
@@ -327,10 +325,13 @@ async function processQueue() {
       throw new Error("Invalid workflow.json format.");
     }
 
-    // Set the total nodes for this specific request before sending to ComfyUI
-    requestStatus[requestId].totalNodesInWorkflow = Object.keys(workflow).length;
-    console.log(`Discovered total nodes in workflow for request ${requestId}: ${requestStatus[requestId].totalNodesInWorkflow}`);
+    // --- FIX FOR NODE COUNT ---
+    // Count only actual nodes (objects with a 'class_type')
+    const actualNodes = Object.values(workflow).filter(node => typeof node === 'object' && node !== null && node.class_type);
+    requestStatus[requestId].totalNodesInWorkflow = actualNodes.length;
+    // --- END FIX ---
 
+    console.log(`Discovered total nodes in workflow for request ${requestId}: ${requestStatus[requestId].totalNodesInWorkflow}`);
 
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
@@ -364,6 +365,7 @@ async function processQueue() {
       );
     }
 
+    // Ensure imageNode.inputs["image"] is updated correctly here
     const imageNode = Object.values(workflow).find(
       (node) => node.class_type === "VHS_LoadImagePath"
     );
@@ -389,12 +391,6 @@ async function processQueue() {
     });
     console.log(
       `Processing Queue: Workflow sent to ComfyUI. Response status: ${axiosResponse.status}, ComfyUI prompt ID: ${axiosResponse.data.prompt_id}`
-    );
-    // You might want to store axiosResponse.data.prompt_id if you want to explicitly track ComfyUI's internal prompt IDs.
-
-    // --- Wait for the specific output file to appear (Indefinite Loop) ---
-    console.log(
-      `Processing Queue: Continuously waiting for expected output file ending with: ${expectedOutputSuffix}...`
     );
 
     let foundOutputFilename = null;

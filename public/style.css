@@ -38,138 +38,135 @@ h1 {
   position: relative;
 }
 
-/* Using a data attribute to display percentage */
 #progressBar::after {
   content: attr(data-percentage);
-  /* Gets content from data-percentage attribute */
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
   color: black;
-  /* Text color over the bar */
   font-weight: bold;
   text-shadow: 0 0 2px white;
-  /* Optional: adds a slight shadow for readability */
+  white-space: nowrap;
 }
 
-.main-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2rem;
-  padding: 2rem;
-}
-
-.upload-section,
-.output-section {
-  width: 48%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.drop-area {
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.drop-area.drag-over {
-  background: black;
-  border-color: darkorange;
-}
-
-.drop-area p {
-  font-size: 1rem;
-  text-align: center;
-}
-
-input[type="file"] {
-  display: none;
-}
-
-.image-box {
-  width: 100%;
-  height: 600px;
-  background: black;
-  border: 2px dashed darkorange;
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem;
-  box-sizing: border-box;
-}
-
-.image-box img {
-  max-width: 100%;
-  max-height: 100%;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: none;
-}
-
-#outputImage {
-  display: block;
-}
-
-.placeholder {
-  color: white;
-  padding: 1em;
-}
-
-/* Buttons */
-button {
-  padding: 0.7em 1.5em;
-  border: none;
-  border-radius: 6px;
-  color: white;
-  font-size: 1em;
-  cursor: pointer;
-  margin-top: 1em;
-}
-
-.upload-btn {
-  background-color: darkorange;
-}
-
-.upload-btn:hover {
-  background-color: orangered;
-}
-
-.download-btn {
-  background-color: green;
-}
-
-.download-btn:hover {
-  background-color: darkgreen;
-}
-
-/* Settings Section */
-.settings-section {
-  background: black;
-  padding: 2rem;
-  margin: 2rem;
-  border-radius: 12px;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
   .main-container {
-    flex-direction: column;
-    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    padding: 2rem;
   }
 
   .upload-section,
   .output-section {
-    width: 96%;
+    width: 48%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .drop-area {
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .drop-area.drag-over {
+    background: black;
+    border-color: darkorange;
+  }
+
+  .drop-area p {
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  input[type="file"] {
+    display: none;
   }
 
   .image-box {
-    height: 300px;
+    width: 100%;
+    height: 600px;
+    background: black;
+    border: 2px dashed darkorange;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    box-sizing: border-box;
   }
-}
+
+  .image-box img {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: none;
+  }
+
+  #outputImage {
+    display: block;
+  }
+
+  .placeholder {
+    color: white;
+    padding: 1em;
+  }
+
+  /* Buttons */
+  button {
+    padding: 0.7em 1.5em;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 1em;
+    cursor: pointer;
+    margin-top: 1em;
+  }
+
+  .upload-btn {
+    background-color: darkorange;
+  }
+
+  .upload-btn:hover {
+    background-color: orangered;
+  }
+
+  .download-btn {
+    background-color: green;
+  }
+
+  .download-btn:hover {
+    background-color: darkgreen;
+  }
+
+  /* Settings Section */
+  .settings-section {
+    background: black;
+    padding: 2rem;
+    margin: 2rem;
+    border-radius: 12px;
+  }
+
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    .main-container {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .upload-section,
+    .output-section {
+      width: 96%;
+    }
+
+    .image-box {
+      height: 300px;
+    }
+  }
