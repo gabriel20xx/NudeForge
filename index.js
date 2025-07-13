@@ -73,10 +73,10 @@ const upload = multer({ storage });
 // --- Server-side Queue Implementation ---
 const processingQueue = [];
 let isProcessing = false;
+// requestStatus will now store per-request data, including totalNodesInWorkflow
 const requestStatus = {};
 let currentlyProcessingRequestId = null;
 let comfyUiWs = null; // WebSocket connection to ComfyUI
-let totalNodesInWorkflow = 0; // To store the count of nodes in the workflow
 
 // Function to establish and manage ComfyUI WebSocket connection
 function connectToComfyUIWebSocket() {
@@ -125,6 +125,15 @@ function connectToComfyUIWebSocket() {
         return;
       }
 
+      // Ensure we have a currently processing request and its status object
+      if (!currentlyProcessingRequestId || !requestStatus[currentlyProcessingRequestId]) {
+        // This message isn't relevant to a tracked request or request data is missing
+        return;
+      }
+
+      // Use the total nodes for the current request
+      const currentRequestTotalNodes = requestStatus[currentlyProcessingRequestId].totalNodesInWorkflow || 0;
+
       // --- Handle specific message types ---
       if (messageType === "progress" && currentlyProcessingRequestId) {
         // This is the older, simpler progress message (value/max for overall steps)
@@ -146,12 +155,6 @@ function connectToComfyUIWebSocket() {
         let totalStepsInRunningNode = 0;
         let currentStepInRunningNode = 0;
 
-        // If totalNodesInWorkflow hasn't been set yet, count it from the first progress_state message
-        if (totalNodesInWorkflow === 0) {
-          totalNodesInWorkflow = Object.keys(nodes).length;
-          console.log(`Discovered total nodes in workflow: ${totalNodesInWorkflow}`);
-        }
-
         for (const nodeId in nodes) {
           if (nodes.hasOwnProperty(nodeId)) {
             const nodeInfo = nodes[nodeId];
@@ -166,17 +169,16 @@ function connectToComfyUIWebSocket() {
         }
 
         let overallProgressPercentage = 0;
-        if (totalNodesInWorkflow > 0) {
+        if (currentRequestTotalNodes > 0) {
             // Calculate progress based on finished nodes + current running node's progress
             // This assumes a somewhat sequential or weighted progression.
-            // A more complex workflow might need a more sophisticated weighting.
-            let baseProgress = finishedNodesCount / totalNodesInWorkflow;
+            let baseProgress = finishedNodesCount / currentRequestTotalNodes;
             let currentRunningNodeContribution = 0;
 
             if (runningNodesCount > 0 && totalStepsInRunningNode > 0) {
                 // If a node is running, its contribution is its internal progress
                 // divided by the total nodes, scaled by its potential "weight" (1/totalNodes here)
-                currentRunningNodeContribution = (currentStepInRunningNode / totalStepsInRunningNode) / totalNodesInWorkflow;
+                currentRunningNodeContribution = (currentStepInRunningNode / totalStepsInRunningNode) / currentRequestTotalNodes;
             }
 
             overallProgressPercentage = Math.min(1, baseProgress + currentRunningNodeContribution); // Cap at 1 (100%)
@@ -189,23 +191,22 @@ function connectToComfyUIWebSocket() {
                 steps: 100,
                 type: "overall_percentage", // Indicate this is overall percentage progress
                 finishedNodes: finishedNodesCount,
-                totalNodes: totalNodesInWorkflow,
+                totalNodes: currentRequestTotalNodes,
                 runningNodes: runningNodesCount
             };
             io.to(currentlyProcessingRequestId).emit("processingProgress", progress);
             console.log(
-                `ComfyUI Progress (Type: progress_state - Overall Nodes): Emitting progress for client ${currentlyProcessingRequestId}: ${overallProgressPercentage}% (Finished: ${finishedNodesCount}/${totalNodesInWorkflow}, Running: ${runningNodesCount})`
+                `ComfyUI Progress (Type: progress_state - Overall Nodes): Emitting progress for client ${currentlyProcessingRequestId}: ${overallProgressPercentage}% (Finished: ${finishedNodesCount}/${currentRequestTotalNodes}, Running: ${runningNodesCount})`
             );
         } else {
-            console.log(`ComfyUI Progress (Type: progress_state): No nodes detected yet for overall progress calculation.`);
+            console.log(`ComfyUI Progress (Type: progress_state): Waiting for total nodes to be determined for client ${currentlyProcessingRequestId}.`);
         }
       }
       else if (messageType === "execution_start") {
         console.log(
           `ComfyUI WebSocket: Execution started for client ID: ${message.data.client_id}`
         );
-        // Reset totalNodesInWorkflow at the start of a new execution
-        totalNodesInWorkflow = 0;
+        // Do NOT reset totalNodesInWorkflow here. It's already set in processQueue.
         if (currentlyProcessingRequestId) {
           io.to(currentlyProcessingRequestId).emit("processingStarted");
           console.log(
@@ -235,11 +236,13 @@ function connectToComfyUIWebSocket() {
           `ComfyUI WebSocket Executing: Node: ${message.data.node}, Prompt ID: ${message.data.prompt_id}`
         );
         if (message.data.node === null && currentlyProcessingRequestId) {
+          // This often signifies the end of execution for a prompt
           console.log(
             `ComfyUI WebSocket: Prompt execution completed for client ${currentlyProcessingRequestId}.`
           );
         }
       } else if (messageType === "executed") {
+        // This message type is sent when a node returns a UI element or output
         console.log(
           `ComfyUI WebSocket: Node executed: ${message.data.node}, Prompt ID: ${message.data.prompt_id}. Output:`,
           message.data.output
@@ -323,6 +326,11 @@ async function processQueue() {
       console.error(`Processing Queue: Workflow JSON is not valid`);
       throw new Error("Invalid workflow.json format.");
     }
+
+    // Set the total nodes for this specific request before sending to ComfyUI
+    requestStatus[requestId].totalNodesInWorkflow = Object.keys(workflow).length;
+    console.log(`Discovered total nodes in workflow for request ${requestId}: ${requestStatus[requestId].totalNodesInWorkflow}`);
+
 
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
@@ -471,6 +479,12 @@ async function processQueue() {
   } finally {
     isProcessing = false;
     currentlyProcessingRequestId = null;
+    // Clean up the request status object when processing is done for it
+    if (requestStatus[requestId] && requestStatus[requestId].status !== "completed" && requestStatus[requestId].status !== "failed") {
+        // If it's not explicitly completed or failed, ensure it's marked as such.
+        // Or simply remove it if you don't need its history after processing.
+        // For now, let's keep it to allow clients to query for completion status.
+    }
     console.log(
       `Queue: Finished processing for requestId. isProcessing set to false. Calling processQueue again.`
     );
@@ -550,7 +564,8 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   );
   console.log(`POST /upload: Path for ComfyUI: ${uploadedPathForComfyUI}`);
 
-  requestStatus[requestId] = { status: "pending" };
+  // Initialize request status with a placeholder for totalNodesInWorkflow
+  requestStatus[requestId] = { status: "pending", totalNodesInWorkflow: 0 };
 
   processingQueue.push({
     requestId,
