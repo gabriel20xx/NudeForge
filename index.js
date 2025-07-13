@@ -51,16 +51,27 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     const workflowJson = fs.readFileSync(WORKFLOW_PATH, "utf-8");
     const workflow = JSON.parse(workflowJson);
 
+    // After parsing workflow JSON
+    const clipTextNode = Object.values(workflow).find(
+      (node) => node.class_type === "CLIPTextEncode"
+    );
+    if (clipTextNode) {
+      clipTextNode.inputs.text =
+        "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ";
+    }
+
     // Find VHS_LoadImagePath node
     const imageNode = Object.values(workflow).find(
       (node) => node.class_type === "VHS_LoadImagePath"
     );
     if (!imageNode) {
-      return res.status(500).send("VHS_LoadImagePath node not found in workflow");
+      return res
+        .status(500)
+        .send("VHS_LoadImagePath node not found in workflow");
     }
 
     // Replace the image input path with the uploaded file path
-    imageNode.inputs["image"] = uploadedPath;  // e.g. "input/1690012345678-myphoto.png"
+    imageNode.inputs["image"] = uploadedPath; // e.g. "input/1690012345678-myphoto.png"
 
     console.log("Sending workflow with image path:", imageNode.inputs["image"]);
 
