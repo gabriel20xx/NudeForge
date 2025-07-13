@@ -94,27 +94,57 @@ function connectToComfyUIWebSocket() {
   comfyUiWs.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data);
+      const messageType = message.type;
 
-      // --- Debugging for all incoming WebSocket messages ---
-      // console.log(`ComfyUI WebSocket: Received message type: ${message.type}`);
-      // if (message.type !== "progress") { // Avoid excessive logging for progress
-      //   console.log("ComfyUI WebSocket: Received message data:", JSON.stringify(message, null, 2));
-      // }
-      // --- End Debugging for all incoming WebSocket messages ---
+      // Define message types you want to log or handle explicitly
+      const handledMessageTypes = [
+        "progress",
+        "execution_start",
+        "execution_cached",
+        "execution_interrupted",
+        "status",
+        "executing",
+        "executed", // Add 'executed' if you want to explicitly log when a node returns a UI element or output
+      ];
 
-      if (message.type === "progress" && currentlyProcessingRequestId) {
+      // List of message types to silently ignore (or log only in verbose debug mode)
+      const ignoredMessageTypes = [
+        "kaytool.resources", // From Kaytool's resource monitor plugin
+        "crystools.monitor", // From Crystools monitor plugin
+        // Add any other specific plugin message types you want to ignore here
+      ];
+
+      if (ignoredMessageTypes.includes(messageType)) {
+        // Silently ignore these messages to keep logs clean
+        // You could add a verbose flag to enable logging these if needed:
+        // if (process.env.VERBOSE_DEBUG === 'true') {
+        //   console.debug(`ComfyUI WebSocket: Silently ignoring message type: ${messageType}`);
+        // }
+        return;
+      }
+
+      if (!handledMessageTypes.includes(messageType)) {
+        // Log unhandled messages that are not explicitly ignored
+        console.log(
+          `ComfyUI WebSocket: Unhandled message type: ${messageType}. Data:`,
+          JSON.stringify(message, null, 2)
+        );
+        return; // Stop processing this message further
+      }
+
+      // --- Handle specific message types ---
+      if (messageType === "progress" && currentlyProcessingRequestId) {
         const progress = {
           value: message.data.value,
           max: message.data.max,
           step: message.data.value,
           steps: message.data.max,
         };
-        // Emit progress to the specific client
         io.to(currentlyProcessingRequestId).emit("processingProgress", progress);
         console.log(
           `ComfyUI Progress: Emitting progress for client ${currentlyProcessingRequestId}: ${progress.value}/${progress.max}`
         );
-      } else if (message.type === "execution_start") {
+      } else if (messageType === "execution_start") {
         console.log(
           `ComfyUI WebSocket: Execution started for client ID: ${message.data.client_id}`
         );
@@ -124,28 +154,40 @@ function connectToComfyUIWebSocket() {
             `ComfyUI WebSocket: Emitted 'processingStarted' for client ${currentlyProcessingRequestId}`
           );
         }
-      } else if (message.type === "execution_cached") {
-        console.log(`ComfyUI WebSocket: Execution cached for nodes: ${message.data.nodes_ran_from_cache}`);
-      } else if (message.type === "execution_interrupted") {
-        console.error(`ComfyUI WebSocket: Execution interrupted! Reason: ${message.data.reason}`);
+      } else if (messageType === "execution_cached") {
+        console.log(
+          `ComfyUI WebSocket: Execution cached for nodes: ${message.data.nodes_ran_from_cache}`
+        );
+      } else if (messageType === "execution_interrupted") {
+        console.error(
+          `ComfyUI WebSocket: Execution interrupted! Reason: ${message.data.reason}`
+        );
         if (currentlyProcessingRequestId) {
           io.to(currentlyProcessingRequestId).emit("processingFailed", {
             error: "ComfyUI execution interrupted.",
             errorMessage: message.data.reason,
           });
         }
-      } else if (message.type === "status") {
-        console.log(`ComfyUI WebSocket Status: Sid: ${message.data.sid}, Status: ${message.data.status.exec_info.queue_remaining} items in queue.`);
-      } else if (message.type === "executing") {
-        console.log(`ComfyUI WebSocket Executing: Node: ${message.data.node}, Prompt ID: ${message.data.prompt_id}`);
+      } else if (messageType === "status") {
+        console.log(
+          `ComfyUI WebSocket Status: Sid: ${message.data.sid}, Queue remaining: ${message.data.status.exec_info.queue_remaining}`
+        );
+      } else if (messageType === "executing") {
+        console.log(
+          `ComfyUI WebSocket Executing: Node: ${message.data.node}, Prompt ID: ${message.data.prompt_id}`
+        );
         if (message.data.node === null && currentlyProcessingRequestId) {
-            // This often signifies the end of execution for a prompt
-            console.log(`ComfyUI WebSocket: Prompt execution completed for client ${currentlyProcessingRequestId}.`);
-            // You might want to consider triggering a final check for the output file here
-            // or rely on the file system watcher in processQueue to confirm completion.
+          // This often signifies the end of execution for a prompt
+          console.log(
+            `ComfyUI WebSocket: Prompt execution completed for client ${currentlyProcessingRequestId}.`
+          );
         }
-      } else {
-        console.log(`ComfyUI WebSocket: Unhandled message type: ${message.type}. Data:`, JSON.stringify(message, null, 2));
+      } else if (messageType === "executed") {
+          // This message type is sent when a node returns a UI element or output
+          console.log(
+              `ComfyUI WebSocket: Node executed: ${message.data.node}, Prompt ID: ${message.data.prompt_id}. Output:`,
+              message.data.output
+          );
       }
     } catch (parseError) {
       console.error(
@@ -156,7 +198,9 @@ function connectToComfyUIWebSocket() {
   };
 
   comfyUiWs.onclose = () => {
-    console.log("Disconnected from ComfyUI WebSocket. Reconnecting in 5 seconds...");
+    console.log(
+      "Disconnected from ComfyUI WebSocket. Reconnecting in 5 seconds..."
+    );
     setTimeout(connectToComfyUIWebSocket, 5000); // Reconnect on close
   };
 
@@ -168,7 +212,6 @@ function connectToComfyUIWebSocket() {
 
 // Establish WebSocket connection when server starts
 connectToComfyUIWebSocket();
-
 
 /**
  * Processes the next item in the queue if ComfyUI is not busy.
@@ -230,7 +273,7 @@ async function processQueue() {
     );
     if (clipTextNode) {
       const newPrompt =
-        "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. Preserve tattoos";
+        "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ";
       clipTextNode.inputs.text = newPrompt;
       console.log(
         `Processing Queue: CLIPTextEncode node updated with new prompt.`
@@ -491,7 +534,6 @@ io.on("connection", (socket) => {
     console.error(`Socket.IO: Socket error for ${socket.id}:`, err.message);
   });
 });
-
 
 function updateFrontendQueueSize() {
   console.log(
