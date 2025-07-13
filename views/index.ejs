@@ -87,6 +87,7 @@
         }
 
         // Listen for processing progress updates from the server
+        let percentage;
         socket.on('processingProgress', (progress) => {
             console.log('Socket.IO: Received processingProgress:', progress);
             let percentage;
@@ -117,7 +118,7 @@
                     yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
                     updateProgressPercentage(''); // Clear progress percentage
-                    outputPlaceholder.textContent = 'Processing your image...';
+                    outputPlaceholder.textContent = `Processing your image: ${percentage}% Done`;
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     downloadLink.style.display = 'none';
