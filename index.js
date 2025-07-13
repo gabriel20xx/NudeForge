@@ -114,11 +114,11 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     // Send path to frontend
     res.json({ outputImage: outputRelativePath });
   } catch (err) {
-    if (error.response) {
-      console.error("Error in /upload:", error.response.status);
-      console.error("Response data:", error.response.data);
+    if (err.response) {
+      console.error("Error in /upload:", err.response.status);
+      console.error("Response data:", err.response.data);
     } else {
-      console.error("Error in /upload:", error.message);
+      console.error("Error in /upload:", err.message);
     }
     res.status(500).send("Processing failed");
   }
