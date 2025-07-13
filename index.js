@@ -230,7 +230,7 @@ async function processQueue() {
     );
     if (clipTextNode) {
       const newPrompt =
-        "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ";
+        "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. Preserve tattoos";
       clipTextNode.inputs.text = newPrompt;
       console.log(
         `Processing Queue: CLIPTextEncode node updated with new prompt.`
