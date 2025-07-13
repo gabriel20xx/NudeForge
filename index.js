@@ -85,7 +85,7 @@ async function processQueue() {
       return; // Exit
     }
 
-    const clipTextNode = Object.values(promptNodes).find(
+    const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
     );
     if (clipTextNode) {
@@ -96,7 +96,7 @@ async function processQueue() {
       console.warn(`Processing Queue: CLIPTextEncode node not found in workflow. Prompt will not be changed.`);
     }
 
-    const inputNameNode = Object.values(promptNodes).find(
+    const inputNameNode = Object.values(workflow).find(
       (node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name"
     );
     if (inputNameNode) {
@@ -106,7 +106,7 @@ async function processQueue() {
       console.warn(`Processing Queue: PrimitiveString node with title "Input Name" not found in workflow. Input name will not be set.`);
     }
 
-    const imageNode = Object.values(promptNodes).find(
+    const imageNode = Object.values(workflow).find(
       (node) => node.class_type === "VHS_LoadImagePath"
     );
     if (!imageNode) {
@@ -119,7 +119,7 @@ async function processQueue() {
     console.log(`Processing Queue: VHS_LoadImagePath node updated with image path: ${imageNode.inputs["image"]}`);
 
     // Re-wrap the promptNodes in the "prompt" key before sending to ComfyUI
-    const comfyUIRequestBody = { prompt: promptNodes };
+    const comfyUIRequestBody = { prompt: workflow };
     console.log(`Processing Queue: Sending workflow to ComfyUI at ${COMFYUI_URL}...`);
     const axiosResponse = await axios.post(COMFYUI_URL, comfyUIRequestBody, {
       headers: { "Content-Type": "application/json" },
