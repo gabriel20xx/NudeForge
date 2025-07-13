@@ -58,7 +58,6 @@ h1 {
 }
 
 .drop-area p {
-  color: black;
   font-size: 1rem;
   text-align: center;
 }
@@ -94,9 +93,6 @@ input[type="file"] {
 
 #outputImage {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
 }
 
 .placeholder {
