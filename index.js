@@ -85,16 +85,6 @@ async function processQueue() {
       return; // Exit
     }
 
-    // This part should be within the 'prompt' key of your workflow
-    // Let's assume your workflow structure is { prompt: { ...nodes... } }
-    let promptNodes = workflow.prompt;
-    if (!promptNodes) {
-        console.error(`Processing Queue: Workflow JSON does not contain a "prompt" key.`);
-        res.status(500).send("Invalid workflow.json format: Missing 'prompt' key.");
-        return;
-    }
-
-
     const clipTextNode = Object.values(promptNodes).find(
       (node) => node.class_type === "CLIPTextEncode"
     );
