@@ -1,338 +1,340 @@
 {
-  "6": {
-    "inputs": {
-      "text": "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ",
-      "clip": [
-        "202",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Positive Prompt)"
+    "prompt": {
+        "6": {
+            "inputs": {
+                "text": "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ",
+                "clip": [
+                    "202",
+                    1
+                ]
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+                "title": "CLIP Text Encode (Positive Prompt)"
+            }
+        },
+        "8": {
+            "inputs": {
+                "samples": [
+                    "239",
+                    0
+                ],
+                "vae": [
+                    "39",
+                    0
+                ]
+            },
+            "class_type": "VAEDecode",
+            "_meta": {
+                "title": "VAE Decode"
+            }
+        },
+        "35": {
+            "inputs": {
+                "guidance": 2.5,
+                "conditioning": [
+                    "177",
+                    0
+                ]
+            },
+            "class_type": "FluxGuidance",
+            "_meta": {
+                "title": "FluxGuidance"
+            }
+        },
+        "37": {
+            "inputs": {
+                "unet_name": "flux1-dev-kontext_fp8_scaled.safetensors",
+                "weight_dtype": "default"
+            },
+            "class_type": "UNETLoader",
+            "_meta": {
+                "title": "Load Diffusion Model"
+            }
+        },
+        "38": {
+            "inputs": {
+                "clip_name1": "clip_l.safetensors",
+                "clip_name2": "t5xxl_fp8_e4m3fn_scaled.safetensors",
+                "type": "flux",
+                "device": "default"
+            },
+            "class_type": "DualCLIPLoader",
+            "_meta": {
+                "title": "DualCLIPLoader"
+            }
+        },
+        "39": {
+            "inputs": {
+                "vae_name": "ae.safetensors"
+            },
+            "class_type": "VAELoader",
+            "_meta": {
+                "title": "Load VAE"
+            }
+        },
+        "42": {
+            "inputs": {
+                "image": [
+                    "244",
+                    0
+                ]
+            },
+            "class_type": "FluxKontextImageScale",
+            "_meta": {
+                "title": "FluxKontextImageScale"
+            }
+        },
+        "124": {
+            "inputs": {
+                "pixels": [
+                    "42",
+                    0
+                ],
+                "vae": [
+                    "39",
+                    0
+                ]
+            },
+            "class_type": "VAEEncode",
+            "_meta": {
+                "title": "VAE Encode"
+            }
+        },
+        "135": {
+            "inputs": {
+                "conditioning": [
+                    "6",
+                    0
+                ]
+            },
+            "class_type": "ConditioningZeroOut",
+            "_meta": {
+                "title": "ConditioningZeroOut"
+            }
+        },
+        "177": {
+            "inputs": {
+                "conditioning": [
+                    "6",
+                    0
+                ],
+                "latent": [
+                    "124",
+                    0
+                ]
+            },
+            "class_type": "ReferenceLatent",
+            "_meta": {
+                "title": "ReferenceLatent"
+            }
+        },
+        "200": {
+            "inputs": {
+                "custom_path": "",
+                "filename_prefix": "Nudified",
+                "timestamp": "None",
+                "format": "png",
+                "quality": 100,
+                "meta_data": false,
+                "blind_watermark": "",
+                "save_workflow_as_json": false,
+                "preview": true,
+                "images": [
+                    "220",
+                    0
+                ]
+            },
+            "class_type": "LayerUtility: SaveImagePlus",
+            "_meta": {
+                "title": "LayerUtility: SaveImage Plus"
+            }
+        },
+        "202": {
+            "inputs": {
+                "PowerLoraLoaderHeaderWidget": {
+                    "type": "PowerLoraLoaderHeaderWidget"
+                },
+                "lora_1": {
+                    "on": true,
+                    "lora": "fluxkontext/change_clothes_to_nothing_000011200.safetensors",
+                    "strength": 1
+                },
+                "lora_2": {
+                    "on": false,
+                    "lora": "flux/real_textures-000011.safetensors",
+                    "strength": 0.7
+                },
+                "lora_3": {
+                    "on": false,
+                    "lora": "flux/Flux_Ultimator.safetensors",
+                    "strength": 0.5
+                },
+                "lora_4": {
+                    "on": false,
+                    "lora": "flux/FLUX_FD-Nipple-Detail-R4.safetensors",
+                    "strength": 0.8
+                },
+                "lora_5": {
+                    "on": true,
+                    "lora": "flux/aidmaRealisticSkin-FLUX-v0.1.safetensors",
+                    "strength": 0.6
+                },
+                "➕ Add Lora": "",
+                "model": [
+                    "37",
+                    0
+                ],
+                "clip": [
+                    "38",
+                    0
+                ]
+            },
+            "class_type": "Power Lora Loader (rgthree)",
+            "_meta": {
+                "title": "Power Lora Loader (rgthree)"
+            }
+        },
+        "214": {
+            "inputs": {
+                "upscale_model": [
+                    "215",
+                    0
+                ],
+                "image": [
+                    "8",
+                    0
+                ]
+            },
+            "class_type": "ImageUpscaleWithModel",
+            "_meta": {
+                "title": "Upscale Image (using Model)"
+            }
+        },
+        "215": {
+            "inputs": {
+                "model_name": "RealESRGAN_x4plus.pth"
+            },
+            "class_type": "UpscaleModelLoader",
+            "_meta": {
+                "title": "Load Upscale Model"
+            }
+        },
+        "220": {
+            "inputs": {
+                "size": [
+                    "231",
+                    0
+                ],
+                "mode": true,
+                "images": [
+                    "214",
+                    0
+                ]
+            },
+            "class_type": "easy imageScaleDownToSize",
+            "_meta": {
+                "title": "Image Scale Down To Size"
+            }
+        },
+        "225": {
+            "inputs": {
+                "size": [
+                    "231",
+                    0
+                ],
+                "method": "NEAREST"
+            },
+            "class_type": "ResizeLongestToNode",
+            "_meta": {
+                "title": "Resize Longest To"
+            }
+        },
+        "226": {
+            "inputs": {
+                "image": [
+                    "244",
+                    0
+                ]
+            },
+            "class_type": "Image_Size_Extractor",
+            "_meta": {
+                "title": "𝙆 Image Size Extractor"
+            }
+        },
+        "227": {
+            "inputs": {
+                "width": [
+                    "226",
+                    0
+                ],
+                "height": [
+                    "226",
+                    1
+                ],
+                "method": "NEAREST",
+                "image": [
+                    "8",
+                    0
+                ]
+            },
+            "class_type": "ResizeImageNode",
+            "_meta": {
+                "title": "Resize Image"
+            }
+        },
+        "231": {
+            "inputs": {
+                "value": 1080
+            },
+            "class_type": "PrimitiveInt",
+            "_meta": {
+                "title": "Height"
+            }
+        },
+        "239": {
+            "inputs": {
+                "add_noise": "enable",
+                "noise_seed": 366793558250572,
+                "steps": 20,
+                "cfg": 1,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "start_at_step": 0,
+                "end_at_step": 10000,
+                "return_with_leftover_noise": "disable",
+                "model": [
+                    "202",
+                    0
+                ],
+                "positive": [
+                    "35",
+                    0
+                ],
+                "negative": [
+                    "135",
+                    0
+                ],
+                "latent_image": [
+                    "124",
+                    0
+                ]
+            },
+            "class_type": "KSamplerAdvanced",
+            "_meta": {
+                "title": "KSampler (Advanced)"
+            }
+        },
+        "244": {
+            "inputs": {
+                "image": "input/example.png",
+                "custom_width": 0,
+                "custom_height": 0
+            },
+            "class_type": "VHS_LoadImagePath",
+            "_meta": {
+                "title": "Load Image (Path) 🎥🅥🅗🅢"
+            }
+        }
     }
-  },
-  "8": {
-    "inputs": {
-      "samples": [
-        "239",
-        0
-      ],
-      "vae": [
-        "39",
-        0
-      ]
-    },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "VAE Decode"
-    }
-  },
-  "35": {
-    "inputs": {
-      "guidance": 2.5,
-      "conditioning": [
-        "177",
-        0
-      ]
-    },
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "FluxGuidance"
-    }
-  },
-  "37": {
-    "inputs": {
-      "unet_name": "flux1-dev-kontext_fp8_scaled.safetensors",
-      "weight_dtype": "default"
-    },
-    "class_type": "UNETLoader",
-    "_meta": {
-      "title": "Load Diffusion Model"
-    }
-  },
-  "38": {
-    "inputs": {
-      "clip_name1": "clip_l.safetensors",
-      "clip_name2": "t5xxl_fp8_e4m3fn_scaled.safetensors",
-      "type": "flux",
-      "device": "default"
-    },
-    "class_type": "DualCLIPLoader",
-    "_meta": {
-      "title": "DualCLIPLoader"
-    }
-  },
-  "39": {
-    "inputs": {
-      "vae_name": "ae.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Load VAE"
-    }
-  },
-  "42": {
-    "inputs": {
-      "image": [
-        "244",
-        0
-      ]
-    },
-    "class_type": "FluxKontextImageScale",
-    "_meta": {
-      "title": "FluxKontextImageScale"
-    }
-  },
-  "124": {
-    "inputs": {
-      "pixels": [
-        "42",
-        0
-      ],
-      "vae": [
-        "39",
-        0
-      ]
-    },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE Encode"
-    }
-  },
-  "135": {
-    "inputs": {
-      "conditioning": [
-        "6",
-        0
-      ]
-    },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "ConditioningZeroOut"
-    }
-  },
-  "177": {
-    "inputs": {
-      "conditioning": [
-        "6",
-        0
-      ],
-      "latent": [
-        "124",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "ReferenceLatent"
-    }
-  },
-  "200": {
-    "inputs": {
-      "custom_path": "",
-      "filename_prefix": "Nudified",
-      "timestamp": "None",
-      "format": "png",
-      "quality": 100,
-      "meta_data": false,
-      "blind_watermark": "",
-      "save_workflow_as_json": false,
-      "preview": true,
-      "images": [
-        "220",
-        0
-      ]
-    },
-    "class_type": "LayerUtility: SaveImagePlus",
-    "_meta": {
-      "title": "LayerUtility: SaveImage Plus"
-    }
-  },
-  "202": {
-    "inputs": {
-      "PowerLoraLoaderHeaderWidget": {
-        "type": "PowerLoraLoaderHeaderWidget"
-      },
-      "lora_1": {
-        "on": true,
-        "lora": "fluxkontext/change_clothes_to_nothing_000011200.safetensors",
-        "strength": 1
-      },
-      "lora_2": {
-        "on": false,
-        "lora": "flux/real_textures-000011.safetensors",
-        "strength": 0.7
-      },
-      "lora_3": {
-        "on": false,
-        "lora": "flux/Flux_Ultimator.safetensors",
-        "strength": 0.5
-      },
-      "lora_4": {
-        "on": false,
-        "lora": "flux/FLUX_FD-Nipple-Detail-R4.safetensors",
-        "strength": 0.8
-      },
-      "lora_5": {
-        "on": true,
-        "lora": "flux/aidmaRealisticSkin-FLUX-v0.1.safetensors",
-        "strength": 0.6
-      },
-      "➕ Add Lora": "",
-      "model": [
-        "37",
-        0
-      ],
-      "clip": [
-        "38",
-        0
-      ]
-    },
-    "class_type": "Power Lora Loader (rgthree)",
-    "_meta": {
-      "title": "Power Lora Loader (rgthree)"
-    }
-  },
-  "214": {
-    "inputs": {
-      "upscale_model": [
-        "215",
-        0
-      ],
-      "image": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "ImageUpscaleWithModel",
-    "_meta": {
-      "title": "Upscale Image (using Model)"
-    }
-  },
-  "215": {
-    "inputs": {
-      "model_name": "RealESRGAN_x4plus.pth"
-    },
-    "class_type": "UpscaleModelLoader",
-    "_meta": {
-      "title": "Load Upscale Model"
-    }
-  },
-  "220": {
-    "inputs": {
-      "size": [
-        "231",
-        0
-      ],
-      "mode": true,
-      "images": [
-        "214",
-        0
-      ]
-    },
-    "class_type": "easy imageScaleDownToSize",
-    "_meta": {
-      "title": "Image Scale Down To Size"
-    }
-  },
-  "225": {
-    "inputs": {
-      "size": [
-        "231",
-        0
-      ],
-      "method": "NEAREST"
-    },
-    "class_type": "ResizeLongestToNode",
-    "_meta": {
-      "title": "Resize Longest To"
-    }
-  },
-  "226": {
-    "inputs": {
-      "image": [
-        "244",
-        0
-      ]
-    },
-    "class_type": "Image_Size_Extractor",
-    "_meta": {
-      "title": "𝙆 Image Size Extractor"
-    }
-  },
-  "227": {
-    "inputs": {
-      "width": [
-        "226",
-        0
-      ],
-      "height": [
-        "226",
-        1
-      ],
-      "method": "NEAREST",
-      "image": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "ResizeImageNode",
-    "_meta": {
-      "title": "Resize Image"
-    }
-  },
-  "231": {
-    "inputs": {
-      "value": 1080
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Height"
-    }
-  },
-  "239": {
-    "inputs": {
-      "add_noise": "enable",
-      "noise_seed": 366793558250572,
-      "steps": 20,
-      "cfg": 1,
-      "sampler_name": "euler",
-      "scheduler": "simple",
-      "start_at_step": 0,
-      "end_at_step": 10000,
-      "return_with_leftover_noise": "disable",
-      "model": [
-        "202",
-        0
-      ],
-      "positive": [
-        "35",
-        0
-      ],
-      "negative": [
-        "135",
-        0
-      ],
-      "latent_image": [
-        "124",
-        0
-      ]
-    },
-    "class_type": "KSamplerAdvanced",
-    "_meta": {
-      "title": "KSampler (Advanced)"
-    }
-  },
-  "244": {
-    "inputs": {
-      "image": "input/example.png",
-      "custom_width": 0,
-      "custom_height": 0
-    },
-    "class_type": "VHS_LoadImagePath",
-    "_meta": {
-      "title": "Load Image (Path) 🎥🅥🅗🅢"
-    }
-  }
 }
