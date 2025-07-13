@@ -45,10 +45,16 @@ const storage = multer.diskStorage({
     console.log(`Multer: Setting destination to ${INPUT_DIR}`);
     cb(null, INPUT_DIR);
   },
+  // In your server-side index.js, inside multer.diskStorage.filename
   filename: (req, file, cb) => {
-    const baseName = path.parse(file.originalname).name;
-    const uniquePart = uuidv4().substring(0, 8);
-    const newFileName = `${baseName}-${uniquePart}${path.extname(file.originalname)}`;
+    const baseName = path.parse(file.originalname).name; // Original file name without extension
+    const fileExt = path.extname(file.originalname); // Original file extension
+    const uniquePart = uuidv4().substring(0, 8); // Short UUID for uniqueness
+
+    // *** THIS IS THE CRUCIAL LINE I MODIFIED LAST TIME ***
+    // It should put the UUID at the front:
+    const newFileName = `${uniquePart}-${baseName}${fileExt}`; // e.g., "bf32d6b1-boobs_like_these_are_gods_gift_to_men_640_high_35.png"
+
     console.log(`Multer: Generating unique filename for input: ${newFileName}`);
     cb(null, newFileName);
   },
@@ -89,7 +95,6 @@ async function processQueue() {
   const inputFileNameWithoutExt = path.parse(uploadedFilename).name; // e.g., "myimage-uuidpart"
   // The expected suffix of the output file from ComfyUI
   const expectedOutputSuffix = `${inputFileNameWithoutExt}-nudified.png`; // Or .jpg, based on your ComfyUI workflow output
-
 
   try {
     console.log(
@@ -176,28 +181,39 @@ async function processQueue() {
     let retryCount = 0;
     const delayBetweenChecks = 500; // Check every 0.5 seconds
 
-    while (true) { // Loop indefinitely
+    while (true) {
+      // Loop indefinitely
       try {
         const filesInOutputDir = await fs.promises.readdir(OUTPUT_DIR);
-        foundOutputFilename = filesInOutputDir.find(file => file.endsWith(expectedOutputSuffix));
+        foundOutputFilename = filesInOutputDir.find((file) =>
+          file.endsWith(expectedOutputSuffix)
+        );
 
         if (foundOutputFilename) {
           const fullPath = path.join(OUTPUT_DIR, foundOutputFilename);
           // Verify file is fully written/accessible
           await fs.promises.access(fullPath, fs.constants.F_OK);
-          await new Promise(resolve => setTimeout(resolve, 100)); // Small buffer for file system writes
-          console.log(`Processing Queue: Found and accessed expected output file: ${foundOutputFilename}`);
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Small buffer for file system writes
+          console.log(
+            `Processing Queue: Found and accessed expected output file: ${foundOutputFilename}`
+          );
           break; // Exit the loop if file is found
         } else {
           retryCount++;
           if (retryCount % 10 === 0) {
-            console.log(`Processing Queue: Still waiting for file ending with ${expectedOutputSuffix} (checks: ${retryCount}).`);
+            console.log(
+              `Processing Queue: Still waiting for file ending with ${expectedOutputSuffix} (checks: ${retryCount}).`
+            );
           }
-          await new Promise((resolve) => setTimeout(resolve, delayBetweenChecks));
+          await new Promise((resolve) =>
+            setTimeout(resolve, delayBetweenChecks)
+          );
         }
       } catch (err) {
         // Handle errors during readdir or access (e.g., directory not found, permissions)
-        console.error(`Processing Queue: Error while waiting for output file: ${err.message}`);
+        console.error(
+          `Processing Queue: Error while waiting for output file: ${err.message}`
+        );
         throw err; // Re-throw to mark the job as failed
       }
     }
@@ -234,8 +250,9 @@ async function processQueue() {
     isProcessing = false;
     currentlyProcessingRequestId = null;
     fs.unlink(path.join(INPUT_DIR, uploadedFilename), (err) => {
-        if (err) console.error(`Error deleting input file ${uploadedFilename}:`, err);
-        else console.log(`Deleted input file: ${uploadedFilename}`);
+      if (err)
+        console.error(`Error deleting input file ${uploadedFilename}:`, err);
+      else console.log(`Deleted input file: ${uploadedFilename}`);
     });
     processQueue();
   }
