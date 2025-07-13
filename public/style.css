@@ -3,7 +3,7 @@ body {
   margin: 0;
   padding: 0;
   background: black;
-  color: #333;
+  color: white;
   text-align: center;
 }
 
@@ -12,6 +12,24 @@ h1 {
   color: white;
   padding: 1em;
   margin: 0;
+}
+
+/* Progress Bar */
+#progressContainer {
+  width: 100%;
+  height: 8px;
+  background: black;
+  margin-top: 1em;
+  border-radius: 4px;
+  overflow: hidden;
+  display: none;
+}
+
+#progressBar {
+  height: 100%;
+  background: darkorange;
+  width: 0%;
+  transition: width 0.3s;
 }
 
 .main-container {
@@ -30,20 +48,8 @@ h1 {
 }
 
 .drop-area {
-  width: 100%;
-  height: 600px;
-  border: 2px dashed darkorange;
-  border-radius: 8px;
-  background: black;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
   transition: background 0.3s;
-  padding: 1rem;
 }
 
 .drop-area.drag-over {
@@ -57,26 +63,20 @@ h1 {
   text-align: center;
 }
 
-.drop-area img {
-  display: none;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
 input[type="file"] {
   display: none;
 }
 
 .image-box {
   width: 100%;
-  height: 600px; /* Match .drop-area */
+  height: 600px;
   background: black;
   border: 2px dashed darkorange; /* Match outline color */
   border-radius: 8px;
   position: relative;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 1rem;
@@ -104,52 +104,39 @@ input[type="file"] {
   padding: 1em;
 }
 
+/* Buttons */
 button {
   padding: 0.7em 1.5em;
   border: none;
   border-radius: 6px;
-  background-color: darkorange;
   color: white;
   font-size: 1em;
   cursor: pointer;
   margin-top: 1em;
 }
 
-button:hover {
+.upload-btn {
   background-color: darkorange;
 }
 
+.upload-btn:hover {
+  background-color: orangered;
+}
+
 .download-btn {
-  background-color: #4caf50;
-  margin-top: 1em;
+  background-color: green;
 }
 
 .download-btn:hover {
-  background-color: #388e3c;
+  background-color: darkgreen;
 }
 
+/* Settings Section */
 .settings-section {
   background: black;
   padding: 2rem;
   margin: 2rem;
   border-radius: 12px;
-}
-
-#progressContainer {
-  width: 100%;
-  height: 8px;
-  background: black;
-  margin-top: 1em;
-  border-radius: 4px;
-  overflow: hidden;
-  display: none;
-}
-
-#progressBar {
-  height: 100%;
-  background: darkorange;
-  width: 0%;
-  transition: width 0.3s;
 }
 
 /* Mobile Responsive */

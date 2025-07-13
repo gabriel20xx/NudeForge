@@ -20,20 +20,16 @@
         <div class="main-container">
             <div class="upload-section">
                 <h2>Upload Image</h2>
-
-                <div id="dropArea" class="drop-area">
+                <div id="dropArea" class="drop-area image-box">
                     <p id="dropText">📂 Drag & drop or click to upload</p>
                     <img id="previewImage" />
                     <input id="imageInput" type="file" name="image" accept="image/*" />
                 </div>
-
-                <button type="submit">Upload</button>
-
+                <button class="upload-btn" type="submit">Upload</button>
             </div>
-
             <div class="output-section">
                 <h2>Processed Output</h2>
-                <div class="image-box">
+                <div id="outputArea" class="image-box">
                     <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
                 </div>
