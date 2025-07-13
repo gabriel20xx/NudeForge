@@ -45,6 +45,7 @@
         <p>Future filters and options will go here.</p>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const inputImage = document.getElementById('inputImage');
         const previewImage = document.getElementById('previewImage');
@@ -65,19 +66,118 @@
         let currentRequestId = null; // Store the requestId for this client's active job
         let pollingIntervalId = null; // To store the interval ID for polling
 
+        // --- Socket.IO Setup ---
+        const socket = io(); // Connects to the server where the script is served from
+
+        socket.on('connect', () => {
+            console.log('Connected to Socket.IO server.');
+            // If there's an ongoing request from a previous session (e.g., page refresh),
+            // you might want to try to rejoin its room. For simplicity, we'll assume
+            // new connections are for new uploads or waiting for a cleared state.
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from Socket.IO server.');
+            if (pollingIntervalId) {
+                clearInterval(pollingIntervalId);
+                pollingIntervalId = null;
+            }
+        });
+
+        // Listen for processing progress updates from the server
+        socket.on('processingProgress', (progress) => {
+            if (currentRequestId && processingStatusSpan.textContent === 'Processing') {
+                const percentage = Math.round((progress.value / progress.max) * 100);
+                progressBar.style.width = `${percentage}%`;
+                progressBar.textContent = `${percentage}%`;
+                outputPlaceholder.textContent = `Processing image: ${percentage}% complete...`;
+                progressContainer.style.display = 'block'; // Ensure progress bar is visible
+            }
+        });
+
+        // Listen for immediate queue updates (e.g., when your turn comes)
+        socket.on('queueUpdate', (data) => {
+            console.log('Socket.IO Queue Update:', data);
+            queueSizeSpan.textContent = data.queueSize;
+
+            if (data.requestId === currentRequestId) { // Ensure update is for our request
+                if (data.status === 'processing') {
+                    yourPositionSpan.textContent = 'Processing';
+                    processingStatusSpan.textContent = 'Processing';
+                    outputPlaceholder.textContent = 'Processing your image...';
+                    progressContainer.style.display = 'block'; // Show progress bar
+                    progressBar.style.width = '0%'; // Reset for new processing
+                    progressBar.textContent = '0%';
+                } else if (data.status === 'pending') {
+                    yourPositionSpan.textContent = `${data.yourPosition}`;
+                    processingStatusSpan.textContent = 'Waiting';
+                    outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
+                    progressContainer.style.display = 'none'; // Hide progress bar if pending
+                }
+            } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
+                 // General update for idle state if no current request
+                processingStatusSpan.textContent = 'Idle';
+                yourPositionSpan.textContent = 'N/A';
+            }
+        });
+
+        // Listen for processing completion
+        socket.on('processingComplete', (data) => {
+            if (currentRequestId) { // Check if this completion is for our request
+                console.log('Socket.IO Processing complete:', data);
+                yourPositionSpan.textContent = 'Done!';
+                processingStatusSpan.textContent = 'Complete';
+                if (data.outputImage) {
+                    displayResult(data.outputImage);
+                }
+                currentRequestId = null; // Clear request ID
+                if (pollingIntervalId) {
+                    clearInterval(pollingIntervalId); // Stop polling once done
+                    pollingIntervalId = null;
+                }
+                progressContainer.style.display = 'none'; // Hide progress bar
+            }
+            fetchQueueStatus(); // Fetch general queue status to update for next job
+        });
+
+        // Listen for processing failure
+        socket.on('processingFailed', (data) => {
+            if (currentRequestId) { // Check if this failure is for our request
+                console.error('Socket.IO Processing failed:', data);
+                yourPositionSpan.textContent = 'Error!';
+                processingStatusSpan.textContent = 'Failed';
+                displayError(data.errorMessage || 'Unknown processing error.');
+                currentRequestId = null; // Clear request ID
+                if (pollingIntervalId) {
+                    clearInterval(pollingIntervalId); // Stop polling
+                    pollingIntervalId = null;
+                }
+                progressContainer.style.display = 'none'; // Hide progress bar
+            }
+            fetchQueueStatus(); // Fetch general queue status
+        });
+
+
         // --- UI Helper Functions ---
         function resetUIForNewUpload() {
             outputImage.style.display = 'none';
             outputImage.src = ''; // Clear previous image
             outputPlaceholder.style.display = 'block';
+            outputPlaceholder.style.color = '#333'; // Reset color if it was red from an error
             downloadLink.style.display = 'none';
             downloadLink.href = '#';
             currentRequestId = null;
             yourPositionSpan.textContent = 'Submitting...';
-            processingStatusSpan.textContent = 'Idle';
-            queueSizeSpan.textContent = '0';
-            progressContainer.style.display = 'none';
+            processingStatusSpan.textContent = 'Uploading...'; // Indicate upload is happening
+            queueSizeSpan.textContent = '0'; // Will be updated by server response
+            progressContainer.style.display = 'block'; // Show progress bar for upload
             progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+
+            if (pollingIntervalId) { // Clear any ongoing polling interval
+                clearInterval(pollingIntervalId);
+                pollingIntervalId = null;
+            }
         }
 
         function displayProcessingMessage(message) {
@@ -164,31 +264,41 @@
 
             const xhr = new XMLHttpRequest();
 
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-
+            // Set up upload progress for the file upload itself (not ComfyUI processing)
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) {
                     const percent = (e.loaded / e.total) * 100;
                     progressBar.style.width = percent + '%';
+                    progressBar.textContent = `Uploading: ${Math.round(percent)}%`;
+                    processingStatusSpan.textContent = 'Uploading';
                 }
             });
 
             xhr.onreadystatechange = () => {
                 if (xhr.readyState === 4) {
-                    progressContainer.style.display = 'none';
                     if (xhr.status === 202) { // Server accepted and enqueued
                         const response = JSON.parse(xhr.responseText);
                         currentRequestId = response.requestId; // Store the received requestId
+
+                        // Join the Socket.IO room for this specific requestId
+                        socket.emit('joinRoom', currentRequestId);
+
+                        // Update initial queue status immediately from response
                         queueSizeSpan.textContent = response.queueSize;
                         yourPositionSpan.textContent = response.yourPosition > 0 ? response.yourPosition : 'Processing';
                         processingStatusSpan.textContent = 'Waiting for server...';
 
-                        // Start polling for this specific request's status
-                        if (!pollingIntervalId) { // Only start one interval
-                            pollingIntervalId = setInterval(fetchQueueStatus, 2000); // Poll every 2 seconds
+                        // Hide upload progress and reset for processing progress
+                        progressBar.style.width = '0%';
+                        progressBar.textContent = '0%';
+                        progressContainer.style.display = 'block'; // Ensure it's ready for processing progress
+
+                        // Start polling for overall queue status. The Socket.IO
+                        // events will provide the real-time progress for *our* job.
+                        if (!pollingIntervalId) {
+                            pollingIntervalId = setInterval(fetchQueueStatus, 2000);
                         }
-                        // Immediately fetch status after enqueuing
+                        // Immediately fetch status after enqueuing for quick update
                         fetchQueueStatus();
 
                     } else { // Handle upload errors
@@ -196,9 +306,13 @@
                         console.error('Upload error:', xhr.responseText);
                         displayError('Upload failed: ' + xhr.responseText);
                         currentRequestId = null; // Clear request ID on upload failure
-                        clearInterval(pollingIntervalId); // Stop polling if upload fails
-                        pollingIntervalId = null;
+                        if (pollingIntervalId) {
+                            clearInterval(pollingIntervalId); // Stop polling if upload fails
+                            pollingIntervalId = null;
+                        }
                         yourPositionSpan.textContent = 'Error';
+                        processingStatusSpan.textContent = 'Failed';
+                        progressContainer.style.display = 'none'; // Hide progress bar on failure
                     }
                 }
             };
@@ -210,16 +324,13 @@
         // --- Frontend Queue Polling ---
         async function fetchQueueStatus() {
             try {
-                if (!currentRequestId && processingQueue.length === 0) {
-                    // No active request and queue is empty, no need to poll for status.
-                    // This prevents unnecessary calls when idle.
-                    clearInterval(pollingIntervalId);
-                    pollingIntervalId = null;
-                    processingStatusSpan.textContent = 'Idle';
-                    yourPositionSpan.textContent = 'N/A';
-                    return;
+                // If there's no active request, and we're not currently processing,
+                // and the queue is empty, we can stop polling.
+                // This is a general check for the entire queue.
+                if (!currentRequestId && processingStatusSpan.textContent === 'Idle' && queueSizeSpan.textContent === '0') {
+                    // Don't clear interval if it's not set, or if it's specifically for a requestId that might be done.
+                    // Let the socket events handle completion for `currentRequestId`.
                 }
-
 
                 let url = '/queue-status';
                 if (currentRequestId) {
@@ -232,59 +343,69 @@
                 }
                 const data = await response.json();
 
+                // Update general queue stats
                 queueSizeSpan.textContent = data.queueSize;
                 processingStatusSpan.textContent = data.isProcessing ? 'Busy' : 'Idle';
 
-                // Update 'Your Position' and display output based on status
-                if (currentRequestId) {
+                // Update 'Your Position' based on polled status if Socket.IO hasn't already done it
+                if (currentRequestId && data.requestId === currentRequestId) { // Ensure update is for our request
                     switch (data.status) {
                         case 'pending':
                             yourPositionSpan.textContent = `${data.yourPosition}`;
-                            displayProcessingMessage(`Waiting in queue: Position ${data.yourPosition}`);
+                            outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
+                            progressContainer.style.display = 'none'; // Hide progress bar for pending
                             break;
                         case 'processing':
                             yourPositionSpan.textContent = 'Processing';
-                            displayProcessingMessage('Processing your image...');
+                            outputPlaceholder.textContent = 'Processing your image...';
+                            progressContainer.style.display = 'block'; // Show progress bar
+                            // Progress bar percentage will be handled by Socket.IO 'processingProgress' event
                             break;
                         case 'completed':
                             yourPositionSpan.textContent = 'Done!';
                             displayResult(data.result.outputImage);
                             currentRequestId = null; // Clear the request ID as it's done
-                            clearInterval(pollingIntervalId); // Stop polling
-                            pollingIntervalId = null;
+                            if (pollingIntervalId) {
+                                clearInterval(pollingIntervalId); // Stop polling
+                                pollingIntervalId = null;
+                            }
+                            progressContainer.style.display = 'none'; // Hide progress bar
                             break;
                         case 'failed':
                             yourPositionSpan.textContent = 'Error!';
-                            displayError(data.result.error || 'Unknown processing error.');
+                            displayError(data.result.errorMessage || 'Unknown processing error.');
                             currentRequestId = null; // Clear the request ID as it's done
-                            clearInterval(pollingIntervalId); // Stop polling
-                            pollingIntervalId = null;
+                            if (pollingIntervalId) {
+                                clearInterval(pollingIntervalId); // Stop polling
+                                pollingIntervalId = null;
+                            }
+                            progressContainer.style.display = 'none'; // Hide progress bar
                             break;
                         default:
                             yourPositionSpan.textContent = 'N/A';
                             break;
                     }
-                } else {
-                    yourPositionSpan.textContent = 'N/A'; // No active request
+                } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
+                     // If no active request and queue is truly empty, ensure state is idle
+                    processingStatusSpan.textContent = 'Idle';
+                    yourPositionSpan.textContent = 'N/A';
+                    if (pollingIntervalId) {
+                        clearInterval(pollingIntervalId);
+                        pollingIntervalId = null;
+                    }
                 }
-
             } catch (error) {
                 console.error('Error fetching queue status:', error);
                 queueSizeSpan.textContent = 'Error';
                 processingStatusSpan.textContent = 'Error';
                 yourPositionSpan.textContent = 'Error';
-                // Consider clearing currentRequestId and stopping polling on persistent errors
-                // or after a certain number of retries.
             }
         }
 
-        // Initial fetch on page load
-        fetchQueueStatus();
-        // Start polling immediately if not already started, but `fetchQueueStatus`
-        // itself will start `pollingIntervalId` when a request is made, and stop it
-        // when idle or completed/failed.
+        // Initial fetch on page load and start polling if needed
+        fetchQueueStatus(); // Get initial state
         if (!pollingIntervalId) {
-            pollingIntervalId = setInterval(fetchQueueStatus, 2000);
+            pollingIntervalId = setInterval(fetchQueueStatus, 2000); // Poll every 2 seconds
         }
 
     </script>
