@@ -137,29 +137,34 @@
             }
         });
 
-        // Listen for processing completion
+
+        // In your frontend script, in the socket.on('processingComplete') handler
         socket.on('processingComplete', (data) => {
             console.log('Socket.IO: Received processingComplete event with data:', data);
-            // Check if the completed request is the one we are currently tracking AND has an outputImage
-            if (currentRequestId && data.outputImage) {
+            // Check if the completed request is the one we are currently tracking
+            // AND the requestId in the data matches our tracked one, AND it has an outputImage
+            if (currentRequestId && data.requestId === currentRequestId && data.outputImage) { // <--- MODIFIED CONDITION
                 console.log(`Frontend: Processing complete for tracked request ID ${currentRequestId}.`);
                 yourPositionSpan.textContent = 'Done!';
                 processingStatusSpan.textContent = 'Complete';
-                progressPercentageSpan.textContent = ''; // Clear percentage on completion
+                progressPercentageSpan.textContent = '';
 
-                // *** THIS IS THE KEY FUNCTION CALL FOR DISPLAYING THE IMAGE ***
                 displayResult(data.outputImage);
 
-                currentRequestId = null; // Clear the request ID as processing is done
+                currentRequestId = null;
                 if (pollingIntervalId) {
                     clearInterval(pollingIntervalId);
                     pollingIntervalId = null;
                     console.log('Frontend: Polling stopped.');
                 }
             } else {
-                console.warn('Frontend: Processing complete event received, but either no currentRequestId or no outputImage:', data);
+                // This is important for debugging!
+                console.warn('Frontend: Processing complete event received, but condition not met.',
+                    'currentRequestId:', currentRequestId,
+                    'data.requestId:', data.requestId,
+                    'data.outputImage exists:', !!data.outputImage
+                );
             }
-            // Always fetch queue status to update global queue info, especially if currentRequestId was null
             fetchQueueStatus();
         });
 

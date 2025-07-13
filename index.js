@@ -249,7 +249,7 @@ async function processQueue() {
     // When processing starts, also send an initial progress message
     // This makes sure the frontend placeholder immediately updates to 'Processing: 0%'
     // or 'Processing your image...' as soon as it's the client's turn.
-    progress: { value: 0, max: 100, type: "global_steps" } // Assuming 0% initial progress
+    progress: { value: 0, max: 100, type: "global_steps" }, // Assuming 0% initial progress
   });
   console.log(
     `Queue: Client ${requestId} notified: status 'processing', queue position 0.`
@@ -387,6 +387,7 @@ async function processQueue() {
       }
     }
 
+    // In your processQueue function, inside the try block, after finding the output file
     const finalOutputRelativePath = `/output/${foundOutputFilename}`;
 
     console.log(
@@ -394,8 +395,11 @@ async function processQueue() {
     );
     requestStatus[requestId].status = "completed";
     requestStatus[requestId].data = { outputImage: finalOutputRelativePath };
+
+    // *** CRITICAL FIX HERE: Include requestId in the emitted data ***
     io.to(requestId).emit("processingComplete", {
       outputImage: finalOutputRelativePath,
+      requestId: requestId, // <--- ADD THIS LINE
     });
     console.log(
       `Queue: Emitted 'processingComplete' for client ${requestId} with output: ${finalOutputRelativePath}`
@@ -479,7 +483,9 @@ app.get("/queue-status", (req, res) => {
           `GET /queue-status: Request ${requestId} status is '${status}'.`
         );
       } else {
-        console.log(`GET /queue-status: Request ${requestId} not found (might be old or completed).`);
+        console.log(
+          `GET /queue-status: Request ${requestId} not found (might be old or completed).`
+        );
       }
     }
   } else {
