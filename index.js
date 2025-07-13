@@ -485,9 +485,6 @@ app.get("/queue-status", (req, res) => {
         );
       } else {
         // This is the specific change: only log if a requestId was actually sent.
-        console.log(
-          `GET /queue-status: Request ${requestId} not found (might be old or completed).`
-        );
       }
     }
   }
