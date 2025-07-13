@@ -143,5 +143,6 @@ button {
   }
   .upload-section, .output-section {
     width: 96%;
+    height: 50%;
   }
 }
