@@ -60,6 +60,9 @@ let isProcessing = false; // Flag to indicate if ComfyUI is currently processing
  * Processes the next item in the queue if ComfyUI is not busy.
  */
 async function processQueue() {
+  // Update queue size for frontend immediately when processing starts/ends
+  updateFrontendQueueSize();
+
   if (isProcessing || processingQueue.length === 0) {
     return; // Already processing or queue is empty
   }
@@ -77,7 +80,8 @@ async function processQueue() {
     workflow = workflow.prompt;
     if (!workflow) {
       console.error(`Processing Queue: Workflow JSON does not contain a "prompt" key.`);
-      return res.status(500).send("Invalid workflow.json format: Missing 'prompt' key.");
+      res.status(500).send("Invalid workflow.json format: Missing 'prompt' key."); // Send response
+      return; // Exit
     }
 
     const clipTextNode = Object.values(workflow).find(
@@ -96,9 +100,8 @@ async function processQueue() {
     );
     if (!imageNode) {
       console.error(`Processing Queue: VHS_LoadImagePath node not found in workflow.`);
-      return res
-        .status(500)
-        .send("VHS_LoadImagePath node not found in workflow. Please check your workflow.json.");
+      res.status(500).send("VHS_LoadImagePath node not found in workflow. Please check your workflow.json."); // Send response
+      return; // Exit
     }
 
     imageNode.inputs["image"] = uploadedPathForComfyUI;
@@ -183,6 +186,11 @@ app.get("/", (req, res) => {
   res.render("index");
 });
 
+// New endpoint to get queue size
+app.get("/queue-size", (req, res) => {
+    res.json({ queueSize: processingQueue.length, isProcessing: isProcessing });
+});
+
 // Upload and trigger workflow
 app.post("/upload", upload.single("image"), async (req, res) => {
   console.log(`POST /upload: File upload request received.`);
@@ -204,23 +212,33 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
   // Add the request details to the queue
   processingQueue.push({
-    req, // The original request object (might not be strictly needed but good for context)
-    res, // The response object for this client
+    req,
+    res,
     uploadedFilename,
     uploadedBasename,
     uploadedPathForComfyUI,
-    filesBeforeComfyUI // Pass the "before" snapshot for comparison
+    filesBeforeComfyUI
   });
   console.log(`POST /upload: Added ${uploadedFilename} to queue. Queue size: ${processingQueue.length}`);
 
   // Immediately try to process the queue (if not already processing)
-  processQueue();
+  processQueue(); // This will also trigger updateFrontendQueueSize() via processQueue start/finally
 
   // The client will now wait for their turn in the queue.
   // We don't send a response here, as the `res.json` or `res.status` will be called
   // by the `processQueue` function when this specific request is handled.
 });
 
+// Add a helper function to trigger frontend queue size update
+function updateFrontendQueueSize() {
+    // This function will eventually send updates via WebSockets if implemented.
+    // For now, it just logs. The frontend will poll the /queue-size endpoint.
+    console.log(`Current queue size: ${processingQueue.length}, isProcessing: ${isProcessing}`);
+}
+
+
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
+  // Initial update for frontend when server starts
+  updateFrontendQueueSize();
 });

@@ -29,6 +29,7 @@
 
             <div class="output-section">
                 <h2>Processed Output</h2>
+                <p id="queueStatus">Queue: <span id="queueSize">0</span>, Status: <span id="processingStatus">Idle</span></p>
                 <div class="image-box">
                     <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
@@ -53,10 +54,13 @@
         const uploadForm = document.getElementById('uploadForm');
         const progressBar = document.getElementById('progressBar');
         const progressContainer = document.getElementById('progressContainer');
-        const outputImage = document.getElementById('outputImage'); // Get reference here
-        const outputPlaceholder = document.getElementById('outputPlaceholder'); // Get reference here
-        const downloadLink = document.getElementById('downloadLink'); // Get reference here
+        const outputImage = document.getElementById('outputImage');
+        const outputPlaceholder = document.getElementById('outputPlaceholder');
+        const downloadLink = document.getElementById('downloadLink');
 
+        // New elements for queue display
+        const queueSizeSpan = document.getElementById('queueSize');
+        const processingStatusSpan = document.getElementById('processingStatus');
 
         function showPreview(file) {
             const reader = new FileReader();
@@ -133,11 +137,6 @@
 
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
-                        // These elements are already defined globally or should be if used often
-                        // const outputImage = document.getElementById('outputImage');
-                        // const outputPlaceholder = document.getElementById('outputPlaceholder');
-                        // const downloadLink = document.getElementById('downloadLink');
-
                         outputImage.src = response.outputImage;
                         outputImage.style.display = 'block';
                         outputPlaceholder.style.display = 'none';
@@ -158,6 +157,27 @@
             xhr.open('POST', '/upload', true);
             xhr.send(formData);
         });
+
+        // --- Frontend Queue Polling ---
+        async function fetchQueueSize() {
+            try {
+                const response = await fetch('/queue-size');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                queueSizeSpan.textContent = data.queueSize;
+                processingStatusSpan.textContent = data.isProcessing ? 'Busy' : 'Idle';
+            } catch (error) {
+                console.error('Error fetching queue size:', error);
+                queueSizeSpan.textContent = 'Error';
+                processingStatusSpan.textContent = 'Error';
+            }
+        }
+
+        // Poll the queue size every 2 seconds
+        setInterval(fetchQueueSize, 2000); // Poll every 2 seconds
+        fetchQueueSize(); // Fetch immediately on page load
     </script>
 </body>
 </html>
