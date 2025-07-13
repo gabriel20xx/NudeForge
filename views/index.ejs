@@ -61,10 +61,54 @@
         // New elements for queue display
         const queueSizeSpan = document.getElementById('queueSize');
         const processingStatusSpan = document.getElementById('processingStatus');
-        const yourPositionSpan = document.getElementById('yourPosition'); // New element
+        const yourPositionSpan = document.getElementById('yourPosition');
 
-        let currentRequestId = null; // Store the requestId for this client
+        let currentRequestId = null; // Store the requestId for this client's active job
+        let pollingIntervalId = null; // To store the interval ID for polling
 
+        // --- UI Helper Functions ---
+        function resetUIForNewUpload() {
+            outputImage.style.display = 'none';
+            outputImage.src = ''; // Clear previous image
+            outputPlaceholder.style.display = 'block';
+            downloadLink.style.display = 'none';
+            downloadLink.href = '#';
+            currentRequestId = null;
+            yourPositionSpan.textContent = 'Submitting...';
+            processingStatusSpan.textContent = 'Idle';
+            queueSizeSpan.textContent = '0';
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+        }
+
+        function displayProcessingMessage(message) {
+            outputPlaceholder.textContent = message;
+            outputPlaceholder.style.display = 'block';
+            outputImage.style.display = 'none';
+            downloadLink.style.display = 'none';
+        }
+
+        function displayResult(imageUrl) {
+            outputImage.src = imageUrl;
+            outputImage.style.display = 'block';
+            outputPlaceholder.style.display = 'none';
+
+            const filename = imageUrl.split('/').pop();
+            downloadLink.href = imageUrl;
+            downloadLink.setAttribute('download', filename);
+            downloadLink.style.display = 'inline-block';
+        }
+
+        function displayError(errorMessage) {
+            outputPlaceholder.textContent = `Error: ${errorMessage}`;
+            outputPlaceholder.style.color = 'red';
+            outputPlaceholder.style.display = 'block';
+            outputImage.style.display = 'none';
+            downloadLink.style.display = 'none';
+        }
+
+
+        // --- Image Preview and Drag/Drop ---
         function showPreview(file) {
             const reader = new FileReader();
             reader.onload = e => {
@@ -105,6 +149,7 @@
             }
         });
 
+        // --- Upload Form Submission ---
         uploadForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
@@ -113,6 +158,8 @@
                 return;
             }
 
+            resetUIForNewUpload(); // Reset UI state for a new upload
+
             const formData = new FormData();
             formData.append('image', imageInput.files[0]);
 
@@ -120,16 +167,6 @@
 
             progressContainer.style.display = 'block';
             progressBar.style.width = '0%';
-
-            // Hide previous output and download link when a new upload starts
-            outputImage.style.display = 'none';
-            outputPlaceholder.style.display = 'block';
-            downloadLink.style.display = 'none';
-
-            // Reset currentRequestId and position display
-            currentRequestId = null;
-            yourPositionSpan.textContent = 'Submitting...';
-
 
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) {
@@ -141,41 +178,29 @@
             xhr.onreadystatechange = () => {
                 if (xhr.readyState === 4) {
                     progressContainer.style.display = 'none';
-
-                    if (xhr.status === 202) { // Expect 202 Accepted for initial queue placement
+                    if (xhr.status === 202) { // Server accepted and enqueued
                         const response = JSON.parse(xhr.responseText);
                         currentRequestId = response.requestId; // Store the received requestId
-                        queueSizeSpan.textContent = response.queueSize; // Initial queue size
-                        yourPositionSpan.textContent = response.yourPosition > 0 ? response.yourPosition : 'Processing'; // Initial position
+                        queueSizeSpan.textContent = response.queueSize;
+                        yourPositionSpan.textContent = response.yourPosition > 0 ? response.yourPosition : 'Processing';
+                        processingStatusSpan.textContent = 'Waiting for server...';
 
-                        // Start polling after the request is enqueued
-                        // If you already have setInterval running, this will just update it
-                        // You might want to clear and restart it if you have complex polling logic
-                        // For simplicity, let the existing setInterval continue.
-                        // It will pick up the `currentRequestId` on its next cycle.
-                    } else if (xhr.status === 200) { // This will be the FINAL response with the image
-                         const response = JSON.parse(xhr.responseText);
-                         outputImage.src = response.outputImage;
-                         outputImage.style.display = 'block';
-                         outputPlaceholder.style.display = 'none';
+                        // Start polling for this specific request's status
+                        if (!pollingIntervalId) { // Only start one interval
+                            pollingIntervalId = setInterval(fetchQueueStatus, 2000); // Poll every 2 seconds
+                        }
+                        // Immediately fetch status after enqueuing
+                        fetchQueueStatus();
 
-                         const filename = response.outputImage.split('/').pop();
-                         downloadLink.href = response.outputImage;
-                         downloadLink.setAttribute('download', filename);
-                         downloadLink.style.display = 'inline-block';
-
-                         // Clear requestId once processing is complete for this client
-                         currentRequestId = null;
-                         yourPositionSpan.textContent = 'Done!';
-                    }
-                    else {
-                        alert('Processing failed or invalid response from server.');
-                        console.error(xhr.responseText);
+                    } else { // Handle upload errors
+                        alert('Upload failed: ' + xhr.responseText);
+                        console.error('Upload error:', xhr.responseText);
+                        displayError('Upload failed: ' + xhr.responseText);
+                        currentRequestId = null; // Clear request ID on upload failure
+                        clearInterval(pollingIntervalId); // Stop polling if upload fails
+                        pollingIntervalId = null;
                         yourPositionSpan.textContent = 'Error';
-                        currentRequestId = null; // Clear on error
                     }
-
-                    progressBar.style.width = '0%';
                 }
             };
 
@@ -186,6 +211,17 @@
         // --- Frontend Queue Polling ---
         async function fetchQueueStatus() {
             try {
+                if (!currentRequestId && processingQueue.length === 0) {
+                    // No active request and queue is empty, no need to poll for status.
+                    // This prevents unnecessary calls when idle.
+                    clearInterval(pollingIntervalId);
+                    pollingIntervalId = null;
+                    processingStatusSpan.textContent = 'Idle';
+                    yourPositionSpan.textContent = 'N/A';
+                    return;
+                }
+
+
                 let url = '/queue-status';
                 if (currentRequestId) {
                     url += `?requestId=${currentRequestId}`; // Add requestId to the query
@@ -200,21 +236,34 @@
                 queueSizeSpan.textContent = data.queueSize;
                 processingStatusSpan.textContent = data.isProcessing ? 'Busy' : 'Idle';
 
+                // Update 'Your Position' and display output based on status
                 if (currentRequestId) {
-                    // If the request ID is still in the queue
-                    if (data.yourPosition > 0) {
-                        yourPositionSpan.textContent = `${data.yourPosition}`;
-                    } else if (data.isProcessing && data.queueSize === 0) {
-                        // This case attempts to cover when 'your' request is being processed
-                        // and it's the only one, or it was just dequeued.
-                        // This is a heuristic and less robust than dedicated tracking.
-                        yourPositionSpan.textContent = 'Processing';
-                    } else {
-                        // If currentRequestId is set, but not in queue and not currently processing
-                        // implies it's already finished (or an error occurred).
-                        // This can also mean it just finished and the image is being served.
-                        // The XHR.status 200 handles the final completion.
-                        yourPositionSpan.textContent = 'Done / N/A';
+                    switch (data.status) {
+                        case 'pending':
+                            yourPositionSpan.textContent = `${data.yourPosition}`;
+                            displayProcessingMessage(`Waiting in queue: Position ${data.yourPosition}`);
+                            break;
+                        case 'processing':
+                            yourPositionSpan.textContent = 'Processing';
+                            displayProcessingMessage('Processing your image...');
+                            break;
+                        case 'completed':
+                            yourPositionSpan.textContent = 'Done!';
+                            displayResult(data.result.outputImage);
+                            currentRequestId = null; // Clear the request ID as it's done
+                            clearInterval(pollingIntervalId); // Stop polling
+                            pollingIntervalId = null;
+                            break;
+                        case 'failed':
+                            yourPositionSpan.textContent = 'Error!';
+                            displayError(data.result.error || 'Unknown processing error.');
+                            currentRequestId = null; // Clear the request ID as it's done
+                            clearInterval(pollingIntervalId); // Stop polling
+                            pollingIntervalId = null;
+                            break;
+                        default:
+                            yourPositionSpan.textContent = 'N/A';
+                            break;
                     }
                 } else {
                     yourPositionSpan.textContent = 'N/A'; // No active request
@@ -225,12 +274,20 @@
                 queueSizeSpan.textContent = 'Error';
                 processingStatusSpan.textContent = 'Error';
                 yourPositionSpan.textContent = 'Error';
+                // Consider clearing currentRequestId and stopping polling on persistent errors
+                // or after a certain number of retries.
             }
         }
 
-        // Poll the queue status every 2 seconds
-        setInterval(fetchQueueStatus, 2000); // Poll every 2 seconds
-        fetchQueueStatus(); // Fetch immediately on page load
+        // Initial fetch on page load
+        fetchQueueStatus();
+        // Start polling immediately if not already started, but `fetchQueueStatus`
+        // itself will start `pollingIntervalId` when a request is made, and stop it
+        // when idle or completed/failed.
+        if (!pollingIntervalId) {
+            pollingIntervalId = setInterval(fetchQueueStatus, 2000);
+        }
+
     </script>
 </body>
 </html>
