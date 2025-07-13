@@ -14,7 +14,7 @@
 
     <form id="uploadForm" enctype="multipart/form-data">
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
-                id="processingStatus">Idle</span><span id="progressPercentage"></span>, Your
+                id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your
             Position: <span id="yourPosition">N/A</span></p>
         <div class="main-container">
             <div class="upload-section">
@@ -29,7 +29,7 @@
             <div class="output-section">
                 <h2>Processed Output</h2>
                 <div id="outputArea" class="image-box">
-                    <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.<br><span id="progressPercentage"></span></p>
+                    <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.<br><span class="progressPercentage"></span></p>
                     <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
                 </div>
                 <a id="downloadLink" href="#" download style="display:none;">
@@ -57,7 +57,7 @@
         const queueSizeSpan = document.getElementById('queueSize');
         const processingStatusSpan = document.getElementById('processingStatus');
         const yourPositionSpan = document.getElementById('yourPosition');
-        const progressPercentageSpan = document.getElementById('progressPercentage');
+        const progressPercentageSpan = document.getElementsByClassName('progressPercentage');
 
         // State Variables
         let currentRequestId = null;
