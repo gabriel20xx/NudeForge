@@ -76,6 +76,7 @@ let isProcessing = false;
 const requestStatus = {};
 let currentlyProcessingRequestId = null;
 let comfyUiWs = null; // WebSocket connection to ComfyUI
+let totalNodesInWorkflow = 0; // To store the count of nodes in the workflow
 
 // Function to establish and manage ComfyUI WebSocket connection
 function connectToComfyUIWebSocket() {
@@ -96,58 +97,115 @@ function connectToComfyUIWebSocket() {
       const message = JSON.parse(event.data);
       const messageType = message.type;
 
-      // Define message types you want to log or handle explicitly
       const handledMessageTypes = [
         "progress",
+        "progress_state",
         "execution_start",
         "execution_cached",
         "execution_interrupted",
         "status",
         "executing",
-        "executed", // Add 'executed' if you want to explicitly log when a node returns a UI element or output
+        "executed",
       ];
 
-      // List of message types to silently ignore (or log only in verbose debug mode)
       const ignoredMessageTypes = [
-        "kaytool.resources", // From Kaytool's resource monitor plugin
-        "crystools.monitor", // From Crystools monitor plugin
-        // Add any other specific plugin message types you want to ignore here
+        "kaytool.resources",
+        "crystools.monitor",
       ];
 
       if (ignoredMessageTypes.includes(messageType)) {
-        // Silently ignore these messages to keep logs clean
-        // You could add a verbose flag to enable logging these if needed:
-        // if (process.env.VERBOSE_DEBUG === 'true') {
-        //   console.debug(`ComfyUI WebSocket: Silently ignoring message type: ${messageType}`);
-        // }
         return;
       }
 
       if (!handledMessageTypes.includes(messageType)) {
-        // Log unhandled messages that are not explicitly ignored
         console.log(
           `ComfyUI WebSocket: Unhandled message type: ${messageType}. Data:`,
           JSON.stringify(message, null, 2)
         );
-        return; // Stop processing this message further
+        return;
       }
 
       // --- Handle specific message types ---
       if (messageType === "progress" && currentlyProcessingRequestId) {
+        // This is the older, simpler progress message (value/max for overall steps)
         const progress = {
           value: message.data.value,
           max: message.data.max,
           step: message.data.value,
           steps: message.data.max,
+          type: "global_steps" // Indicate this is global step progress
         };
         io.to(currentlyProcessingRequestId).emit("processingProgress", progress);
         console.log(
-          `ComfyUI Progress: Emitting progress for client ${currentlyProcessingRequestId}: ${progress.value}/${progress.max}`
+          `ComfyUI Progress (Type: progress - Global Steps): Emitting progress for client ${currentlyProcessingRequestId}: ${progress.value}/${progress.max}`
         );
-      } else if (messageType === "execution_start") {
+      } else if (messageType === "progress_state" && currentlyProcessingRequestId) {
+        const nodes = message.data.nodes;
+        let runningNodesCount = 0;
+        let finishedNodesCount = 0;
+        let totalStepsInRunningNode = 0;
+        let currentStepInRunningNode = 0;
+
+        // If totalNodesInWorkflow hasn't been set yet, count it from the first progress_state message
+        if (totalNodesInWorkflow === 0) {
+          totalNodesInWorkflow = Object.keys(nodes).length;
+          console.log(`Discovered total nodes in workflow: ${totalNodesInWorkflow}`);
+        }
+
+        for (const nodeId in nodes) {
+          if (nodes.hasOwnProperty(nodeId)) {
+            const nodeInfo = nodes[nodeId];
+            if (nodeInfo.state === "running") {
+              runningNodesCount++;
+              currentStepInRunningNode = nodeInfo.value;
+              totalStepsInRunningNode = nodeInfo.max;
+            } else if (nodeInfo.state === "finished") {
+              finishedNodesCount++;
+            }
+          }
+        }
+
+        let overallProgressPercentage = 0;
+        if (totalNodesInWorkflow > 0) {
+            // Calculate progress based on finished nodes + current running node's progress
+            // This assumes a somewhat sequential or weighted progression.
+            // A more complex workflow might need a more sophisticated weighting.
+            let baseProgress = finishedNodesCount / totalNodesInWorkflow;
+            let currentRunningNodeContribution = 0;
+
+            if (runningNodesCount > 0 && totalStepsInRunningNode > 0) {
+                // If a node is running, its contribution is its internal progress
+                // divided by the total nodes, scaled by its potential "weight" (1/totalNodes here)
+                currentRunningNodeContribution = (currentStepInRunningNode / totalStepsInRunningNode) / totalNodesInWorkflow;
+            }
+
+            overallProgressPercentage = Math.min(1, baseProgress + currentRunningNodeContribution); // Cap at 1 (100%)
+            overallProgressPercentage = Math.floor(overallProgressPercentage * 100); // Convert to percentage
+
+            const progress = {
+                value: overallProgressPercentage,
+                max: 100, // Always 100 for percentage
+                step: overallProgressPercentage,
+                steps: 100,
+                type: "overall_percentage", // Indicate this is overall percentage progress
+                finishedNodes: finishedNodesCount,
+                totalNodes: totalNodesInWorkflow,
+                runningNodes: runningNodesCount
+            };
+            io.to(currentlyProcessingRequestId).emit("processingProgress", progress);
+            console.log(
+                `ComfyUI Progress (Type: progress_state - Overall Nodes): Emitting progress for client ${currentlyProcessingRequestId}: ${overallProgressPercentage}% (Finished: ${finishedNodesCount}/${totalNodesInWorkflow}, Running: ${runningNodesCount})`
+            );
+        } else {
+            console.log(`ComfyUI Progress (Type: progress_state): No nodes detected yet for overall progress calculation.`);
+        }
+      }
+      else if (messageType === "execution_start") {
         console.log(
           `ComfyUI WebSocket: Execution started for client ID: ${message.data.client_id}`
         );
+        // Reset totalNodesInWorkflow at the start of a new execution
+        totalNodesInWorkflow = 0;
         if (currentlyProcessingRequestId) {
           io.to(currentlyProcessingRequestId).emit("processingStarted");
           console.log(
@@ -177,17 +235,15 @@ function connectToComfyUIWebSocket() {
           `ComfyUI WebSocket Executing: Node: ${message.data.node}, Prompt ID: ${message.data.prompt_id}`
         );
         if (message.data.node === null && currentlyProcessingRequestId) {
-          // This often signifies the end of execution for a prompt
           console.log(
             `ComfyUI WebSocket: Prompt execution completed for client ${currentlyProcessingRequestId}.`
           );
         }
       } else if (messageType === "executed") {
-          // This message type is sent when a node returns a UI element or output
-          console.log(
-              `ComfyUI WebSocket: Node executed: ${message.data.node}, Prompt ID: ${message.data.prompt_id}. Output:`,
-              message.data.output
-          );
+        console.log(
+          `ComfyUI WebSocket: Node executed: ${message.data.node}, Prompt ID: ${message.data.prompt_id}. Output:`,
+          message.data.output
+        );
       }
     } catch (parseError) {
       console.error(
