@@ -40,6 +40,12 @@ h1 {
     border-color: darkorange;
 }
 
+.drop-area.disabled {
+    cursor: not-allowed;
+    background-color: #444;
+    opacity: 0.6;
+}
+
 .drop-area p {
     font-size: 1rem;
     text-align: center;

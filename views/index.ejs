@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
+    <!-- Add Google reCAPTCHA script -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 
 <body>
@@ -23,6 +25,11 @@
                     <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
                     <img id="previewImage" />
                     <input id="inputImage" type="file" name="image" accept="image/*" />
+                </div>
+                <!-- Add a container for the reCAPTCHA widget -->
+                <div class="recaptcha-container">
+                    <!-- IMPORTANT: Replace YOUR_SITE_KEY_HERE with your actual Google reCAPTCHA v2 Site Key -->
+                    <div class="g-recaptcha" data-sitekey="6LcRw4IrAAAAAGR8ql_It6OeMWQut7Tgj3CIlL6p"></div>
                 </div>
                 <button class="upload-btn" type="submit">Upload</button>
             </div>
@@ -59,6 +66,7 @@
         const yourPositionSpan = document.getElementById('yourPosition');
         // Changed to querySelectorAll for class selection
         const progressPercentageSpans = document.querySelectorAll('.progressPercentage'); 
+        const uploadButton = uploadForm.querySelector('.upload-btn');
 
         // State Variables
         let currentRequestId = null;
@@ -159,6 +167,8 @@
                     pollingIntervalId = null;
                     console.log('Frontend: Polling stopped by processingComplete event.');
                 }
+                sessionStorage.removeItem('activeRequestId');
+                enableUpload(); // Re-enable uploads
             } else {
                 console.warn('Frontend: Processing complete event received, but condition not met or not for current request.',
                     'currentRequestId:', currentRequestId,
@@ -184,6 +194,8 @@
                     pollingIntervalId = null;
                     console.log('Frontend: Polling stopped due to processing failure.');
                 }
+                sessionStorage.removeItem('activeRequestId');
+                enableUpload(); // Re-enable uploads
             } else {
                 console.warn('Frontend: Processing failed for an untracked request or without request ID:', data);
             }
@@ -191,6 +203,30 @@
         });
 
         // --- UI Helper Functions ---
+
+        function disableUpload() {
+            console.log('Frontend: Disabling upload controls.');
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'Processing...';
+            inputImage.disabled = true;
+            dropArea.classList.add('disabled');
+            // Prevent dropArea from being clickable to open file dialog
+            dropArea.style.pointerEvents = 'none';
+        }
+
+        function enableUpload() {
+            console.log('Frontend: Enabling upload controls.');
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'Upload';
+            inputImage.disabled = false;
+            dropArea.classList.remove('disabled');
+            dropArea.style.pointerEvents = 'auto';
+            // Reset reCAPTCHA so the user can submit again
+            if (typeof grecaptcha !== 'undefined') {
+                grecaptcha.reset();
+            }
+        }
+
         function resetUIForNewUpload() {
             console.log('Frontend: Resetting UI for a new upload.');
             outputImage.style.display = 'none';
@@ -309,11 +345,23 @@
                 return;
             }
 
+            // Check for reCAPTCHA response
+            const recaptchaResponse = grecaptcha.getResponse();
+            if (!recaptchaResponse) {
+                alert('Please complete the reCAPTCHA before uploading.');
+                console.warn('Frontend: reCAPTCHA not completed.');
+                return;
+            }
+
+            disableUpload(); // Disable controls immediately on submission
+
             resetUIForNewUpload();
 
             const formData = new FormData();
             formData.append('image', inputImage.files[0]);
-            console.log('Frontend: FormData created with image file.');
+            // Append the reCAPTCHA token to the form data
+            formData.append('g-recaptcha-response', recaptchaResponse);
+            console.log('Frontend: FormData created with image file and reCAPTCHA response.');
 
             const xhr = new XMLHttpRequest();
 
@@ -330,6 +378,9 @@
                     if (xhr.status === 202) {
                         const response = JSON.parse(xhr.responseText);
                         currentRequestId = response.requestId;
+                        // Persist the request ID in case of page reload
+                        sessionStorage.setItem('activeRequestId', currentRequestId);
+
                         console.log(`Frontend: Upload successful. Request ID: ${currentRequestId}. Response:`, response);
 
                         socket.emit('joinRoom', currentRequestId);
@@ -348,6 +399,7 @@
                         }
                         fetchQueueStatus();
                     } else {
+                        enableUpload(); // Re-enable controls on failure
                         const errorResponse = xhr.responseText || 'Unknown error';
                         alert('Upload failed: ' + errorResponse);
                         console.error('Frontend: Upload failed with status', xhr.status, 'Error:', errorResponse);
@@ -417,6 +469,8 @@
                             } else {
                                 console.warn('Frontend: Polling detected completed status but no outputImage in data.result. This should not happen if backend is correct.');
                             }
+                            sessionStorage.removeItem('activeRequestId');
+                            enableUpload(); // Re-enable controls
                             currentRequestId = null;
                             if (pollingIntervalId) {
                                 clearInterval(pollingIntervalId);
@@ -429,6 +483,8 @@
                             processingStatusSpan.textContent = 'Failed';
                             updateProgressPercentage('');
                             displayError(data.result.errorMessage || 'Unknown processing error from polling.');
+                            sessionStorage.removeItem('activeRequestId');
+                            enableUpload(); // Re-enable controls
                             currentRequestId = null;
                             if (pollingIntervalId) {
                                 clearInterval(pollingIntervalId);
@@ -475,11 +531,22 @@
             }
         }
 
-        fetchQueueStatus();
-        if (!pollingIntervalId) {
+        // --- Initial Page Load Logic ---
+        function initialize() {
+            const storedRequestId = sessionStorage.getItem('activeRequestId');
+            if (storedRequestId) {
+                console.log('Frontend: Found active request ID in session storage:', storedRequestId);
+                currentRequestId = storedRequestId;
+                disableUpload();
+                socket.emit('joinRoom', currentRequestId); // Re-join room on reload
+            }
+
+            fetchQueueStatus(); // Initial fetch
             pollingIntervalId = setInterval(fetchQueueStatus, 2000);
             console.log('Frontend: Initial polling started.');
         }
+
+        initialize();
     </script>
 </body>
 

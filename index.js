@@ -9,6 +9,8 @@ const http = require("http"); // Import http for Socket.IO
 const { Server } = require("socket.io"); // Import Server from socket.io
 const WebSocket = require("ws"); // Import WebSocket for ComfyUI connection
 
+require('dotenv').config(); // Load environment variables from .env file
+
 const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.IO
 const io = new Server(server, {
@@ -18,14 +20,21 @@ const io = new Server(server, {
   },
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Define directories
 const INPUT_DIR = path.join(__dirname, "../input");
 const OUTPUT_DIR = path.join(__dirname, "../output");
 const WORKFLOW_PATH = path.join(__dirname, "workflow.json");
-const COMFYUI_URL = "http://192.168.2.50:8188/prompt";
-const COMFYUI_WS_URL = "ws://192.168.2.50:8188/ws"; // ComfyUI WebSocket URL
+const COMFYUI_URL = process.env.COMFYUI_URL;
+const COMFYUI_WS_URL = process.env.COMFYUI_WS_URL;
+const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
+
+// Validate that required environment variables are set
+if (!COMFYUI_URL || !COMFYUI_WS_URL || !RECAPTCHA_SECRET_KEY) {
+    console.error("FATAL ERROR: Missing required environment variables. Please create a .env file based on .env.example and fill in the values.");
+    process.exit(1); // Exit if critical configuration is missing
+}
 
 console.log(`Starting server...`);
 console.log(`Input directory: ${INPUT_DIR}`);
@@ -500,7 +509,31 @@ app.get("/queue-status", (req, res) => {
 
 // Upload and trigger workflow
 app.post("/upload", upload.single("image"), async (req, res) => {
-  console.log(`POST /upload: File upload request received.`);
+  console.log(`POST /upload: Request received.`);
+
+  // --- reCAPTCHA Verification ---
+  const recaptchaToken = req.body['g-recaptcha-response'];
+  if (!recaptchaToken) {
+    console.error(`POST /upload: reCAPTCHA token missing.`);
+    return res.status(400).send("reCAPTCHA token is missing.");
+  }
+
+  try {
+    const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}&remoteip=${req.ip}`;
+    const verificationResponse = await axios.post(verificationUrl);
+    const { success, 'error-codes': errorCodes } = verificationResponse.data;
+
+    if (!success) {
+      console.error('POST /upload: reCAPTCHA verification failed:', errorCodes);
+      return res.status(400).send("Failed reCAPTCHA verification. Please try again.");
+    }
+    console.log('POST /upload: reCAPTCHA verification successful.');
+  } catch (error) {
+    console.error("POST /upload: Error during reCAPTCHA verification:", error.message);
+    return res.status(500).send("Server error during reCAPTCHA verification.");
+  }
+  // --- End reCAPTCHA Verification ---
+
   if (!req.file) {
     console.error(`POST /upload: No file uploaded.`);
     return res.status(400).send("No file uploaded");
