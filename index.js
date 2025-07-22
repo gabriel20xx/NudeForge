@@ -9,7 +9,7 @@ const http = require("http"); // Import http for Socket.IO
 const { Server } = require("socket.io"); // Import Server from socket.io
 const WebSocket = require("ws"); // Import WebSocket for ComfyUI connection
 
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config({ silent: true }); // Load environment variables from .env file
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.IO
