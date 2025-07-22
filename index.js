@@ -26,12 +26,14 @@ const PORT = process.env.PORT || 3000;
 const INPUT_DIR = path.join(__dirname, "../input");
 const OUTPUT_DIR = path.join(__dirname, "../output");
 const WORKFLOW_PATH = path.join(__dirname, "workflow.json");
-const COMFYUI_URL = process.env.COMFYUI_URL;
-const COMFYUI_WS_URL = process.env.COMFYUI_WS_URL;
+const COMFYUI_HOST = process.env.COMFYUI_HOST; // e.g., '127.0.0.1:8188'
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
+// Construct URLs from host
+const COMFYUI_URL = `http://${COMFYUI_HOST}/prompt`;
+const COMFYUI_WS_URL = `ws://${COMFYUI_HOST}/ws`;
 
 // Validate that required environment variables are set
-if (!COMFYUI_URL || !COMFYUI_WS_URL || !RECAPTCHA_SECRET_KEY) {
+if (!COMFYUI_HOST || !RECAPTCHA_SECRET_KEY) {
     console.error("FATAL ERROR: Missing required environment variables. Please create a .env file based on .env.example and fill in the values.");
     process.exit(1); // Exit if critical configuration is missing
 }
@@ -40,6 +42,7 @@ console.log(`Starting server...`);
 console.log(`Input directory: ${INPUT_DIR}`);
 console.log(`Output directory: ${OUTPUT_DIR}`);
 console.log(`Workflow path: ${WORKFLOW_PATH}`);
+console.log(`ComfyUI Host: ${COMFYUI_HOST}`);
 console.log(`ComfyUI URL: ${COMFYUI_URL}`);
 console.log(`ComfyUI WebSocket URL: ${COMFYUI_WS_URL}`);
 
