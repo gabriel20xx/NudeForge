@@ -152,7 +152,8 @@ function resetUIForNewUpload() {
     outputPlaceholder.style.display = 'block';
     outputPlaceholder.style.color = '#fff';
     outputPlaceholder.textContent = 'Uploading...';
-    downloadLink.style.display = 'none';
+    downloadLink.classList.add('disabled');
+    downloadLink.querySelector('.download-btn').disabled = true;
     downloadLink.href = '#';
     currentRequestId = null;
     yourPositionSpan.textContent = 'Submitting...';
@@ -207,7 +208,8 @@ function displayResult(imageUrl) {
     const filename = imageUrl.split('/').pop();
     downloadLink.href = imageUrl;
     downloadLink.setAttribute('download', filename);
-    downloadLink.style.display = 'inline-block';
+    downloadLink.classList.remove('disabled');
+    downloadLink.querySelector('.download-btn').disabled = false;
 }
 
 function displayError(errorMessage) {

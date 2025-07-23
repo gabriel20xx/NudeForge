@@ -72,7 +72,7 @@ h2 {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
     gap: 2.5rem;
     padding: 2.5rem 1rem 2rem 1rem;
 }
@@ -252,7 +252,7 @@ input[type="file"] {
 }
 
 /* Buttons */
-button {
+.btn {
     padding: 0.7em 1.5em;
     border: none;
     border-radius: 8px;
@@ -270,18 +270,33 @@ button {
     background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
     color: #23272f;
 }
+
 .upload-btn:hover {
     background: linear-gradient(90deg, #ffb84d 0%, #ff9800 100%);
     color: #fff;
     box-shadow: 0 4px 16px 0 rgba(255,184,77,0.15);
 }
+
 .download-btn {
     background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
     color: #23272f;
 }
+
 .download-btn:hover {
     background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
     color: #fff;
+}
+
+.download-btn:disabled {
+    background: #555;
+    color: #888;
+    cursor: not-allowed;
+}
+
+.download-btn:disabled:hover {
+    background: #555;
+    color: #888;
+    box-shadow: none;
 }
 
 /* Settings Section */

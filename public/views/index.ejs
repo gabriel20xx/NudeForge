@@ -80,7 +80,7 @@
                         <img id="previewImage" />
                         <input id="inputImage" type="file" name="image" accept="image/*" />
                     </div>
-                    <button class="upload-btn" type="submit">Upload</button>
+                    <button class="btn upload-btn" type="submit">Upload</button>
                 </div>
             </div>
             <div class="comparison-col">
@@ -92,7 +92,7 @@
                         <div class="comparison-image" id="comparison-output-image"></div>
                         <input type="range" min="0" max="100" value="50" class="comparison-slider" id="comparison-slider">
                     </div>
-                    <button type="button" id="settings-toggle">Settings</button>
+                    <button type="button" id="settings-toggle" class="btn">Settings</button>
                 </div>
             </div>
             <div class="output-col">
@@ -102,8 +102,8 @@
                         <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
                         <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
                     </div>
-                    <a id="downloadLink" href="#" download style="display:none;">
-                        <button class="download-btn" type="button">Download</button>
+                    <a id="downloadLink" href="#" download class="disabled">
+                        <button class="btn download-btn" type="button" disabled>Download</button>
                     </a>
                 </div>
             </div>
