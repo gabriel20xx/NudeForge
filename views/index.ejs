@@ -7,16 +7,30 @@
     <link rel="stylesheet" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Local CAPTCHA: No external scripts needed -->
+    <!-- Advanced CAPTCHA: Fetch SVG from backend -->
     <script>
-        // Generate a simple math CAPTCHA
-        function generateCaptcha() {
-            const a = Math.floor(Math.random() * 10) + 1;
-            const b = Math.floor(Math.random() * 10) + 1;
-            document.getElementById('captchaQuestion').textContent = `${a} + ${b} = ?`;
-            document.getElementById('captcha_expected').value = (a + b).toString();
+        // Fetch and display advanced SVG CAPTCHA
+        async function fetchCaptcha() {
+            const captchaContainer = document.getElementById('captchaContainer');
+            const captchaImage = document.getElementById('captchaImage');
+            const captchaToken = document.getElementById('captcha_token');
+            const captchaAnswer = document.getElementById('captcha_answer');
+            captchaAnswer.value = '';
+            try {
+                const res = await fetch('/captcha');
+                if (!res.ok) throw new Error('Failed to fetch CAPTCHA');
+                const data = await res.json();
+                captchaImage.innerHTML = data.image;
+                captchaToken.value = data.token;
+            } catch (e) {
+                captchaImage.innerHTML = '<span style="color:red">Failed to load CAPTCHA</span>';
+                captchaToken.value = '';
+            }
         }
-        window.addEventListener('DOMContentLoaded', generateCaptcha);
+        window.addEventListener('DOMContentLoaded', () => {
+            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!isLocal) fetchCaptcha();
+        });
     </script>
 </head>
 
@@ -35,61 +49,65 @@
                     <img id="previewImage" />
                     <input id="inputImage" type="file" name="image" accept="image/*" />
                 </div>
-                <label for="prompt">Prompt:</label>
-                <input type="text" id="prompt" name="prompt" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
+                <div class="settings-section">
+                    <label for="prompt" class="settings-label">Prompt:</label>
+                    <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
 Preserve the person in the exact same position, scale, and pose. 
-Preserve the exact same face details, shape and expression. " style="width: 90%" />
-                <br />
-                <label for="steps">Steps:</label>
-                <input type="number" id="steps" name="steps" value="20" min="1" max="100" />
-                <br />
-                <label for="outputHeight">Output Height:</label>
-                <input type="number" id="outputHeight" name="outputHeight" value="1080" min="64" max="4096" />
-                <br />
-                <fieldset style="margin-top: 1em;">
-                    <legend>LoRA Settings</legend>
-                    <div>
-                        <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
-                        <label for="lora_1_on">fluxkontext/change_clothes_to_nothing_000011200.safetensors</label>
-                        <input type="number" id="lora_1_strength" name="lora_1_strength" value="1" min="0" max="2"
-                            step="0.01" style="width: 60px;" />
-                        <label for="lora_1_strength">Strength</label>
+Preserve the exact same face details, shape and expression. " />
+                    <div class="settings-row">
+                        <div class="settings-item">
+                            <label for="steps" class="settings-label">Steps:</label>
+                            <input type="number" id="steps" name="steps" class="settings-input" value="20" min="1" max="100" />
+                        </div>
+                        <div class="settings-item">
+                            <label for="outputHeight" class="settings-label">Output Height:</label>
+                            <input type="number" id="outputHeight" name="outputHeight" class="settings-input" value="1080" min="64" max="4096" />
+                        </div>
                     </div>
-                    <div>
-                        <input type="checkbox" id="lora_2_on" name="lora_2_on">
-                        <label for="lora_2_on">flux/real_textures-000011.safetensors</label>
-                        <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7" min="0" max="2"
-                            step="0.01" style="width: 60px;" />
-                        <label for="lora_2_strength">Strength</label>
+                    <fieldset class="lora-fieldset">
+                        <legend>LoRA Settings</legend>
+                        <div class="lora-grid">
+                            <div class="lora-row">
+                                <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
+                                <label for="lora_1_on">fluxkontext/change_clothes_to_nothing_000011200.safetensors</label>
+                                <input type="number" id="lora_1_strength" name="lora_1_strength" value="1" min="0" max="2" step="0.01" class="lora-strength" />
+                                <label for="lora_1_strength">Strength</label>
+                            </div>
+                            <div class="lora-row">
+                                <input type="checkbox" id="lora_2_on" name="lora_2_on">
+                                <label for="lora_2_on">flux/real_textures-000011.safetensors</label>
+                                <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7" min="0" max="2" step="0.01" class="lora-strength" />
+                                <label for="lora_2_strength">Strength</label>
+                            </div>
+                            <div class="lora-row">
+                                <input type="checkbox" id="lora_3_on" name="lora_3_on">
+                                <label for="lora_3_on">flux/Flux_Ultimator.safetensors</label>
+                                <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5" min="0" max="2" step="0.01" class="lora-strength" />
+                                <label for="lora_3_strength">Strength</label>
+                            </div>
+                            <div class="lora-row">
+                                <input type="checkbox" id="lora_4_on" name="lora_4_on">
+                                <label for="lora_4_on">flux/FLUX_FD-Nipple-Detail-R4.safetensors</label>
+                                <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8" min="0" max="2" step="0.01" class="lora-strength" />
+                                <label for="lora_4_strength">Strength</label>
+                            </div>
+                            <div class="lora-row">
+                                <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
+                                <label for="lora_5_on">flux/aidmaRealisticSkin-FLUX-v0.1.safetensors</label>
+                                <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6" min="0" max="2" step="0.01" class="lora-strength" />
+                                <label for="lora_5_strength">Strength</label>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <div class="captcha-container" id="captchaContainer">
+                        <div class="captcha-row">
+                            <span id="captchaImage"></span>
+                            <button type="button" class="refresh-captcha-btn" onclick="fetchCaptcha()" title="Refresh CAPTCHA">&#x21bb;</button>
+                        </div>
+                        <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Enter CAPTCHA" required autocomplete="off" class="captcha-input" />
+                        <input type="hidden" id="captcha_token" name="captcha_token" />
+                        <div id="captchaError" class="captcha-error"></div>
                     </div>
-                    <div>
-                        <input type="checkbox" id="lora_3_on" name="lora_3_on">
-                        <label for="lora_3_on">flux/Flux_Ultimator.safetensors</label>
-                        <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5" min="0" max="2"
-                            step="0.01" style="width: 60px;" />
-                        <label for="lora_3_strength">Strength</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="lora_4_on" name="lora_4_on">
-                        <label for="lora_4_on">flux/FLUX_FD-Nipple-Detail-R4.safetensors</label>
-                        <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8" min="0" max="2"
-                            step="0.01" style="width: 60px;" />
-                        <label for="lora_4_strength">Strength</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
-                        <label for="lora_5_on">flux/aidmaRealisticSkin-FLUX-v0.1.safetensors</label>
-                        <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6" min="0" max="2"
-                            step="0.01" style="width: 60px;" />
-                        <label for="lora_5_strength">Strength</label>
-                    </div>
-                </fieldset>
-                <!-- Local CAPTCHA -->
-                <div class="captcha-container" id="captchaContainer">
-                    <label id="captchaQuestion" style="font-weight:bold;"></label>
-                    <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Answer" required
-                        autocomplete="off" />
-                    <input type="hidden" id="captcha_expected" name="captcha_expected" />
                 </div>
                 <button class="upload-btn" type="submit">Upload</button>
             </div>
