@@ -83,12 +83,6 @@ h2 {
     max-width: 420px;
 }
 
-.comparison-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
 .settings-container {
     width: 100%;
     display: flex;
@@ -105,17 +99,6 @@ h2 {
 
 .settings-col.collapsible.open {
     max-height: 1000px; /* Adjust as needed */
-}
-
-.comparison-section {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: rgba(30,32,38,0.97);
-    border-radius: 18px;
-    box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-    padding: 2rem 1.5rem 1.5rem 1.5rem;
 }
 
 .comparison-image {
@@ -169,7 +152,8 @@ h2 {
 }
 
 .upload-section,
-.output-section {
+.output-section,
+.comparison-section {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -178,8 +162,6 @@ h2 {
     border-radius: 18px;
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
     padding: 2rem 1.5rem 1.5rem 1.5rem;
-    min-width: 0;
-    max-width: unset;
 }
 
 .drop-area {
