@@ -283,13 +283,33 @@ function displayResult(imageUrl) {
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
             const previewImageSrc = previewImage.src;
             // Set image sources for the web component
+            let inputLoaded = false, outputLoaded = false;
             if (comparisonInputImage && previewImageSrc) {
                 comparisonInputImage.src = previewImageSrc;
+                comparisonInputImage.style.display = '';
+                comparisonInputImage.onload = () => {
+                    inputLoaded = true;
+                    if (inputLoaded && outputLoaded && comparisonSliderComponent) {
+                        comparisonSliderComponent.style.display = '';
+                        if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
+                    }
+                };
             }
             if (comparisonOutputImage && imageUrl) {
                 comparisonOutputImage.src = imageUrl;
+                comparisonOutputImage.style.display = '';
+                comparisonOutputImage.onload = () => {
+                    outputLoaded = true;
+                    if (inputLoaded && outputLoaded && comparisonSliderComponent) {
+                        comparisonSliderComponent.style.display = '';
+                        if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
+                    }
+                };
             }
-            if (comparisonSliderComponent && comparisonInputImage && comparisonOutputImage && previewImageSrc && imageUrl) {
+            // Fallback: if both images are already cached
+            if (comparisonInputImage && comparisonInputImage.complete) inputLoaded = true;
+            if (comparisonOutputImage && comparisonOutputImage.complete) outputLoaded = true;
+            if (inputLoaded && outputLoaded && comparisonSliderComponent) {
                 comparisonSliderComponent.style.display = '';
                 if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
             }
