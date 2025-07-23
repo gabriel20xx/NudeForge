@@ -59,7 +59,13 @@ h2 {
 }
 
 #settings-toggle {
+    background: linear-gradient(90deg, #007bff 0%, #00a8ff 100%);
+    color: #fff;
     margin-bottom: 1rem;
+}
+
+#settings-toggle:hover {
+    background: linear-gradient(90deg, #00a8ff 0%, #007bff 100%);
 }
 
 .main-container {
