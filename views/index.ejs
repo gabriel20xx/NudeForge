@@ -65,13 +65,7 @@
                 id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
                 id="yourPosition">N/A</span></p>
         <div class="main-container">
-            <div class="upload-section">
-                <h2>Upload Image</h2>
-                <div id="dropArea" class="drop-area image-box">
-                    <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
-                    <img id="previewImage" />
-                    <input id="inputImage" type="file" name="image" accept="image/*" />
-                </div>
+            <div class="settings-col">
                 <div class="settings-section">
                     <label for="prompt" class="settings-label">Prompt:</label>
                     <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
@@ -161,17 +155,27 @@ Preserve the exact same face details, shape and expression. " />
                             <div id="captchaError" class="captcha-error"></div>
                     </div>
                 </div>
-                <button class="upload-btn" type="submit">Upload</button>
             </div>
-            <div class="output-section">
-                <h2>Processed Output</h2>
-                <div id="outputArea" class="image-box">
-                    <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
-                    <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
+            <div class="io-col">
+                <div class="upload-section">
+                    <h2>Upload Image</h2>
+                    <div id="dropArea" class="drop-area image-box">
+                        <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
+                        <img id="previewImage" />
+                        <input id="inputImage" type="file" name="image" accept="image/*" />
+                    </div>
+                    <button class="upload-btn" type="submit">Upload</button>
                 </div>
-                <a id="downloadLink" href="#" download style="display:none;">
-                    <button class="download-btn" type="button">Download</button>
-                </a>
+                <div class="output-section">
+                    <h2>Processed Output</h2>
+                    <div id="outputArea" class="image-box">
+                        <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
+                        <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
+                    </div>
+                    <a id="downloadLink" href="#" download style="display:none;">
+                        <button class="download-btn" type="button">Download</button>
+                    </a>
+                </div>
             </div>
         </div>
     </form>

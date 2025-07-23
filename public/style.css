@@ -27,15 +27,34 @@ h2 {
 
 .main-container {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: row;
     justify-content: center;
+    align-items: flex-start;
     gap: 2.5rem;
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
+.settings-col {
+    flex: 0 0 370px;
+    min-width: 320px;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.io-col {
+    flex: 1 1 0;
+    min-width: 340px;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
 .upload-section,
 .output-section {
-    width: 48%;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -43,8 +62,8 @@ h2 {
     border-radius: 18px;
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
     padding: 2rem 1.5rem 1.5rem 1.5rem;
-    min-width: 320px;
-    max-width: 520px;
+    min-width: 0;
+    max-width: unset;
 }
 
 .drop-area {
@@ -343,11 +362,29 @@ button {
 }
 
 /* Mobile Responsive */
+@media (max-width: 1100px) {
+    .main-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.5rem;
+    }
+    .settings-col, .io-col {
+        max-width: unset;
+        min-width: unset;
+        width: 100%;
+    }
+}
+
 @media (max-width: 900px) {
     .main-container {
         flex-direction: column;
         align-items: center;
         gap: 1.5rem;
+    }
+    .settings-col, .io-col {
+        width: 100%;
+        min-width: unset;
+        max-width: unset;
     }
     .upload-section,
     .output-section {
