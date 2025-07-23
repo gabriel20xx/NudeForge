@@ -1,5 +1,23 @@
 
 // main.js: Handles upload button state for UX
+// --- Download Button Helpers ---
+function disableDownload() {
+    if (downloadLink) {
+        downloadLink.classList.add('disabled');
+        const btn = downloadLink.querySelector('button');
+        if (btn) btn.disabled = true;
+        downloadLink.removeAttribute('href');
+    }
+}
+
+function enableDownload(url) {
+    if (downloadLink) {
+        downloadLink.classList.remove('disabled');
+        const btn = downloadLink.querySelector('button');
+        if (btn) btn.disabled = false;
+        if (url) downloadLink.setAttribute('href', url);
+    }
+}
 // --- CAPTCHA Logic (moved from index.ejs) ---
 // Fetch and display advanced SVG CAPTCHA
 async function fetchCaptcha() {
