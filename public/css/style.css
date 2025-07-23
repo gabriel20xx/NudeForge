@@ -85,15 +85,17 @@ h2 {
 }
 
 #comparison-container {
-    width: 100%;
     max-width: 1040px;
-    margin: 2rem auto;
 }
 
 .comparison-box {
     position: relative;
     width: 100%;
-    aspect-ratio: 1 / 1;
+    height: 340px;
+    background: #23272f;
+    border: 2.5px dashed #ffb84d;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 .comparison-image {
@@ -102,7 +104,7 @@ h2 {
     left: 0;
     width: 100%;
     height: 100%;
-    background-size: contain;
+    background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
 }
@@ -119,7 +121,7 @@ h2 {
     height: 100%;
     margin: 0;
     -webkit-appearance: none;
-    background: transparent;
+    background-color: rgba(255, 152, 0, 0.5);
 }
 
 .comparison-slider::-webkit-slider-thumb {
@@ -136,6 +138,14 @@ h2 {
     height: 100%;
     background: #ff9800;
     cursor: ew-resize;
+}
+
+.comparison-slider::-webkit-slider-runnable-track {
+    background: transparent;
+}
+
+.comparison-slider::-moz-range-track {
+    background: transparent;
 }
 
 .upload-section,

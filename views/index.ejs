@@ -62,9 +62,13 @@
 
     <div class="carousel-container">
         <div class="carousel-slide">
-            <img src="/img/example1.jpg" alt="Example Image 1">
-            <img src="/img/example2.jpg" alt="Example Image 2">
-            <img src="/img/example3.jpg" alt="Example Image 3">
+            <% if (locals.carouselImages && carouselImages.length > 0) { %>
+                <% carouselImages.forEach(image => { %>
+                    <img src="/img/carousel/<%= image %>" alt="Carousel Image">
+                <% }); %>
+            <% } else { %>
+                <p>No images found in carousel.</p>
+            <% } %>
         </div>
     </div>
 

@@ -7,8 +7,21 @@ const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, g
 
 const router = express.Router();
 
+const fs = require('fs');
+
 router.get('/', (req, res) => {
-    res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
+    const carouselDir = path.join(__dirname, '../../public/img/carousel');
+    fs.readdir(carouselDir, (err, files) => {
+        if (err) {
+            console.error('Error reading carousel directory:', err);
+            files = [];
+        }
+        const carouselImages = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
+        res.render('index', { 
+            carouselImages: carouselImages,
+            captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' 
+        });
+    });
 });
 
 router.get('/captcha', generateCaptcha);
