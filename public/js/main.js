@@ -681,13 +681,14 @@ function initialize() {
         settingsCol.classList.toggle('open');
     });
 
-    // Image Comparison Slider
+    // Image Comparison Slider (legacy, now using web component)
     const slider = document.getElementById('comparison-slider');
     const outputImage = document.getElementById('comparison-output-image');
-
-    slider.addEventListener('input', (e) => {
-        outputImage.style.clipPath = `inset(0 ${100 - e.target.value}% 0 0)`;
-    });
+    if (slider && outputImage) {
+        slider.addEventListener('input', (e) => {
+            outputImage.style.clipPath = `inset(0 ${100 - e.target.value}% 0 0)`;
+        });
+    }
 }
 
 initialize();
