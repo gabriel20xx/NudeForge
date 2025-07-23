@@ -160,7 +160,11 @@ function resetUIForNewUpload() {
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
 
-    
+    const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+    if (comparisonPlaceholder) {
+        comparisonPlaceholder.style.display = 'block';
+    }
+
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
         pollingIntervalId = null;
@@ -183,10 +187,14 @@ function displayResult(imageUrl) {
         const comparisonInputImage = document.getElementById('comparison-input-image');
         const comparisonOutputImage = document.getElementById('comparison-output-image');
         const previewImageSrc = previewImage.src;
+        const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
 
         if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
             comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
             comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
+            if (comparisonPlaceholder) {
+                comparisonPlaceholder.style.display = 'none';
+            }
         }
     };
 
