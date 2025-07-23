@@ -17,6 +17,33 @@ const server = http.createServer(app); // Create HTTP server for Socket.IO
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+// In-memory store for CAPTCHA tokens and solutions
+const captchaStore = {};
+const crypto = require('crypto');
+
+// Advanced image CAPTCHA using svg-captcha
+const svgCaptcha = require('svg-captcha');
+
+app.get('/captcha', (req, res) => {
+  const captcha = svgCaptcha.create({
+    size: 6,
+    noise: 4,
+    color: true,
+    background: '#f2f2f2',
+    width: 180,
+    height: 60,
+    fontSize: 48,
+    ignoreChars: '0o1ilI',
+  });
+  const token = crypto.randomBytes(16).toString('hex');
+  captchaStore[token] = captcha.text;
+  setTimeout(() => { delete captchaStore[token]; }, 180000);
+  res.type('json').send({
+    token,
+    image: captcha.data
+  });
+});
+
 // No user settings are stored in memory anymore
 const io = new Server(server, {
   cors: {
@@ -612,15 +639,13 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   const isLocal = isLocalOrPrivate(req.ip);
   if (!isLocal) {
     const captchaAnswer = req.body["captcha_answer"];
-    const captchaExpected = req.body["captcha_expected"];
-    if (
-      !captchaAnswer ||
-      !captchaExpected ||
-      captchaAnswer !== captchaExpected
-    ) {
+    const captchaToken = req.body["captcha_token"];
+    if (!captchaAnswer || !captchaToken || !captchaStore[captchaToken] || captchaStore[captchaToken].toLowerCase() !== captchaAnswer.trim().toLowerCase()) {
       console.error(`POST /upload: CAPTCHA failed or missing.`);
       return res.status(400).send("CAPTCHA failed or missing.");
     }
+    // Remove the token after use
+    delete captchaStore[captchaToken];
   }
   // --- End Local CAPTCHA Verification ---
 
