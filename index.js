@@ -306,8 +306,21 @@ async function processQueue() {
     );
 
     // Use per-request settings from the upload
-    const { prompt, steps, outputHeight } =
-      requestStatus[requestId].settings || {};
+    const {
+      prompt,
+      steps,
+      outputHeight,
+      lora_1_on,
+      lora_1_strength,
+      lora_2_on,
+      lora_2_strength,
+      lora_3_on,
+      lora_3_strength,
+      lora_4_on,
+      lora_4_strength,
+      lora_5_on,
+      lora_5_strength,
+    } = requestStatus[requestId].settings || {};
 
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
@@ -353,6 +366,27 @@ async function processQueue() {
     } else if (!heightNode) {
       console.warn(
         `Processing Queue: PrimitiveInt node with title 'Height' not found in workflow. Output height will not be changed.`
+      );
+    }
+
+    // Update LoRA settings in Power Lora Loader (rgthree) node
+    const loraNode = Object.values(workflow).find(
+      (node) => node.class_type === "Power Lora Loader (rgthree)"
+    );
+    if (loraNode) {
+      for (let i = 1; i <= 5; i++) {
+        if (loraNode.inputs[`lora_${i}`]) {
+          loraNode.inputs[`lora_${i}`].on =
+            !!requestStatus[requestId].settings[`lora_${i}_on`];
+          loraNode.inputs[`lora_${i}`].strength = parseFloat(
+            requestStatus[requestId].settings[`lora_${i}_strength`]
+          );
+        }
+      }
+      console.log("Processing Queue: Updated LoRA settings in workflow.");
+    } else {
+      console.warn(
+        "Processing Queue: Power Lora Loader (rgthree) node not found in workflow. LoRA settings will not be changed."
       );
     }
 
@@ -603,6 +637,14 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
   // Read settings from the upload request
   const { prompt, steps, outputHeight } = req.body;
+  // Read LoRA settings
+  const loraSettings = {};
+  for (let i = 1; i <= 5; i++) {
+    loraSettings[`lora_${i}_on`] = req.body[`lora_${i}_on`] === "true";
+    loraSettings[`lora_${i}_strength`] = parseFloat(
+      req.body[`lora_${i}_strength`]
+    );
+  }
 
   console.log(
     `POST /upload: Uploaded file: ${uploadedFilename} (Original: ${req.file.originalname}) with requestId: ${requestId}`
@@ -614,7 +656,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   requestStatus[requestId] = {
     status: "pending",
     totalNodesInWorkflow: 0,
-    settings: { prompt, steps, outputHeight },
+    settings: { prompt, steps, outputHeight, ...loraSettings },
   };
 
   processingQueue.push({
