@@ -10,17 +10,18 @@ const router = express.Router();
 const fs = require('fs');
 
 router.get('/', (req, res) => {
+    res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
+});
+
+router.get('/api/carousel-images', (req, res) => {
     const carouselDir = path.join(__dirname, '../../public/img/carousel');
     fs.readdir(carouselDir, (err, files) => {
         if (err) {
             console.error('Error reading carousel directory:', err);
-            files = [];
+            return res.status(500).json({ error: 'Failed to read carousel images' });
         }
         const carouselImages = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
-        res.render('index', { 
-            carouselImages: carouselImages,
-            captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' 
-        });
+        res.json(carouselImages);
     });
 });
 
