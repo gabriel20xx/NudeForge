@@ -65,6 +65,17 @@
                 id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
                 id="yourPosition">N/A</span></p>
         <div class="main-container">
+            <div class="input-col">
+                <div class="upload-section">
+                    <h2>Upload Image</h2>
+                    <div id="dropArea" class="drop-area image-box">
+                        <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
+                        <img id="previewImage" />
+                        <input id="inputImage" type="file" name="image" accept="image/*" />
+                    </div>
+                    <button class="upload-btn" type="submit">Upload</button>
+                </div>
+            </div>
             <div class="settings-col">
                 <div class="settings-section">
                     <label for="prompt" class="settings-label">Prompt:</label>
@@ -156,16 +167,7 @@ Preserve the exact same face details, shape and expression. " />
                     </div>
                 </div>
             </div>
-            <div class="io-col">
-                <div class="upload-section">
-                    <h2>Upload Image</h2>
-                    <div id="dropArea" class="drop-area image-box">
-                        <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
-                        <img id="previewImage" />
-                        <input id="inputImage" type="file" name="image" accept="image/*" />
-                    </div>
-                    <button class="upload-btn" type="submit">Upload</button>
-                </div>
+            <div class="output-col">
                 <div class="output-section">
                     <h2>Processed Output</h2>
                     <div id="outputArea" class="image-box">
