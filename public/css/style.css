@@ -60,7 +60,7 @@ h2 {
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
-.input-col, .output-col {
+.input-col, .output-col, .comparison-container {
     flex: 1 1 45%;
     min-width: 320px;
     max-width: 520px;
@@ -185,8 +185,7 @@ input[type="file"] {
 
 .image-box {
     width: 100%;
-    aspect-ratio: 1 / 1;
-    max-width: 420px;
+    height: 340px;
     background: #23272f;
     border: 2.5px dashed #ffb84d;
     border-radius: 12px;
@@ -199,16 +198,6 @@ input[type="file"] {
     padding: 1rem;
     box-sizing: border-box;
     margin-bottom: 1.2em;
-    /* Fallback for browsers without aspect-ratio */
-    height: 0;
-    padding-bottom: 100%;
-}
-
-@supports (aspect-ratio: 1 / 1) {
-    .image-box {
-        height: auto;
-        padding-bottom: 0;
-    }
 }
 
 .image-box img {
@@ -465,7 +454,7 @@ button {
         align-items: center;
         gap: 1.5rem;
     }
-    .input-col, .settings-col, .output-col {
+    .input-col, .settings-col, .output-col, .comparison-container {
         max-width: 520px;
         min-width: unset;
         width: 96%;
@@ -478,7 +467,7 @@ button {
         align-items: center;
         gap: 1.5rem;
     }
-    .settings-col, .io-col {
+    .settings-col, .io-col, .comparison-container {
         width: 100%;
         min-width: unset;
         max-width: unset;

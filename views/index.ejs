@@ -72,8 +72,6 @@
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
                 id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
                 id="yourPosition">N/A</span></p>
-        
-        <button type="button" id="settings-toggle">Toggle Settings</button>
 
         <div class="main-container">
             <div class="input-col">
@@ -87,6 +85,14 @@
                     <button class="upload-btn" type="submit">Upload</button>
                 </div>
             </div>
+            <div id="comparison-container" style="display:none;">
+                <h2>Comparison</h2>
+                <div class="comparison-box">
+                    <div class="comparison-image" id="comparison-input-image"></div>
+                    <div class="comparison-image" id="comparison-output-image"></div>
+                    <input type="range" min="0" max="100" value="50" class="comparison-slider" id="comparison-slider">
+                </div>
+            </div>
             <div class="output-col">
                 <div class="output-section">
                     <h2>Processed Output</h2>
@@ -98,15 +104,6 @@
                         <button class="download-btn" type="button">Download</button>
                     </a>
                 </div>
-            </div>
-        </div>
-
-        <div id="comparison-container" style="display:none;">
-            <h2>Comparison</h2>
-            <div class="comparison-box">
-                <div class="comparison-image" id="comparison-input-image"></div>
-                <div class="comparison-image" id="comparison-output-image"></div>
-                <input type="range" min="0" max="100" value="50" class="comparison-slider" id="comparison-slider">
             </div>
         </div>
 
