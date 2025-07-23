@@ -58,15 +58,6 @@ h2 {
     100% { transform: translateX(-50%); }
 }
 
-#settings-toggle {
-    background: linear-gradient(90deg, #007bff 0%, #00a8ff 100%);
-    color: #fff;
-}
-
-#settings-toggle:hover {
-    background: linear-gradient(90deg, #00a8ff 0%, #007bff 100%);
-}
-
 .main-container {
     display: flex;
     flex-direction: row;
@@ -325,7 +316,6 @@ input[type="file"] {
     padding: 0.7em 1.5em;
     border: none;
     border-radius: 8px;
-    color: #fff;
     font-size: 1em;
     cursor: pointer;
     margin-top: 1em;
@@ -345,6 +335,15 @@ input[type="file"] {
     background: linear-gradient(90deg, #ffb84d 0%, #ff9800 100%);
     color: #fff;
     box-shadow: 0 4px 16px 0 rgba(255,184,77,0.15);
+}
+
+.settings-btn {
+    background: linear-gradient(90deg, #007bff 0%, #00a8ff 100%);
+}
+
+.settings-btn:hover {
+    background: linear-gradient(90deg, #00a8ff 0%, #007bff 100%);
+    color: #fff;
 }
 
 .download-btn {
