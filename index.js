@@ -13,6 +13,16 @@ require('dotenv').config({ silent: true }); // Load environment variables from .
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.IO
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// Store user settings in memory
+let userSettings = {
+  prompt: "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ",
+  steps: 20,
+  outputHeight: 1080
+};
 const io = new Server(server, {
   cors: {
     origin: "*", // Allow all origins for simplicity in development
@@ -302,15 +312,44 @@ async function processQueue() {
       (node) => node.class_type === "CLIPTextEncode"
     );
     if (clipTextNode) {
-      const newPrompt =
-        "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. Preserve tattoos";
-      clipTextNode.inputs.text = newPrompt;
+      // Use user-supplied prompt if set
+      clipTextNode.inputs.text = userSettings.prompt || clipTextNode.inputs.text;
       console.log(
-        `Processing Queue: CLIPTextEncode node updated with new prompt.`
+        `Processing Queue: CLIPTextEncode node updated with prompt: ${clipTextNode.inputs.text}`
       );
     } else {
       console.warn(
         `Processing Queue: CLIPTextEncode node not found in workflow. Prompt will not be changed.`
+      );
+    }
+
+    // Update steps in KSamplerAdvanced node
+    const ksamplerNode = Object.values(workflow).find(
+      (node) => node.class_type === "KSamplerAdvanced"
+    );
+    if (ksamplerNode) {
+      ksamplerNode.inputs.steps = Number(userSettings.steps) || ksamplerNode.inputs.steps;
+      console.log(
+        `Processing Queue: KSamplerAdvanced node updated with steps: ${ksamplerNode.inputs.steps}`
+      );
+    } else {
+      console.warn(
+        `Processing Queue: KSamplerAdvanced node not found in workflow. Steps will not be changed.`
+      );
+    }
+
+    // Update output height in PrimitiveInt node (title: Height)
+    const heightNode = Object.values(workflow).find(
+      (node) => node.class_type === "PrimitiveInt" && node._meta && node._meta.title === "Height"
+    );
+    if (heightNode) {
+      heightNode.inputs.value = Number(userSettings.outputHeight) || heightNode.inputs.value;
+      console.log(
+        `Processing Queue: PrimitiveInt node (Height) updated with value: ${heightNode.inputs.value}`
+      );
+    } else {
+      console.warn(
+        `Processing Queue: PrimitiveInt node with title 'Height' not found in workflow. Output height will not be changed.`
       );
     }
 
@@ -455,6 +494,16 @@ async function processQueue() {
     processQueue(); // Process next item in queue
   }
 }
+
+// Settings endpoint
+app.post("/settings", (req, res) => {
+  const { prompt, steps, outputHeight } = req.body;
+  if (typeof prompt === 'string') userSettings.prompt = prompt;
+  if (!isNaN(Number(steps))) userSettings.steps = Number(steps);
+  if (!isNaN(Number(outputHeight))) userSettings.outputHeight = Number(outputHeight);
+  console.log(`Settings updated:`, userSettings);
+  res.json({ success: true });
+});
 
 // Serve frontend
 app.get("/", (req, res) => {
