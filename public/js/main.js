@@ -252,9 +252,13 @@ function resetUIForNewUpload() {
 
     const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
     showElement(comparisonPlaceholder);
-    // Hide the comparison slider until output image is present
+    // Hide the comparison slider and images until output image is present
     const comparisonSlider = document.getElementById('comparison-slider');
     hideElement(comparisonSlider);
+    const comparisonInputImage = document.getElementById('comparison-input-image');
+    const comparisonOutputImage = document.getElementById('comparison-output-image');
+    if (comparisonInputImage) comparisonInputImage.style.display = 'none';
+    if (comparisonOutputImage) comparisonOutputImage.style.display = 'none';
 
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
@@ -282,6 +286,8 @@ function displayResult(imageUrl) {
             if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
                 comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
                 comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
+                comparisonInputImage.style.display = 'block';
+                comparisonOutputImage.style.display = 'block';
                 hideElement(comparisonPlaceholder);
                 showElement(comparisonSlider);
             }

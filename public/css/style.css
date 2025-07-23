@@ -71,6 +71,10 @@ h2 {
     flex: 1;
     min-width: 280px;
     max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 .settings-container {
@@ -102,7 +106,7 @@ h2 {
     background: transparent;
     pointer-events: auto;
     z-index: 2;
-    display: none; /* Only show when output image is present */
+    display: block; /* Always show, JS will control visibility if needed */
     /* Vertical orientation */
     transform: rotate(90deg) translateY(-100%);
     transform-origin: top right;
@@ -123,9 +127,11 @@ h2 {
 }
 
 .upload-section,
-.output-section,
-.comparison-section {
+ .output-section,
+ .comparison-section {
     width: 100%;
+    min-width: 0;
+    max-width: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -133,6 +139,7 @@ h2 {
     border-radius: 18px;
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
     padding: 2rem 1.5rem 1.5rem 1.5rem;
+    box-sizing: border-box;
 }
 
 .drop-area {
@@ -181,6 +188,8 @@ input[type="file"] {
     padding: 1rem;
     box-sizing: border-box;
     margin-bottom: 1.2em;
+    min-width: 0;
+    max-width: 420px;
 }
 
 .image-box img {
@@ -486,13 +495,15 @@ input[type="file"] {
         align-items: center;
         gap: 1.5rem;
     }
-    .settings-col, .io-col, .comparison-container {
+    .input-col, .output-col, .comparison-col {
         width: 100%;
         min-width: unset;
         max-width: unset;
+        align-items: center;
     }
     .upload-section,
-    .output-section {
+    .output-section,
+    .comparison-section {
         width: 96%;
         min-width: unset;
         max-width: unset;
@@ -511,8 +522,23 @@ input[type="file"] {
     .main-container {
         padding: 1rem 0.2rem 1rem 0.2rem;
     }
+    .input-col, .output-col, .comparison-col {
+        width: 100%;
+        min-width: unset;
+        max-width: unset;
+        align-items: center;
+    }
+    .upload-section,
+    .output-section,
+    .comparison-section {
+        width: 99%;
+        min-width: unset;
+        max-width: unset;
+        margin-bottom: 1.2em;
+    }
     .image-box {
         max-width: 98vw;
+        height: 140px;
     }
 }
 
