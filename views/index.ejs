@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Image Nudifier</title>
-    <link rel="stylesheet" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
     <script src="/socket.io/socket.io.js"></script>
     <!-- Advanced CAPTCHA: Fetch SVG from backend -->
     <script>
@@ -23,7 +23,7 @@
                 captchaImage.innerHTML = data.image;
                 captchaToken.value = data.token;
             } catch (e) {
-                captchaImage.innerHTML = '<span style="color:red">Failed to load CAPTCHA</span>';
+                captchaImage.innerHTML = '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
                 captchaToken.value = '';
             }
         }
@@ -38,9 +38,7 @@
     <h1>Image Nudifier</h1>
 
     <form id="uploadForm" enctype="multipart/form-data">
-        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
-                id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your
-            Position: <span id="yourPosition">N/A</span></p>
+        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span id="yourPosition">N/A</span></p>
         <div class="main-container">
             <div class="upload-section">
                 <h2>Upload Image</h2>
@@ -70,32 +68,42 @@ Preserve the exact same face details, shape and expression. " />
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
                                 <label for="lora_1_on">change_clothes_to_nothing_000011200</label>
-                                <input type="number" id="lora_1_strength" name="lora_1_strength" value="1" min="0" max="2" step="0.01" class="lora-strength" />
-                                <label for="lora_1_strength">Strength</label>
+                                <div class="lora-strength-group">
+                                    <input type="number" id="lora_1_strength" name="lora_1_strength" value="1" min="0" max="2" step="0.01" class="lora-strength" />
+                                    <label for="lora_1_strength">Strength</label>
+                                </div>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_2_on" name="lora_2_on">
                                 <label for="lora_2_on">real_textures-000011</label>
-                                <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7" min="0" max="2" step="0.01" class="lora-strength" />
-                                <label for="lora_2_strength">Strength</label>
+                                <div class="lora-strength-group">
+                                    <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7" min="0" max="2" step="0.01" class="lora-strength" />
+                                    <label for="lora_2_strength">Strength</label>
+                                </div>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_3_on" name="lora_3_on">
                                 <label for="lora_3_on">Flux_Ultimator</label>
-                                <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5" min="0" max="2" step="0.01" class="lora-strength" />
-                                <label for="lora_3_strength">Strength</label>
+                                <div class="lora-strength-group">
+                                    <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5" min="0" max="2" step="0.01" class="lora-strength" />
+                                    <label for="lora_3_strength">Strength</label>
+                                </div>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_4_on" name="lora_4_on">
                                 <label for="lora_4_on">FLUX_FD-Nipple-Detail-R4</label>
-                                <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8" min="0" max="2" step="0.01" class="lora-strength" />
-                                <label for="lora_4_strength">Strength</label>
+                                <div class="lora-strength-group">
+                                    <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8" min="0" max="2" step="0.01" class="lora-strength" />
+                                    <label for="lora_4_strength">Strength</label>
+                                </div>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
                                 <label for="lora_5_on">aidmaRealisticSkin-FLUX-v0.1</label>
-                                <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6" min="0" max="2" step="0.01" class="lora-strength" />
-                                <label for="lora_5_strength">Strength</label>
+                                <div class="lora-strength-group">
+                                    <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6" min="0" max="2" step="0.01" class="lora-strength" />
+                                    <label for="lora_5_strength">Strength</label>
+                                </div>
                             </div>
                         </div>
                     </fieldset>

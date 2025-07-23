@@ -1,25 +1,36 @@
 body {
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background: black;
-    color: white;
+    background: linear-gradient(135deg, #181c24 0%, #23272f 100%);
+    color: #f7f7fa;
     text-align: center;
+    min-height: 100vh;
 }
 
 h1 {
-    background-color: darkorange;
-    color: white;
-    padding: 1em;
-    margin: 0;
+    background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
+    color: #fff;
+    padding: 1.2em 0 1em 0;
+    margin: 0 0 0.5em 0;
+    font-size: 2.2em;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
+}
+
+h2 {
+    color: #ffb84d;
+    margin-bottom: 0.7em;
+    font-size: 1.3em;
+    letter-spacing: 0.5px;
 }
 
 .main-container {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 2rem;
-    padding: 2rem;
+    gap: 2.5rem;
+    padding: 2.5rem 1rem 2rem 1rem;
 }
 
 .upload-section,
@@ -28,16 +39,26 @@ h1 {
     display: flex;
     flex-direction: column;
     align-items: center;
+    background: rgba(30,32,38,0.97);
+    border-radius: 18px;
+    box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+    min-width: 320px;
+    max-width: 520px;
 }
 
 .drop-area {
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background 0.3s, border-color 0.3s;
+    background: #23272f;
+    border: 2.5px dashed #ffb84d;
+    border-radius: 12px;
+    margin-bottom: 1.2em;
 }
 
 .drop-area.drag-over {
-    background: black;
-    border-color: darkorange;
+    background: #23272f;
+    border-color: #ff9800;
 }
 
 .drop-area.disabled {
@@ -47,8 +68,10 @@ h1 {
 }
 
 .drop-area p {
-    font-size: 1rem;
+    font-size: 1.1rem;
     text-align: center;
+    color: #ffb84d;
+    letter-spacing: 0.5px;
 }
 
 input[type="file"] {
@@ -57,10 +80,10 @@ input[type="file"] {
 
 .image-box {
     width: 100%;
-    height: 600px;
-    background: black;
-    border: 2px dashed darkorange;
-    border-radius: 8px;
+    height: 340px;
+    background: #23272f;
+    border: 2.5px dashed #ffb84d;
+    border-radius: 12px;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -69,6 +92,7 @@ input[type="file"] {
     align-items: center;
     padding: 1rem;
     box-sizing: border-box;
+    margin-bottom: 1.2em;
 }
 
 .image-box img {
@@ -78,6 +102,8 @@ input[type="file"] {
     height: 100%;
     object-fit: contain;
     display: none;
+    border-radius: 8px;
+    background: #181c24;
 }
 
 #outputImage {
@@ -85,44 +111,51 @@ input[type="file"] {
 }
 
 .placeholder {
-    color: white; /* Ensure text is visible on black background */
+    color: #ffb84d;
     padding: 1em;
+    font-size: 1.1em;
 }
 
 /* Buttons */
 button {
     padding: 0.7em 1.5em;
     border: none;
-    border-radius: 6px;
-    color: white;
+    border-radius: 8px;
+    color: #fff;
     font-size: 1em;
     cursor: pointer;
     margin-top: 1em;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .upload-btn {
-    background-color: darkorange;
+    background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
+    color: #23272f;
 }
-
 .upload-btn:hover {
-    background-color: orangered;
+    background: linear-gradient(90deg, #ffb84d 0%, #ff9800 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px 0 rgba(255,184,77,0.15);
 }
-
 .download-btn {
-    background-color: green;
+    background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+    color: #23272f;
 }
-
 .download-btn:hover {
-    background-color: darkgreen;
+    background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
+    color: #fff;
 }
 
 /* Settings Section */
 .settings-section {
-    background: #181818;
+    background: #23272f;
     padding: 2rem 1.5rem 1.5rem 1.5rem;
     margin: 2rem 0 1.5rem 0;
-    border-radius: 12px;
-    box-shadow: 0 2px 16px 0 rgba(0,0,0,0.25);
+    border-radius: 16px;
+    box-shadow: 0 2px 16px 0 rgba(0,0,0,0.18);
     width: 100%;
     max-width: 600px;
     display: flex;
@@ -132,27 +165,30 @@ button {
 }
 
 .settings-label {
-    font-weight: bold;
+    font-weight: 600;
     margin-bottom: 0.3em;
     display: block;
     color: #ffb84d;
+    letter-spacing: 0.2px;
 }
 
 .settings-input {
     width: 100%;
     padding: 0.5em 0.7em;
-    border-radius: 6px;
-    border: 1px solid #333;
-    background: #222;
+    border-radius: 8px;
+    border: 1.5px solid #333;
+    background: #181c24;
     color: #fff;
     margin-bottom: 0.7em;
     font-size: 1em;
     box-sizing: border-box;
+    transition: border 0.2s, box-shadow 0.2s;
 }
 
 .settings-input:focus {
-    outline: 2px solid darkorange;
-    border-color: darkorange;
+    outline: 2px solid #ffb84d;
+    border-color: #ffb84d;
+    box-shadow: 0 0 0 2px #ffb84d33;
 }
 
 .settings-row {
@@ -168,11 +204,21 @@ button {
 }
 
 .lora-fieldset {
-    border: 1px solid #444;
-    border-radius: 8px;
+    border: 1.5px solid #444;
+    border-radius: 10px;
     padding: 1em 1em 0.5em 1em;
     margin-bottom: 0.7em;
-    background: #222;
+    background: #181c24;
+    color: #ffb84d;
+    box-shadow: 0 1px 8px 0 rgba(0,0,0,0.10);
+}
+
+.lora-fieldset legend {
+    color: #ffb84d;
+    font-weight: 600;
+    font-size: 1.08em;
+    letter-spacing: 0.2px;
+    padding: 0 0.5em;
 }
 
 .lora-grid {
@@ -184,43 +230,56 @@ button {
 .lora-row {
     display: flex;
     align-items: center;
-    gap: 0.5em;
-    background: #181818;
-    padding: 0.3em 0.5em;
-    border-radius: 6px;
+    gap: 0.7em;
+    background: #23272f;
+    padding: 0.4em 0.7em;
+    border-radius: 8px;
+    margin-bottom: 0.2em;
+    color: #f7f7fa;
 }
 
 .lora-row label {
     margin: 0 0.2em 0 0.2em;
-    font-size: 0.98em;
+    font-size: 1em;
+    color: #ffb84d;
+}
+
+.lora-strength-group {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
 }
 
 .lora-strength {
     width: 60px;
+    background: #181c24;
+    color: #fff;
+    border: 1.5px solid #333;
+    border-radius: 6px;
+    padding: 0.2em 0.4em;
+    font-size: 1em;
     margin-left: 0.3em;
     margin-right: 0.3em;
-    background: #222;
-    color: #fff;
-    border: 1px solid #333;
-    border-radius: 4px;
-    padding: 0.2em 0.4em;
+    transition: border 0.2s, box-shadow 0.2s;
 }
 
 .lora-strength:focus {
-    outline: 2px solid darkorange;
-    border-color: darkorange;
+    outline: 2px solid #ffb84d;
+    border-color: #ffb84d;
+    box-shadow: 0 0 0 2px #ffb84d33;
 }
 
 .captcha-container {
     margin-top: 1.2em;
-    background: #222;
-    border-radius: 8px;
+    background: #181c24;
+    border-radius: 10px;
     padding: 1em 1em 0.7em 1em;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.7em;
     box-shadow: 0 1px 8px 0 rgba(0,0,0,0.10);
+    border: 1.5px solid #444;
 }
 .captcha-row {
     display: flex;
@@ -240,28 +299,32 @@ button {
     width: 140px;
     padding: 0.4em 0.7em;
     border-radius: 6px;
-    border: 1px solid #333;
-    background: #181818;
+    border: 1.5px solid #333;
+    background: #23272f;
     color: #fff;
     font-size: 1em;
     text-align: center;
+    transition: border 0.2s, box-shadow 0.2s;
 }
 .captcha-input:focus {
-    outline: 2px solid darkorange;
-    border-color: darkorange;
+    outline: 2px solid #ffb84d;
+    border-color: #ffb84d;
+    box-shadow: 0 0 0 2px #ffb84d33;
 }
 .refresh-captcha-btn {
-    background: #333;
+    background: #23272f;
     color: #ffb84d;
     border: none;
     border-radius: 6px;
     font-size: 1.3em;
     padding: 0.2em 0.5em;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.2s, color 0.2s;
+    box-shadow: 0 1px 4px 0 rgba(0,0,0,0.10);
 }
 .refresh-captcha-btn:hover {
-    background: #444;
+    background: #ffb84d;
+    color: #23272f;
 }
 .captcha-error {
     color: #ff4d4d;
@@ -270,18 +333,33 @@ button {
 }
 
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .main-container {
         flex-direction: column;
         align-items: center;
+        gap: 1.5rem;
     }
-
     .upload-section,
     .output-section {
         width: 96%;
+        min-width: unset;
+        max-width: unset;
+        margin-bottom: 1.5em;
     }
-
     .image-box {
-        height: 300px;
+        height: 220px;
+    }
+}
+
+@media (max-width: 600px) {
+    .settings-section {
+        padding: 1.2rem 0.5rem 1rem 0.5rem;
+        max-width: 98vw;
+    }
+    .main-container {
+        padding: 1rem 0.2rem 1rem 0.2rem;
+    }
+    .image-box {
+        height: 140px;
     }
 }
