@@ -150,60 +150,6 @@ socket.on('processingFailed', (data) => {
 });
 
 
-// --- UI Helper Functions: Upload & Download Button State ---
-function setUploadButtonState({ disabled, text }) {
-    uploadButton.disabled = !!disabled;
-    if (disabled) {
-        uploadButton.classList.add('disabled');
-    } else {
-        uploadButton.classList.remove('disabled');
-    }
-    if (typeof text === 'string') uploadButton.textContent = text;
-}
-
-function setDownloadButtonState({ disabled }) {
-    downloadLink.querySelector('.download-btn').disabled = !!disabled;
-    if (disabled) {
-        downloadLink.classList.add('disabled');
-    } else {
-        downloadLink.classList.remove('disabled');
-    }
-}
-
-function disableUpload() {
-    setUploadButtonState({ disabled: true, text: 'Processing...' });
-    inputImage.disabled = true;
-    dropArea.classList.add('disabled');
-    dropArea.style.pointerEvents = 'none';
-}
-
-function enableUpload() {
-    setUploadButtonState({ disabled: false, text: 'Upload' });
-    inputImage.disabled = false;
-    dropArea.classList.remove('disabled');
-    dropArea.style.pointerEvents = 'auto';
-    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isLocal && !captchaDisabled) {
-        fetchCaptcha();
-    }
-    var captchaAnswer = document.getElementById('captcha_answer');
-    if (captchaAnswer) captchaAnswer.value = '';
-}
-
-function disableDownload() {
-    setDownloadButtonState({ disabled: true });
-    downloadLink.href = '#';
-}
-
-function enableDownload(imageUrl) {
-    setDownloadButtonState({ disabled: false });
-    if (imageUrl) {
-        const filename = imageUrl.split('/').pop();
-        downloadLink.href = imageUrl;
-        downloadLink.setAttribute('download', filename);
-    }
-}
-
 function resetUIForNewUpload() {
     outputImage.style.display = 'none';
     outputImage.src = '';
@@ -221,6 +167,9 @@ function resetUIForNewUpload() {
     if (comparisonPlaceholder) {
         comparisonPlaceholder.style.display = 'block';
     }
+    // Hide the comparison slider until output image is present
+    const comparisonSlider = document.getElementById('comparison-slider');
+    if (comparisonSlider) comparisonSlider.style.display = 'none';
 
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
@@ -243,14 +192,18 @@ function displayResult(imageUrl) {
         const comparisonCol = document.querySelector('.comparison-col');
         const comparisonInputImage = document.getElementById('comparison-input-image');
         const comparisonOutputImage = document.getElementById('comparison-output-image');
-        const previewImageSrc = previewImage.src;
         const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+        const comparisonSlider = document.getElementById('comparison-slider');
+        const previewImageSrc = previewImage.src;
 
         if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
             comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
             comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
             if (comparisonPlaceholder) {
                 comparisonPlaceholder.style.display = 'none';
+            }
+            if (comparisonSlider) {
+                comparisonSlider.style.display = 'block';
             }
         }
         enableDownload(imageUrl);
@@ -261,6 +214,9 @@ function displayResult(imageUrl) {
         outputImage.style.display = 'none';
         outputPlaceholder.style.display = 'block';
         disableDownload();
+        // Hide the comparison slider if error
+        const comparisonSlider = document.getElementById('comparison-slider');
+        if (comparisonSlider) comparisonSlider.style.display = 'none';
     };
 }
 
@@ -586,3 +542,24 @@ function initialize() {
 }
 
 initialize();
+
+function disableUpload() {
+    setUploadButtonState({ disabled: true, text: 'Processing...' });
+    // Do NOT disable inputImage or dropArea, so user can still change input image
+    // inputImage.disabled = true;
+    // dropArea.classList.add('disabled');
+    // dropArea.style.pointerEvents = 'none';
+}
+
+function enableUpload() {
+    setUploadButtonState({ disabled: false, text: 'Upload' });
+    // inputImage.disabled = false;
+    // dropArea.classList.remove('disabled');
+    // dropArea.style.pointerEvents = 'auto';
+    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isLocal && !captchaDisabled) {
+        fetchCaptcha();
+    }
+    var captchaAnswer = document.getElementById('captcha_answer');
+    if (captchaAnswer) captchaAnswer.value = '';
+}
