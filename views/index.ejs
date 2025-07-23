@@ -553,10 +553,21 @@ Preserve the exact same face details, shape and expression. " />
                         fetchQueueStatus();
                     } else {
                         enableUpload(); // Re-enable controls on failure
-                        const errorResponse = xhr.responseText || 'Unknown error';
-                        alert('Upload failed: ' + errorResponse);
-                        console.error('Frontend: Upload failed with status', xhr.status, 'Error:', errorResponse);
-                        displayError('Upload failed: ' + errorResponse);
+                        let errorMsg = 'Upload failed: ';
+                        if (xhr.status === 0) {
+                            errorMsg += 'Network error or server not reachable.';
+                        } else if (xhr.status === 400 && xhr.responseText && xhr.responseText.includes('CAPTCHA')) {
+                            errorMsg += 'CAPTCHA validation failed. Please try again.';
+                            // Optionally refresh CAPTCHA
+                            if (typeof fetchCaptcha === 'function') fetchCaptcha();
+                        } else if (xhr.responseText) {
+                            errorMsg += xhr.responseText;
+                        } else {
+                            errorMsg += 'Unknown error';
+                        }
+                        alert(errorMsg);
+                        console.error('Frontend: Upload failed with status', xhr.status, 'Error:', errorMsg);
+                        displayError(errorMsg);
                         currentRequestId = null;
                         if (pollingIntervalId) {
                             clearInterval(pollingIntervalId);
