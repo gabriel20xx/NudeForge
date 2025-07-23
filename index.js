@@ -9,7 +9,7 @@ const http = require("http"); // Import http for Socket.IO
 const { Server } = require("socket.io"); // Import Server from socket.io
 const WebSocket = require("ws"); // Import WebSocket for ComfyUI connection
 
-require('dotenv').config({ silent: true }); // Load environment variables from .env file
+require("dotenv").config({ silent: true }); // Load environment variables from .env file
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.IO
@@ -38,8 +38,10 @@ const COMFYUI_WS_URL = `ws://${COMFYUI_HOST}/ws`;
 
 // Validate that required environment variables are set
 if (!COMFYUI_HOST) {
-    console.error("FATAL ERROR: Missing required environment variables. Please create a .env file based on .env.example and fill in the values.");
-    process.exit(1); // Exit if critical configuration is missing
+  console.error(
+    "FATAL ERROR: Missing required environment variables. Please create a .env file based on .env.example and fill in the values."
+  );
+  process.exit(1); // Exit if critical configuration is missing
 }
 
 console.log(`Starting server...`);
@@ -304,7 +306,8 @@ async function processQueue() {
     );
 
     // Use per-request settings from the upload
-    const { prompt, steps, outputHeight } = requestStatus[requestId].settings || {};
+    const { prompt, steps, outputHeight } =
+      requestStatus[requestId].settings || {};
 
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
@@ -337,7 +340,10 @@ async function processQueue() {
 
     // Update output height in PrimitiveInt node (title: Height)
     const heightNode = Object.values(workflow).find(
-      (node) => node.class_type === "PrimitiveInt" && node._meta && node._meta.title === "Height"
+      (node) =>
+        node.class_type === "PrimitiveInt" &&
+        node._meta &&
+        node._meta.title === "Height"
     );
     if (heightNode && outputHeight) {
       heightNode.inputs.value = Number(outputHeight);
@@ -555,24 +561,29 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   function isLocalOrPrivate(ip) {
     if (!ip) return false;
     // Remove IPv6 prefix if present
-    if (ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
-    if (ip === '127.0.0.1' || ip === '::1' || req.hostname === 'localhost') return true;
+    if (ip.startsWith("::ffff:")) ip = ip.replace("::ffff:", "");
+    if (ip === "127.0.0.1" || ip === "::1" || req.hostname === "localhost")
+      return true;
     // 10.0.0.0/8
-    if (ip.startsWith('10.')) return true;
+    if (ip.startsWith("10.")) return true;
     // 172.16.0.0/12
-    if (ip.startsWith('172.')) {
-      const second = parseInt(ip.split('.')[1], 10);
+    if (ip.startsWith("172.")) {
+      const second = parseInt(ip.split(".")[1], 10);
       if (second >= 16 && second <= 31) return true;
     }
     // 192.168.0.0/16
-    if (ip.startsWith('192.168.')) return true;
+    if (ip.startsWith("192.168.")) return true;
     return false;
   }
   const isLocal = isLocalOrPrivate(req.ip);
   if (!isLocal) {
-    const captchaAnswer = req.body['captcha_answer'];
-    const captchaExpected = req.body['captcha_expected'];
-    if (!captchaAnswer || !captchaExpected || captchaAnswer !== captchaExpected) {
+    const captchaAnswer = req.body["captcha_answer"];
+    const captchaExpected = req.body["captcha_expected"];
+    if (
+      !captchaAnswer ||
+      !captchaExpected ||
+      captchaAnswer !== captchaExpected
+    ) {
       console.error(`POST /upload: CAPTCHA failed or missing.`);
       return res.status(400).send("CAPTCHA failed or missing.");
     }
@@ -600,7 +611,11 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
   // Initialize request status with a placeholder for totalNodesInWorkflow and per-request settings
   // totalNodesInWorkflow will be set later once workflow.json is loaded in processQueue
-  requestStatus[requestId] = { status: "pending", totalNodesInWorkflow: 0, settings: { prompt, steps, outputHeight } };
+  requestStatus[requestId] = {
+    status: "pending",
+    totalNodesInWorkflow: 0,
+    settings: { prompt, steps, outputHeight },
+  };
 
   processingQueue.push({
     requestId,

@@ -38,18 +38,19 @@
                 <label for="prompt">Prompt:</label>
                 <input type="text" id="prompt" name="prompt" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
 Preserve the person in the exact same position, scale, and pose. 
-Preserve the exact same face details, shape and expression. Preserve jewelries and tattoos" style="width: 90%"/>
-                <br/>
+Preserve the exact same face details, shape and expression. Preserve jewelries and tattoos" style="width: 90%" />
+                <br />
                 <label for="steps">Steps:</label>
                 <input type="number" id="steps" name="steps" value="20" min="1" max="100" />
-                <br/>
+                <br />
                 <label for="outputHeight">Output Height:</label>
                 <input type="number" id="outputHeight" name="outputHeight" value="1080" min="480" max="2160" />
-                <br/>
+                <br />
                 <!-- Local CAPTCHA -->
                 <div class="captcha-container" id="captchaContainer">
                     <label id="captchaQuestion" style="font-weight:bold;"></label>
-                    <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Answer" required autocomplete="off" />
+                    <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Answer" required
+                        autocomplete="off" />
                     <input type="hidden" id="captcha_expected" name="captcha_expected" />
                 </div>
                 <button class="upload-btn" type="submit">Upload</button>
@@ -82,7 +83,7 @@ Preserve the exact same face details, shape and expression. Preserve jewelries a
         const processingStatusSpan = document.getElementById('processingStatus');
         const yourPositionSpan = document.getElementById('yourPosition');
         // Changed to querySelectorAll for class selection
-        const progressPercentageSpans = document.querySelectorAll('.progressPercentage'); 
+        const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
         const uploadButton = uploadForm.querySelector('.upload-btn');
 
         // State Variables
