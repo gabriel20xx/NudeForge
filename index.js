@@ -44,6 +44,11 @@ app.get('/captcha', (req, res) => {
   });
 });
 
+// API endpoint for frontend to check if CAPTCHA is disabled
+app.get('/api/captcha-status', (req, res) => {
+  res.json({ captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
+});
+
 // No user settings are stored in memory anymore
 const io = new Server(server, {
   cors: {
@@ -583,7 +588,9 @@ async function processQueue() {
 // Serve frontend
 app.get("/", (req, res) => {
   console.log(`GET /: Serving index.ejs`);
-  res.render("index");
+  res.render("index", {
+    captchaDisabled: process.env.CAPTCHA_DISABLED === 'true'
+  });
 });
 
 // New endpoint to get queue size and position
@@ -657,14 +664,19 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
   const isLocal = isLocalOrPrivate(req.ip);
   if (!isLocal) {
-    const captchaAnswer = req.body["captcha_answer"];
-    const captchaToken = req.body["captcha_token"];
-    if (!captchaAnswer || !captchaToken || !captchaStore[captchaToken] || captchaStore[captchaToken].toLowerCase() !== captchaAnswer.trim().toLowerCase()) {
-      console.error(`POST /upload: CAPTCHA failed or missing.`);
-      return res.status(400).send("CAPTCHA failed or missing.");
-    }
-    // Remove the token after use
-    delete captchaStore[captchaToken];
+  const { captcha_answer, captcha_token } = req.body;
+  
+  if (!captcha_answer || !captcha_token || !captchaStore[captcha_token] || captchaStore[captcha_token].toLowerCase() !== captcha_answer.trim().toLowerCase()) {
+  console.error(`POST /upload: CAPTCHA failed or missing. Token: ${captcha_token}, Answer: ${captcha_answer}`);
+  // Clean up the used token to prevent replay attacks
+  if (captcha_token) {
+  delete captchaStore[captcha_token];
+  }
+  return res.status(400).send("CAPTCHA validation failed.");
+  }
+  
+  // CAPTCHA is correct, remove the token
+  delete captchaStore[captcha_token];
   }
   // --- End Local CAPTCHA Verification ---
 
