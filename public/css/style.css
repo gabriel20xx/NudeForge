@@ -67,7 +67,6 @@ h2 {
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
-
 /* Unified column style for all three main columns */
 .main-col {
     flex: 1;
@@ -147,10 +146,6 @@ h2 {
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
     padding: 2rem 1.5rem 1.5rem 1.5rem;
     box-sizing: border-box;
-}
-
-/* Ensure .comparison-section always matches .upload-section and .output-section width */
-
 }
 
 .drop-area {
@@ -494,29 +489,16 @@ input[type="file"] {
         align-items: center;
         gap: 1.5rem;
     }
-    .input-col, .settings-col, .output-col, .comparison-container {
-        max-width: 520px;
-        min-width: unset;
-        width: 96%;
-    }
-}
-
-@media (max-width: 900px) {
-    .main-container {
-        flex-direction: column;
-        align-items: center;
-        gap: 1.5rem;
-    }
     .main-col {
         width: 100%;
         min-width: unset;
-        max-width: unset;
+        max-width: 520px;
         align-items: center;
     }
     .main-section {
         width: 96%;
         min-width: unset;
-        max-width: unset;
+        max-width: 520px;
         margin-bottom: 1.5em;
     }
     .image-box {
@@ -546,19 +528,6 @@ input[type="file"] {
     }
     .image-box {
         max-width: 98vw;
-        height: 140px;
-    }
-}
-
-@media (max-width: 600px) {
-    .settings-section {
-        padding: 1.2rem 0.5rem 1rem 0.5rem;
-        max-width: 98vw;
-    }
-    .main-container {
-        padding: 1rem 0.2rem 1rem 0.2rem;
-    }
-    .image-box {
         height: 140px;
     }
 }
