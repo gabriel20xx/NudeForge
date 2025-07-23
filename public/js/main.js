@@ -463,12 +463,21 @@ async function fetchQueueStatus() {
 // --- Seamless Carousel Setup ---
 function setupCarousel() {
     const carouselSlide = document.querySelector('.carousel-slide');
-    if (carouselSlide) {
+    if (carouselSlide && typeof carouselImages !== 'undefined' && carouselImages.length > 0) {
+        carouselImages.forEach(image => {
+            const img = document.createElement('img');
+            img.src = `/img/carousel/${image}`;
+            img.alt = "Carousel Image";
+            carouselSlide.appendChild(img);
+        });
+
         const images = carouselSlide.querySelectorAll('img');
         images.forEach(img => {
             const clone = img.cloneNode(true);
             carouselSlide.appendChild(clone);
         });
+    } else if (carouselSlide) {
+        carouselSlide.innerHTML = '<p>No images found in carousel.</p>';
     }
 }
 

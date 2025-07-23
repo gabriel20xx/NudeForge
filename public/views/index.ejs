@@ -66,16 +66,12 @@
     </div>
 
     <div class="carousel-container">
-        <div class="carousel-slide">
-            <% if (locals.carouselImages && carouselImages.length > 0) { %>
-                <% carouselImages.forEach(image => { %>
-                    <img src="/img/carousel/<%= image %>" alt="Carousel Image">
-                <% }); %>
-            <% } else { %>
-                <p>No images found in carousel.</p>
-            <% } %>
-        </div>
+        <div class="carousel-slide"></div>
     </div>
+
+    <script>
+        const carouselImages = <%- JSON.stringify(carouselImages) %>;
+    </script>
 
     <form id="uploadForm" enctype="multipart/form-data">
 
