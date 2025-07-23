@@ -1,34 +1,6 @@
+
 // main.js: Handles upload button state for UX
-document.addEventListener('DOMContentLoaded', function () {
-    const uploadForm = document.getElementById('uploadForm');
-    const uploadBtn = uploadForm ? uploadForm.querySelector('.upload-btn') : null;
-    const outputImage = document.getElementById('outputImage');
-
-    if (uploadForm && uploadBtn) {
-        uploadForm.addEventListener('submit', function (e) {
-            // Disable and grey out the upload button
-            uploadBtn.disabled = true;
-            uploadBtn.classList.add('disabled');
-            // Optionally, add a spinner or change text
-        });
-    }
-
-    // Listen for output image to become visible
-    if (outputImage && uploadBtn) {
-        const observer = new MutationObserver(function (mutations) {
-            mutations.forEach(function (mutation) {
-                if (mutation.attributeName === 'style' || mutation.attributeName === 'src') {
-                    if (outputImage.style.display !== 'none' && outputImage.src && outputImage.src !== window.location.href) {
-                        // Output image is visible, re-enable upload button
-                        uploadBtn.disabled = false;
-                        uploadBtn.classList.remove('disabled');
-                    }
-                }
-            });
-        });
-        observer.observe(outputImage, { attributes: true, attributeFilter: ['style', 'src'] });
-    }
-});// DOM Elements
+// --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
 const previewImage = document.getElementById('previewImage');
 const dropArea = document.getElementById('dropArea');
@@ -37,12 +9,31 @@ const uploadForm = document.getElementById('uploadForm');
 const outputImage = document.getElementById('outputImage');
 const outputPlaceholder = document.getElementById('outputPlaceholder');
 const downloadLink = document.getElementById('downloadLink');
-
 const queueSizeSpan = document.getElementById('queueSize');
 const processingStatusSpan = document.getElementById('processingStatus');
 const yourPositionSpan = document.getElementById('yourPosition');
 const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
 const uploadButton = uploadForm.querySelector('.upload-btn');
+
+// --- Helper functions for show/hide ---
+function showElement(el) {
+    if (el) el.style.display = '';
+}
+function hideElement(el) {
+    if (el) el.style.display = 'none';
+}
+
+// --- Centralized upload button state ---
+function setUploadButtonState({ disabled, text }) {
+    if (!uploadButton) return;
+    uploadButton.disabled = !!disabled;
+    if (disabled) {
+        uploadButton.classList.add('disabled');
+    } else {
+        uploadButton.classList.remove('disabled');
+    }
+    if (typeof text === 'string') uploadButton.textContent = text;
+}
 
 // State Variables
 let currentRequestId = null;
@@ -151,9 +142,9 @@ socket.on('processingFailed', (data) => {
 
 
 function resetUIForNewUpload() {
-    outputImage.style.display = 'none';
+    hideElement(outputImage);
     outputImage.src = '';
-    outputPlaceholder.style.display = 'block';
+    showElement(outputPlaceholder);
     outputPlaceholder.style.color = '#fff';
     outputPlaceholder.textContent = 'Uploading...';
     disableDownload();
@@ -164,12 +155,10 @@ function resetUIForNewUpload() {
     queueSizeSpan.textContent = '0';
 
     const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
-    if (comparisonPlaceholder) {
-        comparisonPlaceholder.style.display = 'block';
-    }
+    showElement(comparisonPlaceholder);
     // Hide the comparison slider until output image is present
     const comparisonSlider = document.getElementById('comparison-slider');
-    if (comparisonSlider) comparisonSlider.style.display = 'none';
+    hideElement(comparisonSlider);
 
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
@@ -186,45 +175,39 @@ function displayResult(imageUrl) {
     outputImage.src = imageUrl;
 
     outputImage.onload = () => {
-        outputImage.style.display = 'block';
-        outputPlaceholder.style.display = 'none';
-
+        showElement(outputImage);
+        hideElement(outputPlaceholder);
         const comparisonCol = document.querySelector('.comparison-col');
         const comparisonInputImage = document.getElementById('comparison-input-image');
         const comparisonOutputImage = document.getElementById('comparison-output-image');
         const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
         const comparisonSlider = document.getElementById('comparison-slider');
         const previewImageSrc = previewImage.src;
-
         if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
             comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
             comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
-            if (comparisonPlaceholder) {
-                comparisonPlaceholder.style.display = 'none';
-            }
-            if (comparisonSlider) {
-                comparisonSlider.style.display = 'block';
-            }
+            hideElement(comparisonPlaceholder);
+            showElement(comparisonSlider);
         }
         enableDownload(imageUrl);
     };
 
     outputImage.onerror = () => {
         displayError("Failed to load processed image. Check console for network errors.");
-        outputImage.style.display = 'none';
-        outputPlaceholder.style.display = 'block';
+        hideElement(outputImage);
+        showElement(outputPlaceholder);
         disableDownload();
         // Hide the comparison slider if error
         const comparisonSlider = document.getElementById('comparison-slider');
-        if (comparisonSlider) comparisonSlider.style.display = 'none';
+        hideElement(comparisonSlider);
     };
 }
 
 function displayError(errorMessage) {
     outputPlaceholder.textContent = `Error: ${errorMessage}`;
     outputPlaceholder.style.color = 'red';
-    outputPlaceholder.style.display = 'block';
-    outputImage.style.display = 'none';
+    showElement(outputPlaceholder);
+    hideElement(outputImage);
 }
 
 // --- Image Preview and Drag/Drop ---
@@ -545,17 +528,14 @@ initialize();
 
 function disableUpload() {
     setUploadButtonState({ disabled: true, text: 'Processing...' });
-    // Do NOT disable inputImage or dropArea, so user can still change input image
-    // inputImage.disabled = true;
-    // dropArea.classList.add('disabled');
-    // dropArea.style.pointerEvents = 'none';
+    processingStatusSpan.textContent = 'Processing';
+    outputPlaceholder.textContent = 'Uploading and processing your image...';
+    showElement(outputPlaceholder);
+    hideElement(outputImage);
 }
 
 function enableUpload() {
     setUploadButtonState({ disabled: false, text: 'Upload' });
-    // inputImage.disabled = false;
-    // dropArea.classList.remove('disabled');
-    // dropArea.style.pointerEvents = 'auto';
     const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     if (!isLocal && !captchaDisabled) {
         fetchCaptcha();
