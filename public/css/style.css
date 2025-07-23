@@ -77,14 +77,16 @@ h2 {
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
-.input-col, .output-col, .comparison-container {
+.input-col, .output-col, .comparison-col {
     flex: 1;
     min-width: 300px;
     max-width: 500px;
 }
 
-.comparison-container {
-    align-self: center;
+.comparison-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .settings-container {
@@ -117,10 +119,10 @@ h2 {
 
 .comparison-image {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 1rem;
+    left: 1rem;
+    width: calc(100% - 2rem);
+    height: calc(100% - 2rem);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -138,7 +140,7 @@ h2 {
     height: 100%;
     margin: 0;
     -webkit-appearance: none;
-    background-color: rgba(255, 152, 0, 0.5);
+    background: transparent;
 }
 
 .comparison-slider::-webkit-slider-thumb {

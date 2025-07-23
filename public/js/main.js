@@ -160,9 +160,9 @@ function resetUIForNewUpload() {
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
 
-    const comparisonContainer = document.querySelector('.comparison-container');
-    if (comparisonContainer) {
-        comparisonContainer.style.display = 'none';
+    const comparisonCol = document.querySelector('.comparison-col');
+    if (comparisonCol) {
+        comparisonCol.style.display = 'none';
     }
 
     if (pollingIntervalId) {
@@ -183,15 +183,15 @@ function displayResult(imageUrl) {
         outputImage.style.display = 'block';
         outputPlaceholder.style.display = 'none';
 
-        const comparisonContainer = document.querySelector('.comparison-container');
+        const comparisonCol = document.querySelector('.comparison-col');
         const comparisonInputImage = document.getElementById('comparison-input-image');
         const comparisonOutputImage = document.getElementById('comparison-output-image');
         const previewImageSrc = previewImage.src;
 
-        if (comparisonContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
+        if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
             comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
             comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
-            comparisonContainer.style.display = 'block';
+            comparisonCol.style.display = 'block';
         }
     };
 

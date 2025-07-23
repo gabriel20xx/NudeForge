@@ -83,12 +83,15 @@
                     <button class="upload-btn" type="submit">Upload</button>
                 </div>
             </div>
-            <div class="comparison-container" style="display:none;">
-                <h2>Comparison</h2>
-                <div class="comparison-box">
-                    <div class="comparison-image" id="comparison-input-image"></div>
-                    <div class="comparison-image" id="comparison-output-image"></div>
-                    <input type="range" min="0" max="100" value="50" class="comparison-slider" id="comparison-slider">
+            <div class="comparison-col" style="display:none;">
+                <div class="comparison-container">
+                    <h2>Comparison</h2>
+                    <div class="comparison-box">
+                        <div class="comparison-image" id="comparison-input-image"></div>
+                        <div class="comparison-image" id="comparison-output-image"></div>
+                        <input type="range" min="0" max="100" value="50" class="comparison-slider" id="comparison-slider">
+                    </div>
+                    <button type="button" id="settings-toggle">Settings</button>
                 </div>
             </div>
             <div class="output-col">
@@ -106,7 +109,6 @@
         </div>
 
         <div class="settings-container">
-            <button type="button" id="settings-toggle">Settings</button>
             <div class="settings-col collapsible">
                 <div class="settings-section">
                     <label for="prompt" class="settings-label">Prompt:</label>
