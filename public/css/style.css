@@ -317,6 +317,7 @@ input[type="file"] {
     border: none;
     border-radius: 8px;
     font-size: 1em;
+    color: #23272f;
     cursor: pointer;
     margin-top: 1em;
     margin-bottom: 0;
@@ -326,15 +327,16 @@ input[type="file"] {
     transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
+.btn:hover {
+    color: #fff;
+}
+
 .upload-btn {
     background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
-    color: #23272f;
 }
 
 .upload-btn:hover {
     background: linear-gradient(90deg, #ffb84d 0%, #ff9800 100%);
-    color: #fff;
-    box-shadow: 0 4px 16px 0 rgba(255,184,77,0.15);
 }
 
 .settings-btn {
@@ -343,17 +345,14 @@ input[type="file"] {
 
 .settings-btn:hover {
     background: linear-gradient(90deg, #00a8ff 0%, #007bff 100%);
-    color: #fff;
 }
 
 .download-btn {
     background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-    color: #23272f;
 }
 
 .download-btn:hover {
     background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
-    color: #fff;
 }
 
 .download-btn:disabled {
