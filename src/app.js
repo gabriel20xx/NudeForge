@@ -38,6 +38,7 @@ app.use('/', routes);
 
 io.on("connection", (socket) => {
     socket.on("joinRoom", (requestId) => {
+        console.log(`[SOCKET] Client joined room: ${requestId}`);
         socket.join(requestId);
     });
 });

@@ -27,6 +27,8 @@ function getIsProcessing() {
 
 async function processQueue(io) {
     if (isProcessing || processingQueue.length === 0) {
+        if (isProcessing) console.log('[QUEUE] Already processing.');
+        if (processingQueue.length === 0) console.log('[QUEUE] No items to process.');
         return;
     }
 
@@ -35,6 +37,7 @@ async function processQueue(io) {
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
+    console.log(`[PROCESS] Starting processing for requestId=${requestId}, file=${uploadedFilename}`);
     io.to(requestId).emit("queueUpdate", {
         queueSize: processingQueue.length,
         yourPosition: 0,
@@ -78,6 +81,7 @@ async function processQueue(io) {
         const imageNode = Object.values(workflow).find((node) => node.class_type === "VHS_LoadImagePath");
         if (imageNode) imageNode.inputs["image"] = uploadedPathForComfyUI;
 
+        console.log(`[PROCESS] Sending workflow to ComfyUI for requestId=${requestId}`);
         await axios.post(COMFYUI_URL, { prompt: workflow }, { headers: { "Content-Type": "application/json" } });
 
         const expectedOutputSuffix = `${path.parse(uploadedFilename).name}-nudified_00001.png`;
@@ -85,19 +89,22 @@ async function processQueue(io) {
         while (!foundOutputFilename) {
             const filesInOutputDir = await fs.promises.readdir(OUTPUT_DIR);
             foundOutputFilename = filesInOutputDir.find((file) => file.endsWith(expectedOutputSuffix));
-            if (!foundOutputFilename) await new Promise((resolve) => setTimeout(resolve, 500));
+            if (!foundOutputFilename) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
         }
 
         const finalOutputRelativePath = `/output/${foundOutputFilename}`;
         requestStatus[requestId].status = "completed";
         requestStatus[requestId].data = { outputImage: finalOutputRelativePath };
 
+        console.log(`[PROCESS] Completed for requestId=${requestId}, output=${finalOutputRelativePath}`);
         io.to(requestId).emit("processingComplete", {
             outputImage: finalOutputRelativePath,
             requestId: requestId,
         });
     } catch (err) {
-        console.error(`Error during processing for requestId ${requestId}:`, err.message);
+        console.error(`[PROCESS] Error during processing for requestId ${requestId}:`, err);
         requestStatus[requestId].status = "failed";
         requestStatus[requestId].data = { error: "Processing failed.", errorMessage: err.message };
         io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: err.message });
@@ -105,6 +112,7 @@ async function processQueue(io) {
         isProcessing = false;
         currentlyProcessingRequestId = null;
         delete requestStatus[requestId];
+        console.log('[QUEUE] Processing finished. Next in queue:', processingQueue.length);
         processQueue(io);
     }
 }

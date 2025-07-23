@@ -7,54 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/style.css">
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Advanced CAPTCHA: Fetch SVG from backend -->
-    <script>
-        // Fetch and display advanced SVG CAPTCHA
-        async function fetchCaptcha() {
-            const captchaContainer = document.getElementById('captchaContainer');
-            const captchaImage = document.getElementById('captchaImage');
-            const captchaToken = document.getElementById('captcha_token');
-            const captchaAnswer = document.getElementById('captcha_answer');
-            captchaAnswer.value = '';
-            try {
-                const res = await fetch('/captcha');
-                if (!res.ok) throw new Error('Failed to fetch CAPTCHA');
-                const data = await res.json();
-                captchaImage.innerHTML = data.image;
-                captchaToken.value = data.token;
-            } catch (e) {
-                captchaImage.innerHTML = '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
-                captchaToken.value = '';
-            }
-        }
-        // Fetch captchaDisabled from API and show/hide CAPTCHA accordingly
-        let captchaDisabled = false;
-        async function checkCaptchaStatusAndInit() {
-            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            try {
-                const res = await fetch('/api/captcha-status');
-                if (res.ok) {
-                    const data = await res.json();
-                    captchaDisabled = !!data.captchaDisabled;
-                }
-            } catch (e) {
-                captchaDisabled = false;
-            }
-            const captchaContainer = document.getElementById('captchaContainer');
-            const captchaAnswer = document.getElementById('captcha_answer');
-            if (captchaContainer) {
-                if (isLocal || captchaDisabled) {
-                    captchaContainer.style.display = 'none';
-                    if (captchaAnswer) captchaAnswer.removeAttribute('required');
-                } else {
-                    captchaContainer.style.display = '';
-                    if (captchaAnswer) captchaAnswer.setAttribute('required', 'required');
-                }
-            }
-            if (!isLocal && !captchaDisabled) fetchCaptcha();
-        }
-        window.addEventListener('DOMContentLoaded', checkCaptchaStatusAndInit);
-    </script>
 </head>
 
 <body>

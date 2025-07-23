@@ -63,43 +63,58 @@ router.get('/queue-status', (req, res) => {
 });
 
 router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) => {
-    if (!req.file) {
-        return res.status(400).send("No file uploaded");
+    try {
+        if (!req.file) {
+            console.warn('[UPLOAD] No file uploaded');
+            return res.status(400).send("No file uploaded");
+        }
+
+        const uploadedFilename = req.file.filename;
+        const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename);
+        const requestId = uuidv4();
+
+        const { prompt, steps, outputHeight, ...loraSettings } = req.body;
+
+        console.log(`[UPLOAD] Received upload: filename=${uploadedFilename}, requestId=${requestId}`);
+        getRequestStatus()[requestId] = {
+            status: "pending",
+            totalNodesInWorkflow: 0,
+            settings: { prompt, steps, outputHeight, ...loraSettings },
+        };
+
+        getProcessingQueue().push({
+            requestId,
+            uploadedFilename,
+            uploadedPathForComfyUI,
+        });
+
+        console.log(`[QUEUE] Added to queue. Queue size: ${getProcessingQueue().length}`);
+        processQueue(req.app.get('io'));
+
+        res.status(202).json({
+            message: "Image uploaded and added to queue.",
+            requestId: requestId,
+            queueSize: getProcessingQueue().length,
+            yourPosition: getProcessingQueue().length,
+        });
+    } catch (err) {
+        console.error('[UPLOAD] Error handling upload:', err);
+        res.status(500).json({ error: 'Internal server error during upload.' });
     }
-
-    const uploadedFilename = req.file.filename;
-    const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename);
-    const requestId = uuidv4();
-
-    const { prompt, steps, outputHeight, ...loraSettings } = req.body;
-
-    getRequestStatus()[requestId] = {
-        status: "pending",
-        totalNodesInWorkflow: 0,
-        settings: { prompt, steps, outputHeight, ...loraSettings },
-    };
-
-    getProcessingQueue().push({
-        requestId,
-        uploadedFilename,
-        uploadedPathForComfyUI,
-    });
-
-    processQueue(req.app.get('io'));
-
-    res.status(202).json({
-        message: "Image uploaded and added to queue.",
-        requestId: requestId,
-        queueSize: getProcessingQueue().length,
-        yourPosition: getProcessingQueue().length,
-    });
 });
 
 router.post("/upload-copy", uploadCopy.single("image"), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+    try {
+        if (!req.file) {
+            console.warn('[UPLOAD-COPY] No file uploaded');
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+        console.log(`[UPLOAD-COPY] Image copy uploaded: ${req.file.filename}`);
+        res.json({ message: "Image copy uploaded successfully", filename: req.file.filename });
+    } catch (err) {
+        console.error('[UPLOAD-COPY] Error:', err);
+        res.status(500).json({ error: 'Internal server error during upload-copy.' });
     }
-    res.json({ message: "Image copy uploaded successfully", filename: req.file.filename });
 });
 
 module.exports = router;
