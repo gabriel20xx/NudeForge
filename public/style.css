@@ -229,13 +229,21 @@ button {
 
 .lora-row {
     display: flex;
-    align-items: center;
-    gap: 0.7em;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2em;
     background: #23272f;
-    padding: 0.4em 0.7em;
+    padding: 0.5em 0.7em 0.7em 0.7em;
     border-radius: 8px;
-    margin-bottom: 0.2em;
+    margin-bottom: 0.4em;
     color: #f7f7fa;
+}
+
+.lora-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.1em;
 }
 
 .lora-row label {
@@ -248,6 +256,8 @@ button {
     display: flex;
     align-items: center;
     gap: 0.3em;
+    margin-left: 1.7em;
+    margin-top: 0.1em;
 }
 
 .lora-strength {
