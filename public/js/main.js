@@ -277,20 +277,24 @@ function displayResult(imageUrl) {
         try {
             showElement(outputImage);
             hideElement(outputPlaceholder);
-            const comparisonCol = document.querySelector('.comparison-col');
+            // Use new class names for comparison section
+            const comparisonSection = document.querySelector('.comparison-section.main-section');
             const comparisonInputImage = document.getElementById('comparison-input-image');
             const comparisonOutputImage = document.getElementById('comparison-output-image');
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
             const comparisonSlider = document.getElementById('comparison-slider');
             const previewImageSrc = previewImage.src;
-            if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
+            // Always set background images if possible
+            if (comparisonInputImage && previewImageSrc) {
                 comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
-                comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
                 comparisonInputImage.style.display = 'block';
-                comparisonOutputImage.style.display = 'block';
-                hideElement(comparisonPlaceholder);
-                showElement(comparisonSlider);
             }
+            if (comparisonOutputImage && imageUrl) {
+                comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
+                comparisonOutputImage.style.display = 'block';
+            }
+            if (comparisonSlider) showElement(comparisonSlider);
+            if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
             enableDownload(imageUrl);
         } catch (err) {
             console.error('Error in outputImage.onload:', err);
