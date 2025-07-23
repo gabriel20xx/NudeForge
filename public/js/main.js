@@ -64,7 +64,6 @@ socket.on('queueUpdate', (data) => {
             outputPlaceholder.textContent = `Processing your image...`;
             outputPlaceholder.style.display = 'block';
             outputImage.style.display = 'none';
-            downloadLink.style.display = 'none';
         } else if (data.status === 'pending') {
             yourPositionSpan.textContent = `${data.yourPosition}`;
             processingStatusSpan.textContent = 'Waiting';
@@ -72,7 +71,6 @@ socket.on('queueUpdate', (data) => {
             outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
             outputPlaceholder.style.display = 'block';
             outputImage.style.display = 'none';
-            downloadLink.style.display = 'none';
         }
     } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
         processingStatusSpan.textContent = 'Idle';
@@ -81,7 +79,6 @@ socket.on('queueUpdate', (data) => {
         outputPlaceholder.textContent = 'Your processed image will appear here.';
         outputPlaceholder.style.display = 'block';
         outputImage.style.display = 'none';
-        downloadLink.style.display = 'none';
     }
 });
 
@@ -217,7 +214,6 @@ function displayError(errorMessage) {
     outputPlaceholder.style.color = 'red';
     outputPlaceholder.style.display = 'block';
     outputImage.style.display = 'none';
-    downloadLink.style.display = 'none';
 }
 
 // --- Image Preview and Drag/Drop ---
@@ -395,14 +391,12 @@ async function fetchQueueStatus() {
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
-                    downloadLink.style.display = 'none';
                     break;
                 case 'processing':
                     yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
-                    downloadLink.style.display = 'none';
                     break;
                 case 'completed':
                     yourPositionSpan.textContent = 'Done!';
@@ -444,7 +438,6 @@ async function fetchQueueStatus() {
             outputPlaceholder.textContent = 'Your processed image will appear here.';
             outputPlaceholder.style.display = 'block';
             outputImage.style.display = 'none';
-            downloadLink.style.display = 'none';
             if (pollingIntervalId) {
                 clearInterval(pollingIntervalId);
                 pollingIntervalId = null;
