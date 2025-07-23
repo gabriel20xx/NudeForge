@@ -41,8 +41,15 @@
                 captchaDisabled = false;
             }
             const captchaContainer = document.getElementById('captchaContainer');
+            const captchaAnswer = document.getElementById('captcha_answer');
             if (captchaContainer) {
-                captchaContainer.style.display = (isLocal || captchaDisabled) ? 'none' : '';
+                if (isLocal || captchaDisabled) {
+                    captchaContainer.style.display = 'none';
+                    if (captchaAnswer) captchaAnswer.removeAttribute('required');
+                } else {
+                    captchaContainer.style.display = '';
+                    if (captchaAnswer) captchaAnswer.setAttribute('required', 'required');
+                }
             }
             if (!isLocal && !captchaDisabled) fetchCaptcha();
         }
