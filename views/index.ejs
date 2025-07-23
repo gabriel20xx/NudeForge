@@ -87,7 +87,32 @@
                     <button class="upload-btn" type="submit">Upload</button>
                 </div>
             </div>
-            <div class="settings-col flyout">
+            <div class="output-col">
+                <div class="output-section">
+                    <h2>Processed Output</h2>
+                    <div id="outputArea" class="image-box">
+                        <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
+                        <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
+                    </div>
+                    <a id="downloadLink" href="#" download style="display:none;">
+                        <button class="download-btn" type="button">Download</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="comparison-container" style="display:none;">
+            <h2>Comparison</h2>
+            <div class="comparison-box">
+                <div class="comparison-image" id="comparison-input-image"></div>
+                <div class="comparison-image" id="comparison-output-image"></div>
+                <input type="range" min="0" max="100" value="50" class="comparison-slider" id="comparison-slider">
+            </div>
+        </div>
+
+        <div class="settings-container">
+            <button type="button" id="settings-toggle">Settings</button>
+            <div class="settings-col collapsible">
                 <div class="settings-section">
                     <label for="prompt" class="settings-label">Prompt:</label>
                     <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
@@ -176,18 +201,6 @@ Preserve the exact same face details, shape and expression. " />
                             <input type="hidden" id="captcha_token" name="captcha_token" />
                             <div id="captchaError" class="captcha-error"></div>
                     </div>
-                </div>
-            </div>
-            <div class="output-col">
-                <div class="output-section">
-                    <h2>Processed Output</h2>
-                    <div id="comparison-container" class="image-box">
-                        <img id="outputImage" src="" alt="Processed Image" />
-                        <div id="comparison-slider"></div>
-                    </div>
-                    <a id="downloadLink" href="#" download style="display:none;">
-                        <button class="download-btn" type="button">Download</button>
-                    </a>
                 </div>
             </div>
         </div>

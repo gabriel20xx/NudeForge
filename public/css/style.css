@@ -33,17 +33,18 @@ h2 {
 
 .carousel-slide {
     display: flex;
-    animation: carousel-scroll 20s linear infinite;
+    width: 200%; /* Twice the width for the duplicated images */
+    animation: carousel-scroll 40s linear infinite;
 }
 
 .carousel-slide img {
-    width: 25%;
+    width: 12.5%; /* Each image takes up 1/8th of the total width */
     flex-shrink: 0;
 }
 
 @keyframes carousel-scroll {
     0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
+    100% { transform: translateX(-50%); }
 }
 
 #settings-toggle {
@@ -65,30 +66,76 @@ h2 {
     max-width: 520px;
 }
 
-.settings-col {
-    flex: 0 0 370px;
-    min-width: 320px;
-    max-width: 420px;
-    transition: transform 0.3s ease-in-out;
+.settings-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 2rem;
 }
 
-.settings-col.flyout {
-    transform: translateX(-150%);
+.settings-col.collapsible {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+}
+
+.settings-col.collapsible.open {
+    max-height: 1000px; /* Adjust as needed */
 }
 
 #comparison-container {
-    position: relative;
+    width: 100%;
+    max-width: 1040px;
+    margin: 2rem auto;
 }
 
-#comparison-slider {
+.comparison-box {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+.comparison-image {
     position: absolute;
     top: 0;
-    left: 50%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+#comparison-output-image {
+    clip-path: inset(0 50% 0 0);
+}
+
+.comparison-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    -webkit-appearance: none;
+    background: transparent;
+}
+
+.comparison-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
     width: 4px;
     height: 100%;
-    background-color: #ff9800;
+    background: #ff9800;
     cursor: ew-resize;
-    transform: translateX(-50%);
+}
+
+.comparison-slider::-moz-range-thumb {
+    width: 4px;
+    height: 100%;
+    background: #ff9800;
+    cursor: ew-resize;
 }
 
 .upload-section,

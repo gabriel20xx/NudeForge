@@ -444,8 +444,22 @@ async function fetchQueueStatus() {
     }
 }
 
+// --- Seamless Carousel Setup ---
+function setupCarousel() {
+    const carouselSlide = document.querySelector('.carousel-slide');
+    if (carouselSlide) {
+        const images = carouselSlide.querySelectorAll('img');
+        images.forEach(img => {
+            const clone = img.cloneNode(true);
+            carouselSlide.appendChild(clone);
+        });
+    }
+}
+
 // --- Initial Page Load Logic ---
 function initialize() {
+    setupCarousel();
+
     const storedRequestId = sessionStorage.getItem('activeRequestId');
     if (storedRequestId) {
         currentRequestId = storedRequestId;
@@ -466,32 +480,17 @@ function initialize() {
 
     // Settings Toggle
     const settingsToggle = document.getElementById('settings-toggle');
-    const settingsCol = document.querySelector('.settings-col');
+    const settingsCol = document.querySelector('.settings-col.collapsible');
     settingsToggle.addEventListener('click', () => {
-        settingsCol.classList.toggle('flyout');
+        settingsCol.classList.toggle('open');
     });
 
     // Image Comparison Slider
     const slider = document.getElementById('comparison-slider');
-    const container = document.getElementById('comparison-container');
-    let isDragging = false;
+    const outputImage = document.getElementById('comparison-output-image');
 
-    slider.addEventListener('mousedown', () => {
-        isDragging = true;
-    });
-
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const rect = container.getBoundingClientRect();
-        let offsetX = e.clientX - rect.left;
-        if (offsetX < 0) offsetX = 0;
-        if (offsetX > rect.width) offsetX = rect.width;
-        slider.style.left = `${offsetX}px`;
-        document.getElementById('outputImage').style.clipPath = `inset(0 0 0 ${offsetX}px)`;
+    slider.addEventListener('input', (e) => {
+        outputImage.style.clipPath = `inset(0 ${100 - e.target.value}% 0 0)`;
     });
 }
 
