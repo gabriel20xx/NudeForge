@@ -25,6 +25,31 @@ h2 {
     letter-spacing: 0.5px;
 }
 
+.carousel-container {
+    width: 100%;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.carousel-slide {
+    display: flex;
+    animation: carousel-scroll 20s linear infinite;
+}
+
+.carousel-slide img {
+    width: 25%;
+    flex-shrink: 0;
+}
+
+@keyframes carousel-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
+#settings-toggle {
+    margin-bottom: 1rem;
+}
+
 .main-container {
     display: flex;
     flex-direction: row;
@@ -34,13 +59,36 @@ h2 {
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
-.input-col, .settings-col, .output-col {
-    flex: 1 1 30%;
+.input-col, .output-col {
+    flex: 1 1 45%;
+    min-width: 320px;
+    max-width: 520px;
+}
+
+.settings-col {
+    flex: 0 0 370px;
     min-width: 320px;
     max-width: 420px;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    transition: transform 0.3s ease-in-out;
+}
+
+.settings-col.flyout {
+    transform: translateX(-150%);
+}
+
+#comparison-container {
+    position: relative;
+}
+
+#comparison-slider {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 4px;
+    height: 100%;
+    background-color: #ff9800;
+    cursor: ew-resize;
+    transform: translateX(-50%);
 }
 
 .upload-section,

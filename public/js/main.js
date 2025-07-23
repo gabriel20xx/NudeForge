@@ -463,6 +463,36 @@ function initialize() {
 
     fetchQueueStatus();
     pollingIntervalId = setInterval(fetchQueueStatus, 2000);
+
+    // Settings Toggle
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsCol = document.querySelector('.settings-col');
+    settingsToggle.addEventListener('click', () => {
+        settingsCol.classList.toggle('flyout');
+    });
+
+    // Image Comparison Slider
+    const slider = document.getElementById('comparison-slider');
+    const container = document.getElementById('comparison-container');
+    let isDragging = false;
+
+    slider.addEventListener('mousedown', () => {
+        isDragging = true;
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect();
+        let offsetX = e.clientX - rect.left;
+        if (offsetX < 0) offsetX = 0;
+        if (offsetX > rect.width) offsetX = rect.width;
+        slider.style.left = `${offsetX}px`;
+        document.getElementById('outputImage').style.clipPath = `inset(0 0 0 ${offsetX}px)`;
+    });
 }
 
 initialize();

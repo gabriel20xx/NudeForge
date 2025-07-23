@@ -60,10 +60,21 @@
 <body>
     <h1>Image Nudifier</h1>
 
+    <div class="carousel-container">
+        <div class="carousel-slide">
+            <img src="/img/example1.jpg" alt="Example Image 1">
+            <img src="/img/example2.jpg" alt="Example Image 2">
+            <img src="/img/example3.jpg" alt="Example Image 3">
+        </div>
+    </div>
+
     <form id="uploadForm" enctype="multipart/form-data">
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
                 id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
                 id="yourPosition">N/A</span></p>
+        
+        <button type="button" id="settings-toggle">Toggle Settings</button>
+
         <div class="main-container">
             <div class="input-col">
                 <div class="upload-section">
@@ -76,7 +87,7 @@
                     <button class="upload-btn" type="submit">Upload</button>
                 </div>
             </div>
-            <div class="settings-col">
+            <div class="settings-col flyout">
                 <div class="settings-section">
                     <label for="prompt" class="settings-label">Prompt:</label>
                     <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
@@ -170,9 +181,9 @@ Preserve the exact same face details, shape and expression. " />
             <div class="output-col">
                 <div class="output-section">
                     <h2>Processed Output</h2>
-                    <div id="outputArea" class="image-box">
-                        <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
-                        <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
+                    <div id="comparison-container" class="image-box">
+                        <img id="outputImage" src="" alt="Processed Image" />
+                        <div id="comparison-slider"></div>
                     </div>
                     <a id="downloadLink" href="#" download style="display:none;">
                         <button class="download-btn" type="button">Download</button>
