@@ -61,7 +61,6 @@ h2 {
 #settings-toggle {
     background: linear-gradient(90deg, #007bff 0%, #00a8ff 100%);
     color: #fff;
-    margin-bottom: 1rem;
 }
 
 #settings-toggle:hover {
@@ -242,6 +241,7 @@ input[type="file"] {
     font-size: 1em;
     cursor: pointer;
     margin-top: 1em;
+    margin-bottom: 0;
     font-weight: 500;
     letter-spacing: 0.5px;
     box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);

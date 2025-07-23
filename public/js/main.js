@@ -197,6 +197,12 @@ function displayResult(imageUrl) {
                 comparisonPlaceholder.style.display = 'none';
             }
         }
+        
+        const filename = imageUrl.split('/').pop();
+        downloadLink.href = imageUrl;
+        downloadLink.setAttribute('download', filename);
+        downloadLink.classList.remove('disabled');
+        downloadLink.querySelector('.download-btn').disabled = false;
     };
 
     outputImage.onerror = () => {
@@ -204,12 +210,6 @@ function displayResult(imageUrl) {
         outputImage.style.display = 'none';
         outputPlaceholder.style.display = 'block';
     };
-
-    const filename = imageUrl.split('/').pop();
-    downloadLink.href = imageUrl;
-    downloadLink.setAttribute('download', filename);
-    downloadLink.classList.remove('disabled');
-    downloadLink.querySelector('.download-btn').disabled = false;
 }
 
 function displayError(errorMessage) {
