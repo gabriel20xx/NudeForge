@@ -72,15 +72,15 @@ h2 {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     gap: 2.5rem;
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
 .input-col, .output-col, .comparison-col {
     flex: 1;
-    min-width: 300px;
-    max-width: 500px;
+    min-width: 280px;
+    max-width: 420px;
 }
 
 .comparison-col {
