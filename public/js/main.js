@@ -148,7 +148,7 @@ function resetUIForNewUpload() {
     outputPlaceholder.style.color = '#fff';
     outputPlaceholder.textContent = 'Uploading...';
     disableDownload();
-    currentRequestId = null;
+    // Do NOT clear currentRequestId here; it is set only after a successful upload response
     yourPositionSpan.textContent = 'Submitting...';
     processingStatusSpan.textContent = 'Uploading...';
     updateProgressPercentage('');
@@ -277,10 +277,15 @@ uploadForm.addEventListener('submit', function (e) {
         return;
     }
 
+    // Prevent double submission (only if a request is actively being processed or queued)
+    if (currentRequestId) {
+        alert('A request is already being processed or queued. Please wait.');
+        return;
+    }
+
     const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
     disableUpload();
-
     resetUIForNewUpload();
 
     const formData = new FormData();
@@ -313,10 +318,18 @@ uploadForm.addEventListener('submit', function (e) {
     xhr.onreadystatechange = () => {
         if (xhr.readyState === 4) {
             if (xhr.status === 202) {
-                const response = JSON.parse(xhr.responseText);
+                let response;
+                try {
+                    response = JSON.parse(xhr.responseText);
+                } catch (err) {
+                    enableUpload();
+                    displayError('Invalid server response.');
+                    return;
+                }
                 currentRequestId = response.requestId;
                 sessionStorage.setItem('activeRequestId', currentRequestId);
 
+                // Always join the room for this request
                 socket.emit('joinRoom', currentRequestId);
 
                 queueSizeSpan.textContent = response.queueSize;
@@ -325,9 +338,11 @@ uploadForm.addEventListener('submit', function (e) {
                 updateProgressPercentage('');
                 outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
 
-                if (!pollingIntervalId) {
-                    pollingIntervalId = setInterval(fetchQueueStatus, 2000);
+                // Always clear and start polling
+                if (pollingIntervalId) {
+                    clearInterval(pollingIntervalId);
                 }
+                pollingIntervalId = setInterval(fetchQueueStatus, 2000);
                 fetchQueueStatus();
             } else {
                 enableUpload();
