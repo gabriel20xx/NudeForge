@@ -252,13 +252,13 @@ function resetUIForNewUpload() {
 
     const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
     showElement(comparisonPlaceholder);
-    // Hide the comparison slider and images until output image is present
-    const comparisonSlider = document.getElementById('comparison-slider');
-    hideElement(comparisonSlider);
+    // Hide the img-comparison-slider until output image is present
+    const comparisonSliderComponent = document.getElementById('comparisonSliderComponent');
+    if (comparisonSliderComponent) comparisonSliderComponent.style.display = 'none';
     const comparisonInputImage = document.getElementById('comparison-input-image');
     const comparisonOutputImage = document.getElementById('comparison-output-image');
-    if (comparisonInputImage) comparisonInputImage.style.display = 'none';
-    if (comparisonOutputImage) comparisonOutputImage.style.display = 'none';
+    if (comparisonInputImage) comparisonInputImage.src = '';
+    if (comparisonOutputImage) comparisonOutputImage.src = '';
 
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
@@ -277,24 +277,22 @@ function displayResult(imageUrl) {
         try {
             showElement(outputImage);
             hideElement(outputPlaceholder);
-            // Use new class names for comparison section
-            const comparisonSection = document.querySelector('.comparison-section.main-section');
+            const comparisonSliderComponent = document.getElementById('comparisonSliderComponent');
             const comparisonInputImage = document.getElementById('comparison-input-image');
             const comparisonOutputImage = document.getElementById('comparison-output-image');
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
-            const comparisonSlider = document.getElementById('comparison-slider');
             const previewImageSrc = previewImage.src;
-            // Always set background images if possible
+            // Set image sources for the web component
             if (comparisonInputImage && previewImageSrc) {
-                comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
-                comparisonInputImage.style.display = 'block';
+                comparisonInputImage.src = previewImageSrc;
             }
             if (comparisonOutputImage && imageUrl) {
-                comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
-                comparisonOutputImage.style.display = 'block';
+                comparisonOutputImage.src = imageUrl;
             }
-            if (comparisonSlider) showElement(comparisonSlider);
-            if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
+            if (comparisonSliderComponent && comparisonInputImage && comparisonOutputImage && previewImageSrc && imageUrl) {
+                comparisonSliderComponent.style.display = '';
+                if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
+            }
             enableDownload(imageUrl);
         } catch (err) {
             console.error('Error in outputImage.onload:', err);
