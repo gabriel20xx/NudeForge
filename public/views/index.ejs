@@ -58,7 +58,12 @@
 </head>
 
 <body>
-    <h1>Image Nudifier</h1>
+    <div class="header-container">
+        <h1>Image Nudifier</h1>
+        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
+                id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
+                id="yourPosition">N/A</span></p>
+    </div>
 
     <div class="carousel-container">
         <div class="carousel-slide">
@@ -73,9 +78,6 @@
     </div>
 
     <form id="uploadForm" enctype="multipart/form-data">
-        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
-                id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
-                id="yourPosition">N/A</span></p>
 
         <div class="main-container">
             <div class="input-col">
