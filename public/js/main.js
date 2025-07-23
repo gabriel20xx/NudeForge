@@ -252,9 +252,9 @@ function resetUIForNewUpload() {
 
     const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
     showElement(comparisonPlaceholder);
-    // Hide the img-comparison-slider until output image is present
-    const comparisonSliderComponent = document.getElementById('comparisonSliderComponent');
-    if (comparisonSliderComponent) comparisonSliderComponent.style.display = 'none';
+    // Hide the custom comparison slider until output image is present
+    const imgCompContainer = document.getElementById('imgCompContainer');
+    if (imgCompContainer) imgCompContainer.style.display = 'none';
     const comparisonInputImage = document.getElementById('comparison-input-image');
     const comparisonOutputImage = document.getElementById('comparison-output-image');
     if (comparisonInputImage) comparisonInputImage.src = '';
@@ -277,47 +277,79 @@ function displayResult(imageUrl) {
         try {
             showElement(outputImage);
             hideElement(outputPlaceholder);
-            const comparisonSliderComponent = document.getElementById('comparisonSliderComponent');
+            const imgCompContainer = document.getElementById('imgCompContainer');
             const comparisonInputImage = document.getElementById('comparison-input-image');
             const comparisonOutputImage = document.getElementById('comparison-output-image');
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
             const previewImageSrc = previewImage.src;
-            // Set image sources for the web component
-            let inputLoaded = false, outputLoaded = false;
             if (comparisonInputImage && previewImageSrc) {
                 comparisonInputImage.src = previewImageSrc;
-                comparisonInputImage.style.display = '';
-                comparisonInputImage.onload = () => {
-                    inputLoaded = true;
-                    if (inputLoaded && outputLoaded && comparisonSliderComponent) {
-                        comparisonSliderComponent.style.display = '';
-                        if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
-                    }
-                };
             }
             if (comparisonOutputImage && imageUrl) {
                 comparisonOutputImage.src = imageUrl;
-                comparisonOutputImage.style.display = '';
-                comparisonOutputImage.onload = () => {
-                    outputLoaded = true;
-                    if (inputLoaded && outputLoaded && comparisonSliderComponent) {
-                        comparisonSliderComponent.style.display = '';
-                        if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
-                    }
-                };
             }
-            // Fallback: if both images are already cached
-            if (comparisonInputImage && comparisonInputImage.complete) inputLoaded = true;
-            if (comparisonOutputImage && comparisonOutputImage.complete) outputLoaded = true;
-            if (inputLoaded && outputLoaded && comparisonSliderComponent) {
-                comparisonSliderComponent.style.display = '';
+            if (imgCompContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc && imageUrl) {
+                imgCompContainer.style.display = '';
                 if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
+                setTimeout(() => { initComparisons(); }, 50);
             }
             enableDownload(imageUrl);
         } catch (err) {
             console.error('Error in outputImage.onload:', err);
         }
     };
+// --- Custom Image Comparison Slider Logic ---
+function initComparisons() {
+  var x, i;
+  x = document.getElementsByClassName("img-comp-overlay");
+  for (i = 0; i < x.length; i++) {
+    compareImages(x[i]);
+  }
+  function compareImages(img) {
+    var slider, clicked = 0, w, h;
+    w = img.offsetWidth;
+    h = img.offsetHeight;
+    img.style.width = (w / 2) + "px";
+    slider = document.createElement("DIV");
+    slider.setAttribute("class", "img-comp-slider");
+    img.parentElement.insertBefore(slider, img);
+    slider.style.top = (h / 2) - (slider.offsetHeight / 2) + "px";
+    slider.style.left = (w / 2) - (slider.offsetWidth / 2) + "px";
+    slider.addEventListener("mousedown", slideReady);
+    window.addEventListener("mouseup", slideFinish);
+    slider.addEventListener("touchstart", slideReady);
+    window.addEventListener("touchend", slideFinish);
+    function slideReady(e) {
+      e.preventDefault();
+      clicked = 1;
+      window.addEventListener("mousemove", slideMove);
+      window.addEventListener("touchmove", slideMove);
+    }
+    function slideFinish() {
+      clicked = 0;
+    }
+    function slideMove(e) {
+      var pos;
+      if (clicked == 0) return false;
+      pos = getCursorPos(e)
+      if (pos < 0) pos = 0;
+      if (pos > w) pos = w;
+      slide(pos);
+    }
+    function getCursorPos(e) {
+      var a, x = 0;
+      e = (e.changedTouches) ? e.changedTouches[0] : e;
+      a = img.getBoundingClientRect();
+      x = e.pageX - a.left;
+      x = x - window.pageXOffset;
+      return x;
+    }
+    function slide(x) {
+      img.style.width = x + "px";
+      slider.style.left = img.offsetWidth - (slider.offsetWidth / 2) + "px";
+    }
+  }
+}
     outputImage.onerror = () => {
         displayError("Failed to load processed image. Check console for network errors.");
         hideElement(outputImage);
