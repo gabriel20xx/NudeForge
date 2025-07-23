@@ -160,11 +160,7 @@ function resetUIForNewUpload() {
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
 
-    const comparisonCol = document.querySelector('.comparison-col');
-    if (comparisonCol) {
-        comparisonCol.style.display = 'none';
-    }
-
+    
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
         pollingIntervalId = null;
@@ -191,7 +187,6 @@ function displayResult(imageUrl) {
         if (comparisonCol && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
             comparisonInputImage.style.backgroundImage = `url(${previewImageSrc})`;
             comparisonOutputImage.style.backgroundImage = `url(${imageUrl})`;
-            comparisonCol.style.display = 'block';
         }
     };
 
