@@ -69,31 +69,31 @@ Preserve the exact same face details, shape and expression. " />
                         <div class="lora-grid">
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
-                                <label for="lora_1_on">fluxkontext/change_clothes_to_nothing_000011200.safetensors</label>
+                                <label for="lora_1_on">change_clothes_to_nothing_000011200</label>
                                 <input type="number" id="lora_1_strength" name="lora_1_strength" value="1" min="0" max="2" step="0.01" class="lora-strength" />
                                 <label for="lora_1_strength">Strength</label>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_2_on" name="lora_2_on">
-                                <label for="lora_2_on">flux/real_textures-000011.safetensors</label>
+                                <label for="lora_2_on">real_textures-000011</label>
                                 <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7" min="0" max="2" step="0.01" class="lora-strength" />
                                 <label for="lora_2_strength">Strength</label>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_3_on" name="lora_3_on">
-                                <label for="lora_3_on">flux/Flux_Ultimator.safetensors</label>
+                                <label for="lora_3_on">Flux_Ultimator</label>
                                 <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5" min="0" max="2" step="0.01" class="lora-strength" />
                                 <label for="lora_3_strength">Strength</label>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_4_on" name="lora_4_on">
-                                <label for="lora_4_on">flux/FLUX_FD-Nipple-Detail-R4.safetensors</label>
+                                <label for="lora_4_on">FLUX_FD-Nipple-Detail-R4</label>
                                 <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8" min="0" max="2" step="0.01" class="lora-strength" />
                                 <label for="lora_4_strength">Strength</label>
                             </div>
                             <div class="lora-row">
                                 <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
-                                <label for="lora_5_on">flux/aidmaRealisticSkin-FLUX-v0.1.safetensors</label>
+                                <label for="lora_5_on">aidmaRealisticSkin-FLUX-v0.1</label>
                                 <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6" min="0" max="2" step="0.01" class="lora-strength" />
                                 <label for="lora_5_strength">Strength</label>
                             </div>
@@ -106,6 +106,7 @@ Preserve the exact same face details, shape and expression. " />
                         </div>
                         <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Enter CAPTCHA" required autocomplete="off" class="captcha-input" />
                         <input type="hidden" id="captcha_token" name="captcha_token" />
+                        <input type="hidden" id="captcha_expected" name="captcha_expected" />
                         <div id="captchaError" class="captcha-error"></div>
                     </div>
                 </div>
