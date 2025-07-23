@@ -35,6 +35,17 @@
                     <img id="previewImage" />
                     <input id="inputImage" type="file" name="image" accept="image/*" />
                 </div>
+                <label for="prompt">Prompt:</label>
+                <input type="text" id="prompt" name="prompt" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
+Preserve the person in the exact same position, scale, and pose. 
+Preserve the exact same face details, shape and expression. " style="width: 90%"/>
+                <br/>
+                <label for="steps">Steps:</label>
+                <input type="number" id="steps" name="steps" value="20" min="1" max="100" />
+                <br/>
+                <label for="outputHeight">Output Height:</label>
+                <input type="number" id="outputHeight" name="outputHeight" value="1080" min="64" max="4096" />
+                <br/>
                 <!-- Local CAPTCHA -->
                 <div class="captcha-container" id="captchaContainer">
                     <label id="captchaQuestion" style="font-weight:bold;"></label>
@@ -56,46 +67,6 @@
         </div>
     </form>
 
-    <div class="settings-section">
-        <h2>Settings</h2>
-        <form id="settingsForm">
-            <label for="prompt">Prompt:</label>
-            <input type="text" id="prompt" name="prompt" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
-Preserve the person in the exact same position, scale, and pose. 
-Preserve the exact same face details, shape and expression. " style="width: 90%"/>
-            <br/>
-            <label for="steps">Steps:</label>
-            <input type="number" id="steps" name="steps" value="20" min="1" max="100" />
-            <br/>
-            <label for="outputHeight">Output Height:</label>
-            <input type="number" id="outputHeight" name="outputHeight" value="1080" min="64" max="4096" />
-            <br/>
-            <button type="submit">Save Settings</button>
-        </form>
-        <p id="settingsStatus" style="color: green;"></p>
-    </div>
-    <script>
-        // Settings form logic
-        document.getElementById('settingsForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const prompt = document.getElementById('prompt').value;
-            const steps = document.getElementById('steps').value;
-            const outputHeight = document.getElementById('outputHeight').value;
-            // Send settings to backend (implement /settings endpoint in backend)
-            const response = await fetch('/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, steps, outputHeight })
-            });
-            if (response.ok) {
-                document.getElementById('settingsStatus').textContent = 'Settings saved!';
-                document.getElementById('settingsStatus').style.color = 'green';
-            } else {
-                document.getElementById('settingsStatus').textContent = 'Failed to save settings.';
-                document.getElementById('settingsStatus').style.color = 'red';
-            }
-        });
-    </script>
     <script>
         // DOM Elements
         const inputImage = document.getElementById('inputImage');
@@ -407,12 +378,16 @@ Preserve the exact same face details, shape and expression. " style="width: 90%"
 
             const formData = new FormData();
             formData.append('image', inputImage.files[0]);
+            // Append settings fields
+            formData.append('prompt', document.getElementById('prompt').value);
+            formData.append('steps', document.getElementById('steps').value);
+            formData.append('outputHeight', document.getElementById('outputHeight').value);
             // Append the local CAPTCHA fields
             if (!isLocal) {
                 formData.append('captcha_answer', document.getElementById('captcha_answer').value.trim());
                 formData.append('captcha_expected', document.getElementById('captcha_expected').value.trim());
             }
-            console.log('Frontend: FormData created with image file and local CAPTCHA.');
+            console.log('Frontend: FormData created with image, settings, and local CAPTCHA.');
 
             const xhr = new XMLHttpRequest();
 

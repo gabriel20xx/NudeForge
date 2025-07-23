@@ -17,12 +17,7 @@ const server = http.createServer(app); // Create HTTP server for Socket.IO
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Store user settings in memory
-let userSettings = {
-  prompt: "Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. \nPreserve the person in the exact same position, scale, and pose. \nPreserve the exact same face details, shape and expression. ",
-  steps: 20,
-  outputHeight: 1080
-};
+// No user settings are stored in memory anymore
 const io = new Server(server, {
   cors: {
     origin: "*", // Allow all origins for simplicity in development
@@ -308,16 +303,18 @@ async function processQueue() {
       `Discovered total nodes in workflow for request ${requestId}: ${requestStatus[requestId].totalNodesInWorkflow}`
     );
 
+    // Use per-request settings from the upload
+    const { prompt, steps, outputHeight } = requestStatus[requestId].settings || {};
+
     const clipTextNode = Object.values(workflow).find(
       (node) => node.class_type === "CLIPTextEncode"
     );
-    if (clipTextNode) {
-      // Use user-supplied prompt if set
-      clipTextNode.inputs.text = userSettings.prompt || clipTextNode.inputs.text;
+    if (clipTextNode && prompt) {
+      clipTextNode.inputs.text = prompt;
       console.log(
         `Processing Queue: CLIPTextEncode node updated with prompt: ${clipTextNode.inputs.text}`
       );
-    } else {
+    } else if (!clipTextNode) {
       console.warn(
         `Processing Queue: CLIPTextEncode node not found in workflow. Prompt will not be changed.`
       );
@@ -327,12 +324,12 @@ async function processQueue() {
     const ksamplerNode = Object.values(workflow).find(
       (node) => node.class_type === "KSamplerAdvanced"
     );
-    if (ksamplerNode) {
-      ksamplerNode.inputs.steps = Number(userSettings.steps) || ksamplerNode.inputs.steps;
+    if (ksamplerNode && steps) {
+      ksamplerNode.inputs.steps = Number(steps);
       console.log(
         `Processing Queue: KSamplerAdvanced node updated with steps: ${ksamplerNode.inputs.steps}`
       );
-    } else {
+    } else if (!ksamplerNode) {
       console.warn(
         `Processing Queue: KSamplerAdvanced node not found in workflow. Steps will not be changed.`
       );
@@ -342,12 +339,12 @@ async function processQueue() {
     const heightNode = Object.values(workflow).find(
       (node) => node.class_type === "PrimitiveInt" && node._meta && node._meta.title === "Height"
     );
-    if (heightNode) {
-      heightNode.inputs.value = Number(userSettings.outputHeight) || heightNode.inputs.value;
+    if (heightNode && outputHeight) {
+      heightNode.inputs.value = Number(outputHeight);
       console.log(
         `Processing Queue: PrimitiveInt node (Height) updated with value: ${heightNode.inputs.value}`
       );
-    } else {
+    } else if (!heightNode) {
       console.warn(
         `Processing Queue: PrimitiveInt node with title 'Height' not found in workflow. Output height will not be changed.`
       );
@@ -495,15 +492,7 @@ async function processQueue() {
   }
 }
 
-// Settings endpoint
-app.post("/settings", (req, res) => {
-  const { prompt, steps, outputHeight } = req.body;
-  if (typeof prompt === 'string') userSettings.prompt = prompt;
-  if (!isNaN(Number(steps))) userSettings.steps = Number(steps);
-  if (!isNaN(Number(outputHeight))) userSettings.outputHeight = Number(outputHeight);
-  console.log(`Settings updated:`, userSettings);
-  res.json({ success: true });
-});
+// Remove /settings endpoint (no longer needed)
 
 // Serve frontend
 app.get("/", (req, res) => {
@@ -601,14 +590,17 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
   const requestId = uuidv4();
 
+  // Read settings from the upload request
+  const { prompt, steps, outputHeight } = req.body;
+
   console.log(
     `POST /upload: Uploaded file: ${uploadedFilename} (Original: ${req.file.originalname}) with requestId: ${requestId}`
   );
   console.log(`POST /upload: Path for ComfyUI: ${uploadedPathForComfyUI}`);
 
-  // Initialize request status with a placeholder for totalNodesInWorkflow
+  // Initialize request status with a placeholder for totalNodesInWorkflow and per-request settings
   // totalNodesInWorkflow will be set later once workflow.json is loaded in processQueue
-  requestStatus[requestId] = { status: "pending", totalNodesInWorkflow: 0 };
+  requestStatus[requestId] = { status: "pending", totalNodesInWorkflow: 0, settings: { prompt, steps, outputHeight } };
 
   processingQueue.push({
     requestId,
