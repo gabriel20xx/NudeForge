@@ -7,8 +7,17 @@
     <link rel="stylesheet" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Add Google reCAPTCHA script -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <!-- Local CAPTCHA: No external scripts needed -->
+    <script>
+        // Generate a simple math CAPTCHA
+        function generateCaptcha() {
+            const a = Math.floor(Math.random() * 10) + 1;
+            const b = Math.floor(Math.random() * 10) + 1;
+            document.getElementById('captchaQuestion').textContent = `${a} + ${b} = ?`;
+            document.getElementById('captcha_expected').value = (a + b).toString();
+        }
+        window.addEventListener('DOMContentLoaded', generateCaptcha);
+    </script>
 </head>
 
 <body>
@@ -26,10 +35,11 @@
                     <img id="previewImage" />
                     <input id="inputImage" type="file" name="image" accept="image/*" />
                 </div>
-                <!-- Add a container for the reCAPTCHA widget -->
-                <div class="recaptcha-container">
-                    <!-- IMPORTANT: Replace YOUR_SITE_KEY_HERE with your actual Google reCAPTCHA v2 Site Key -->
-                    <div class="g-recaptcha" data-sitekey="6LcRw4IrAAAAAGR8ql_It6OeMWQut7Tgj3CIlL6p"></div>
+                <!-- Local CAPTCHA -->
+                <div class="captcha-container" id="captchaContainer">
+                    <label id="captchaQuestion" style="font-weight:bold;"></label>
+                    <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Answer" required autocomplete="off" />
+                    <input type="hidden" id="captcha_expected" name="captcha_expected" />
                 </div>
                 <button class="upload-btn" type="submit">Upload</button>
             </div>
@@ -221,10 +231,9 @@
             inputImage.disabled = false;
             dropArea.classList.remove('disabled');
             dropArea.style.pointerEvents = 'auto';
-            // Reset reCAPTCHA so the user can submit again
-            if (typeof grecaptcha !== 'undefined') {
-                grecaptcha.reset();
-            }
+            // Reset local CAPTCHA
+            generateCaptcha();
+            document.getElementById('captcha_answer').value = '';
         }
 
         function resetUIForNewUpload() {
@@ -345,12 +354,15 @@
                 return;
             }
 
-            // Check for reCAPTCHA response
-            const recaptchaResponse = grecaptcha.getResponse();
-            if (!recaptchaResponse) {
-                alert('Please complete the reCAPTCHA before uploading.');
-                console.warn('Frontend: reCAPTCHA not completed.');
-                return;
+            // Check for local CAPTCHA (skip if running on localhost)
+            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!isLocal) {
+                const captchaAnswer = document.getElementById('captcha_answer').value.trim();
+                const captchaExpected = document.getElementById('captcha_expected').value.trim();
+                if (!captchaAnswer || captchaAnswer !== captchaExpected) {
+                    alert('Please answer the CAPTCHA correctly before uploading.');
+                    return;
+                }
             }
 
             disableUpload(); // Disable controls immediately on submission
@@ -359,9 +371,12 @@
 
             const formData = new FormData();
             formData.append('image', inputImage.files[0]);
-            // Append the reCAPTCHA token to the form data
-            formData.append('g-recaptcha-response', recaptchaResponse);
-            console.log('Frontend: FormData created with image file and reCAPTCHA response.');
+            // Append the local CAPTCHA fields
+            if (!isLocal) {
+                formData.append('captcha_answer', document.getElementById('captcha_answer').value.trim());
+                formData.append('captcha_expected', document.getElementById('captcha_expected').value.trim());
+            }
+            console.log('Frontend: FormData created with image file and local CAPTCHA.');
 
             const xhr = new XMLHttpRequest();
 
@@ -539,6 +554,12 @@
                 currentRequestId = storedRequestId;
                 disableUpload();
                 socket.emit('joinRoom', currentRequestId); // Re-join room on reload
+            }
+
+            // Hide CAPTCHA if local
+            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (isLocal) {
+                document.getElementById('captchaContainer').style.display = 'none';
             }
 
             fetchQueueStatus(); // Initial fetch

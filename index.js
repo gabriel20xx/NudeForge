@@ -27,13 +27,12 @@ const INPUT_DIR = path.join(__dirname, "../input");
 const OUTPUT_DIR = path.join(__dirname, "../output");
 const WORKFLOW_PATH = path.join(__dirname, "workflow.json");
 const COMFYUI_HOST = process.env.COMFYUI_HOST; // e.g., '127.0.0.1:8188'
-const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
 // Construct URLs from host
 const COMFYUI_URL = `http://${COMFYUI_HOST}/prompt`;
 const COMFYUI_WS_URL = `ws://${COMFYUI_HOST}/ws`;
 
 // Validate that required environment variables are set
-if (!COMFYUI_HOST || !RECAPTCHA_SECRET_KEY) {
+if (!COMFYUI_HOST) {
     console.error("FATAL ERROR: Missing required environment variables. Please create a .env file based on .env.example and fill in the values.");
     process.exit(1); // Exit if critical configuration is missing
 }
@@ -514,28 +513,33 @@ app.get("/queue-status", (req, res) => {
 app.post("/upload", upload.single("image"), async (req, res) => {
   console.log(`POST /upload: Request received.`);
 
-  // --- reCAPTCHA Verification ---
-  const recaptchaToken = req.body['g-recaptcha-response'];
-  if (!recaptchaToken) {
-    console.error(`POST /upload: reCAPTCHA token missing.`);
-    return res.status(400).send("reCAPTCHA token is missing.");
-  }
-
-  try {
-    const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}&remoteip=${req.ip}`;
-    const verificationResponse = await axios.post(verificationUrl);
-    const { success, 'error-codes': errorCodes } = verificationResponse.data;
-
-    if (!success) {
-      console.error('POST /upload: reCAPTCHA verification failed:', errorCodes);
-      return res.status(400).send("Failed reCAPTCHA verification. Please try again.");
+  // --- Local CAPTCHA Verification ---
+  function isLocalOrPrivate(ip) {
+    if (!ip) return false;
+    // Remove IPv6 prefix if present
+    if (ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+    if (ip === '127.0.0.1' || ip === '::1' || req.hostname === 'localhost') return true;
+    // 10.0.0.0/8
+    if (ip.startsWith('10.')) return true;
+    // 172.16.0.0/12
+    if (ip.startsWith('172.')) {
+      const second = parseInt(ip.split('.')[1], 10);
+      if (second >= 16 && second <= 31) return true;
     }
-    console.log('POST /upload: reCAPTCHA verification successful.');
-  } catch (error) {
-    console.error("POST /upload: Error during reCAPTCHA verification:", error.message);
-    return res.status(500).send("Server error during reCAPTCHA verification.");
+    // 192.168.0.0/16
+    if (ip.startsWith('192.168.')) return true;
+    return false;
   }
-  // --- End reCAPTCHA Verification ---
+  const isLocal = isLocalOrPrivate(req.ip);
+  if (!isLocal) {
+    const captchaAnswer = req.body['captcha_answer'];
+    const captchaExpected = req.body['captcha_expected'];
+    if (!captchaAnswer || !captchaExpected || captchaAnswer !== captchaExpected) {
+      console.error(`POST /upload: CAPTCHA failed or missing.`);
+      return res.status(400).send("CAPTCHA failed or missing.");
+    }
+  }
+  // --- End Local CAPTCHA Verification ---
 
   if (!req.file) {
     console.error(`POST /upload: No file uploaded.`);
