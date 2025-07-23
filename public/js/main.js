@@ -282,16 +282,42 @@ function displayResult(imageUrl) {
             const comparisonOutputImage = document.getElementById('comparison-output-image');
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
             const previewImageSrc = previewImage.src;
+            let inputLoaded = false, outputLoaded = false;
             if (comparisonInputImage && previewImageSrc) {
+                comparisonInputImage.onload = () => {
+                    inputLoaded = true;
+                    debugLog('comparisonInputImage loaded');
+                    if (inputLoaded && outputLoaded) {
+                        debugLog('Both images loaded, initializing comparison slider');
+                        showComparisonSlider();
+                    }
+                };
                 comparisonInputImage.src = previewImageSrc;
             }
             if (comparisonOutputImage && imageUrl) {
+                comparisonOutputImage.onload = () => {
+                    outputLoaded = true;
+                    debugLog('comparisonOutputImage loaded');
+                    if (inputLoaded && outputLoaded) {
+                        debugLog('Both images loaded, initializing comparison slider');
+                        showComparisonSlider();
+                    }
+                };
                 comparisonOutputImage.src = imageUrl;
             }
-            if (imgCompContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc && imageUrl) {
-                imgCompContainer.style.display = '';
-                if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
-                setTimeout(() => { initComparisons(); }, 50);
+            // Fallback: if both images are already cached
+            if (comparisonInputImage && comparisonInputImage.complete) inputLoaded = true;
+            if (comparisonOutputImage && comparisonOutputImage.complete) outputLoaded = true;
+            if (inputLoaded && outputLoaded) {
+                debugLog('Both images already loaded, initializing comparison slider');
+                showComparisonSlider();
+            }
+            function showComparisonSlider() {
+                if (imgCompContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc && imageUrl) {
+                    imgCompContainer.style.display = '';
+                    if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
+                    setTimeout(() => { initComparisons(); }, 50);
+                }
             }
             enableDownload(imageUrl);
         } catch (err) {
@@ -300,6 +326,10 @@ function displayResult(imageUrl) {
     };
 // --- Custom Image Comparison Slider Logic ---
 function initComparisons() {
+  debugLog('Initializing image comparison slider...');
+  // Cleanup: Remove any old sliders
+  const oldSliders = document.querySelectorAll('.img-comp-slider');
+  oldSliders.forEach(slider => slider.remove());
   var x, i;
   x = document.getElementsByClassName("img-comp-overlay");
   for (i = 0; i < x.length; i++) {
@@ -315,6 +345,7 @@ function initComparisons() {
     img.parentElement.insertBefore(slider, img);
     slider.style.top = (h / 2) - (slider.offsetHeight / 2) + "px";
     slider.style.left = (w / 2) - (slider.offsetWidth / 2) + "px";
+    debugLog('Slider created and positioned:', slider, 'for image:', img);
     slider.addEventListener("mousedown", slideReady);
     window.addEventListener("mouseup", slideFinish);
     slider.addEventListener("touchstart", slideReady);
@@ -347,6 +378,7 @@ function initComparisons() {
     function slide(x) {
       img.style.width = x + "px";
       slider.style.left = img.offsetWidth - (slider.offsetWidth / 2) + "px";
+      debugLog('Slider moved to', slider.style.left, 'Overlay width:', img.style.width);
     }
   }
 }
