@@ -160,7 +160,7 @@ function resetUIForNewUpload() {
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
 
-    const comparisonContainer = document.getElementById('comparison-container');
+    const comparisonContainer = document.querySelector('.comparison-container');
     if (comparisonContainer) {
         comparisonContainer.style.display = 'none';
     }
@@ -183,7 +183,7 @@ function displayResult(imageUrl) {
         outputImage.style.display = 'block';
         outputPlaceholder.style.display = 'none';
 
-        const comparisonContainer = document.getElementById('comparison-container');
+        const comparisonContainer = document.querySelector('.comparison-container');
         const comparisonInputImage = document.getElementById('comparison-input-image');
         const comparisonOutputImage = document.getElementById('comparison-output-image');
         const previewImageSrc = previewImage.src;
