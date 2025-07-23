@@ -67,7 +67,9 @@ h2 {
     padding: 2.5rem 1rem 2rem 1rem;
 }
 
-.input-col, .output-col, .comparison-col {
+
+/* Unified column style for all three main columns */
+.main-col {
     flex: 1;
     min-width: 280px;
     max-width: 420px;
@@ -93,6 +95,11 @@ h2 {
 
 .settings-col.collapsible.open {
     max-height: 1000px; /* Adjust as needed */
+    width: 100vw;
+    max-width: none;
+    margin-left: calc(-1 * (100vw - 100%) / 2);
+    margin-right: calc(-1 * (100vw - 100%) / 2);
+    box-sizing: border-box;
 }
 
 .comparison-image {
@@ -126,9 +133,9 @@ h2 {
     z-index: 2;
 }
 
-.upload-section,
- .output-section,
- .comparison-section {
+
+/* Unified section style for all three main sections */
+.main-section {
     width: 100%;
     min-width: 0;
     max-width: 420px;
@@ -140,6 +147,10 @@ h2 {
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
     padding: 2rem 1.5rem 1.5rem 1.5rem;
     box-sizing: border-box;
+}
+
+/* Ensure .comparison-section always matches .upload-section and .output-section width */
+
 }
 
 .drop-area {
@@ -290,7 +301,8 @@ input[type="file"] {
     border-radius: 16px;
     box-shadow: 0 2px 16px 0 rgba(0,0,0,0.18);
     width: 100%;
-    max-width: 600px;
+    max-width: 1200px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -495,15 +507,13 @@ input[type="file"] {
         align-items: center;
         gap: 1.5rem;
     }
-    .input-col, .output-col, .comparison-col {
+    .main-col {
         width: 100%;
         min-width: unset;
         max-width: unset;
         align-items: center;
     }
-    .upload-section,
-    .output-section,
-    .comparison-section {
+    .main-section {
         width: 96%;
         min-width: unset;
         max-width: unset;
@@ -522,15 +532,13 @@ input[type="file"] {
     .main-container {
         padding: 1rem 0.2rem 1rem 0.2rem;
     }
-    .input-col, .output-col, .comparison-col {
+    .main-col {
         width: 100%;
         min-width: unset;
         max-width: unset;
         align-items: center;
     }
-    .upload-section,
-    .output-section,
-    .comparison-section {
+    .main-section {
         width: 99%;
         min-width: unset;
         max-width: unset;
