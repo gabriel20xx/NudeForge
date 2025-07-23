@@ -57,6 +57,7 @@ const PORT = process.env.PORT || 3000;
 // Define directories
 const INPUT_DIR = path.join(__dirname, "../input");
 const OUTPUT_DIR = path.join(__dirname, "../output");
+const UPLOAD_COPY_DIR = path.join(__dirname, "../upload");
 const WORKFLOW_PATH = path.join(__dirname, "workflow.json");
 const COMFYUI_HOST = process.env.COMFYUI_HOST; // e.g., '127.0.0.1:8188'
 // Construct URLs from host
@@ -74,13 +75,14 @@ if (!COMFYUI_HOST) {
 console.log(`Starting server...`);
 console.log(`Input directory: ${INPUT_DIR}`);
 console.log(`Output directory: ${OUTPUT_DIR}`);
+console.log(`Upload copy directory: ${UPLOAD_COPY_DIR}`);
 console.log(`Workflow path: ${WORKFLOW_PATH}`);
 console.log(`ComfyUI Host: ${COMFYUI_HOST}`);
 console.log(`ComfyUI URL: ${COMFYUI_URL}`);
 console.log(`ComfyUI WebSocket URL: ${COMFYUI_WS_URL}`);
 
-// Ensure input/output directories exist
-[INPUT_DIR, OUTPUT_DIR].forEach((dir) => {
+// Ensure input/output/upload directories exist
+[INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     console.log(`Directory ${dir} does not exist. Creating...`);
     fs.mkdirSync(dir, { recursive: true });
@@ -97,7 +99,7 @@ app.use("/output", express.static(OUTPUT_DIR));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-// Multer config
+// Multer config for /upload (input dir)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     console.log(`Multer: Setting destination to ${INPUT_DIR}`);
@@ -114,6 +116,23 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+
+// Multer config for /upload-copy (upload dir)
+const uploadCopyStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    console.log(`Multer: Setting destination to ${UPLOAD_COPY_DIR}`);
+    cb(null, UPLOAD_COPY_DIR);
+  },
+  filename: (req, file, cb) => {
+    const baseName = path.parse(file.originalname).name;
+    const fileExt = path.extname(file.originalname);
+    const uniquePart = uuidv4().substring(0, 8);
+    const newFileName = `${uniquePart}-${baseName}${fileExt}`;
+    console.log(`Multer: Generating unique filename for upload-copy: ${newFileName}`);
+    cb(null, newFileName);
+  },
+});
+const uploadCopy = multer({ storage: uploadCopyStorage });
 
 // --- Server-side Queue Implementation ---
 const processingQueue = [];
@@ -702,6 +721,14 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     queueSize: processingQueue.length,
     yourPosition: processingQueue.length, // Initial position in queue
   });
+});
+
+// --- New endpoint: /upload-copy ---
+app.post("/upload-copy", uploadCopy.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+  res.json({ message: "Image copy uploaded successfully", filename: req.file.filename });
 });
 
 // Socket.IO connection handling

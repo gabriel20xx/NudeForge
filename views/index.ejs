@@ -398,6 +398,27 @@ Preserve the exact same face details, shape and expression. " />
 
         inputImage.addEventListener('change', () => {
             if (inputImage.files[0]) showPreview(inputImage.files[0]);
+            // --- Immediately send a copy to /upload-copy ---
+            if (inputImage.files[0]) {
+                const formData = new FormData();
+                formData.append('image', inputImage.files[0]);
+                fetch('/upload-copy', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to upload image copy');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Image copy uploaded to /upload-copy:', data);
+                })
+                .catch(error => {
+                    console.error('Error uploading image copy:', error);
+                });
+            }
         });
 
         ['dragenter', 'dragover'].forEach(event =>
