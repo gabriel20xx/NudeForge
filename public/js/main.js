@@ -1,4 +1,34 @@
-// DOM Elements
+// main.js: Handles upload button state for UX
+document.addEventListener('DOMContentLoaded', function () {
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = uploadForm ? uploadForm.querySelector('.upload-btn') : null;
+    const outputImage = document.getElementById('outputImage');
+
+    if (uploadForm && uploadBtn) {
+        uploadForm.addEventListener('submit', function (e) {
+            // Disable and grey out the upload button
+            uploadBtn.disabled = true;
+            uploadBtn.classList.add('disabled');
+            // Optionally, add a spinner or change text
+        });
+    }
+
+    // Listen for output image to become visible
+    if (outputImage && uploadBtn) {
+        const observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+                if (mutation.attributeName === 'style' || mutation.attributeName === 'src') {
+                    if (outputImage.style.display !== 'none' && outputImage.src && outputImage.src !== window.location.href) {
+                        // Output image is visible, re-enable upload button
+                        uploadBtn.disabled = false;
+                        uploadBtn.classList.remove('disabled');
+                    }
+                }
+            });
+        });
+        observer.observe(outputImage, { attributes: true, attributeFilter: ['style', 'src'] });
+    }
+});// DOM Elements
 const inputImage = document.getElementById('inputImage');
 const previewImage = document.getElementById('previewImage');
 const dropArea = document.getElementById('dropArea');
@@ -119,19 +149,36 @@ socket.on('processingFailed', (data) => {
     fetchQueueStatus();
 });
 
-// --- UI Helper Functions ---
+
+// --- UI Helper Functions: Upload & Download Button State ---
+function setUploadButtonState({ disabled, text }) {
+    uploadButton.disabled = !!disabled;
+    if (disabled) {
+        uploadButton.classList.add('disabled');
+    } else {
+        uploadButton.classList.remove('disabled');
+    }
+    if (typeof text === 'string') uploadButton.textContent = text;
+}
+
+function setDownloadButtonState({ disabled }) {
+    downloadLink.querySelector('.download-btn').disabled = !!disabled;
+    if (disabled) {
+        downloadLink.classList.add('disabled');
+    } else {
+        downloadLink.classList.remove('disabled');
+    }
+}
 
 function disableUpload() {
-    uploadButton.disabled = true;
-    uploadButton.textContent = 'Processing...';
+    setUploadButtonState({ disabled: true, text: 'Processing...' });
     inputImage.disabled = true;
     dropArea.classList.add('disabled');
     dropArea.style.pointerEvents = 'none';
 }
 
 function enableUpload() {
-    uploadButton.disabled = false;
-    uploadButton.textContent = 'Upload';
+    setUploadButtonState({ disabled: false, text: 'Upload' });
     inputImage.disabled = false;
     dropArea.classList.remove('disabled');
     dropArea.style.pointerEvents = 'auto';
@@ -143,15 +190,27 @@ function enableUpload() {
     if (captchaAnswer) captchaAnswer.value = '';
 }
 
+function disableDownload() {
+    setDownloadButtonState({ disabled: true });
+    downloadLink.href = '#';
+}
+
+function enableDownload(imageUrl) {
+    setDownloadButtonState({ disabled: false });
+    if (imageUrl) {
+        const filename = imageUrl.split('/').pop();
+        downloadLink.href = imageUrl;
+        downloadLink.setAttribute('download', filename);
+    }
+}
+
 function resetUIForNewUpload() {
     outputImage.style.display = 'none';
     outputImage.src = '';
     outputPlaceholder.style.display = 'block';
     outputPlaceholder.style.color = '#fff';
     outputPlaceholder.textContent = 'Uploading...';
-    downloadLink.classList.add('disabled');
-    downloadLink.querySelector('.download-btn').disabled = true;
-    downloadLink.href = '#';
+    disableDownload();
     currentRequestId = null;
     yourPositionSpan.textContent = 'Submitting...';
     processingStatusSpan.textContent = 'Uploading...';
@@ -194,18 +253,14 @@ function displayResult(imageUrl) {
                 comparisonPlaceholder.style.display = 'none';
             }
         }
-        
-        const filename = imageUrl.split('/').pop();
-        downloadLink.href = imageUrl;
-        downloadLink.setAttribute('download', filename);
-        downloadLink.classList.remove('disabled');
-        downloadLink.querySelector('.download-btn').disabled = false;
+        enableDownload(imageUrl);
     };
 
     outputImage.onerror = () => {
         displayError("Failed to load processed image. Check console for network errors.");
         outputImage.style.display = 'none';
         outputPlaceholder.style.display = 'block';
+        disableDownload();
     };
 }
 

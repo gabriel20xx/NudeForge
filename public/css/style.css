@@ -121,19 +121,28 @@ h2 {
 }
 
 /* Orange thick track */
+
+/* Orange visible track for comparison slider */
+
+/* Only the slider bar is orange, not the background */
 .comparison-slider::-webkit-slider-runnable-track {
-    height: 100%;
-    background: transparent;
+    height: 6px;
+    margin-top: -3px;
+    background: #ff9800;
     border: none;
+    border-radius: 3px;
+    box-shadow: none;
 }
 .comparison-slider::-moz-range-track {
-    height: 100%;
-    background: transparent;
+    height: 6px;
+    background: #ff9800;
     border: none;
+    border-radius: 3px;
+    box-shadow: none;
 }
 .comparison-slider::-ms-fill-lower,
 .comparison-slider::-ms-fill-upper {
-    background: transparent;
+    background: #ff9800;
 }
 
 /* Custom thumb with orange bar and handler circles */
@@ -331,12 +340,24 @@ input[type="file"] {
     color: #fff;
 }
 
+
 .upload-btn {
     background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
+    color: #23272f;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s, opacity 0.2s;
 }
-
-.upload-btn:hover {
+.upload-btn:hover:not(:disabled):not(.disabled) {
     background: linear-gradient(90deg, #ffb84d 0%, #ff9800 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px 0 rgba(255,184,77,0.15);
+}
+.upload-btn:disabled,
+.upload-btn.disabled {
+    background: #555 !important;
+    color: #888 !important;
+    cursor: not-allowed !important;
+    opacity: 0.5;
+    box-shadow: none !important;
 }
 
 .settings-btn {
