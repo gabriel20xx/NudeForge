@@ -93,7 +93,25 @@ async function processQueue(io) {
                 await new Promise((resolve) => setTimeout(resolve, 500));
             }
         }
-
+        // Wait for file size to stabilize (ensure fully written)
+        const outputPath = path.join(OUTPUT_DIR, foundOutputFilename);
+        let lastSize = -1, stableCount = 0;
+        while (stableCount < 2) {
+            try {
+                const stats = await fs.promises.stat(outputPath);
+                if (stats.size === lastSize && stats.size > 0) {
+                    stableCount++;
+                } else {
+                    stableCount = 0;
+                }
+                lastSize = stats.size;
+            } catch (e) {
+                stableCount = 0;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+        // Add a short delay to further ensure file is ready
+        await new Promise((resolve) => setTimeout(resolve, 300));
         const finalOutputRelativePath = `/output/${foundOutputFilename}`;
         requestStatus[requestId].status = "completed";
         requestStatus[requestId].data = { outputImage: finalOutputRelativePath };
