@@ -168,10 +168,9 @@ h2 {
 
 .settings-col.collapsible.open {
     max-height: 1000px; /* Adjust as needed */
-    width: 100vw;
-    max-width: none;
-    margin-left: calc(-1 * (100vw - 100%) / 2);
-    margin-right: calc(-1 * (100vw - 100%) / 2);
+    width: 100%;
+    max-width: 1400px; /* Match main-container max-width */
+    margin: 0 auto;
     box-sizing: border-box;
 }
 
@@ -337,20 +336,22 @@ input[type="file"] {
 
 /* Settings Section */
 .settings-section {
-    background: #23272f;
-    padding: 2rem 1.5rem 1.5rem 1.5rem;
-    margin: 2rem auto 1.5rem auto;
-    left: 50%;
-    transform: translateX(-50%);
-    position: relative;
-    border-radius: 16px;
-    box-shadow: 0 2px 16px 0 rgba(0,0,0,0.18);
     width: 100%;
-    max-width: 1340px; /* Matches main container max-width minus gaps */
     min-width: 0;
+    max-width: 1400px; /* Match main-container max-width */
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
+    background: rgba(30,32,38,0.97);
+    border-radius: 18px;
+    box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
+    border: 2.5px dashed #ffb84d;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    margin: 2rem auto 1.5rem auto;
+    position: relative;
+    left: auto;
+    transform: none;
     gap: 1.2em;
 }
 
@@ -573,8 +574,9 @@ input[type="file"] {
         width: 100%;
         border-radius: 18px;
         box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
+        border: 2.5px dashed #ffb84d;
         justify-self: stretch;
-        left: 0;
+        left: auto;
         transform: none;
         position: static;
     }
@@ -614,9 +616,10 @@ input[type="file"] {
         margin: 1.2rem auto;
         max-width: 98vw;
         padding: 1.2rem 0.5rem 1rem 0.5rem;
-        left: 50%;
-        transform: translateX(-50%);
+        left: auto;
+        transform: none;
         position: relative;
+        border: 2.5px dashed #ffb84d;
     }
     .image-box {
         max-width: 98vw;
