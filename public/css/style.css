@@ -88,7 +88,7 @@ body {
 .header-container {
     background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
     color: #fff;
-    padding: 1.2em 0 1.2em 0;
+    padding: 0.5em 0 0.5em 0;
     margin: 0;
     box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
 }
@@ -99,10 +99,10 @@ h1 {
     letter-spacing: 1px;
 }
 
-#queueStatusDisplay {
+#queueStatusDisplay, #processingStatusDisplay {
     font-size: 1em;
     font-weight: 400;
-    margin-top: 0.5em;
+    margin: 0.5em 0 0.5em 0;
     color: #fff;
 }
 
@@ -182,6 +182,11 @@ h2 {
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+}
+
+/* Synchronized width class for matching sections */
+.width-synced {
+    max-width: var(--sync-width, 100%);
 }
 
 /* Unified section style for all main sections */
