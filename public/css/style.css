@@ -170,6 +170,8 @@ h2 {
     align-items: stretch;
     gap: 2.5rem;
     padding: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 /* Unified column style for all three main columns */
@@ -377,7 +379,7 @@ input[type="file"] {
     border-radius: 16px;
     box-shadow: 0 2px 16px 0 rgba(0,0,0,0.18);
     width: 100%;
-    max-width: 1200px;
+    max-width: 1340px; /* Matches main container max-width minus gaps */
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -568,10 +570,11 @@ input[type="file"] {
     .main-container {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto;
+        grid-template-rows: auto auto auto;
         grid-template-areas:
             "input output"
-            "settings comparison";
+            "comparison comparison"
+            "settings settings";
         gap: 1.5rem;
         justify-items: stretch;
         align-items: stretch;
@@ -591,20 +594,22 @@ input[type="file"] {
     .output-section.main-section {
         grid-area: output;
     }
+    .comparison-section.main-section {
+        grid-area: comparison;
+        justify-self: center;
+        max-width: 420px;
+    }
     .settings-section {
         grid-area: settings;
-        margin: 0 auto 0 auto;
+        margin: 0;
         max-width: unset;
         width: 100%;
         border-radius: 18px;
         box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-        justify-self: center;
-        left: 50%;
-        transform: translateX(-50%);
-        position: relative;
-    }
-    .comparison-section.main-section {
-        grid-area: comparison;
+        justify-self: stretch;
+        left: 0;
+        transform: none;
+        position: static;
     }
     .main-section {
         width: 100%;
@@ -624,6 +629,7 @@ input[type="file"] {
         align-items: center;
         gap: 1.5rem;
         padding: 1rem 0.2rem 1rem 0.2rem;
+        max-width: none;
     }
     .main-col {
         width: 100%;
@@ -638,8 +644,7 @@ input[type="file"] {
         margin-bottom: 1.2em;
     }
     .settings-section {
-        margin-left: auto;
-        margin-right: auto;
+        margin: 1.2rem auto;
         max-width: 98vw;
         padding: 1.2rem 0.5rem 1rem 0.5rem;
         left: 50%;
@@ -652,28 +657,3 @@ input[type="file"] {
     }
 }
 
-@media (max-width: 600px) {
-    .settings-section {
-        padding: 1.2rem 0.5rem 1rem 0.5rem;
-        max-width: 98vw;
-    }
-    .main-container {
-        padding: 1rem 0.2rem 1rem 0.2rem;
-    }
-    .main-col {
-        width: 100%;
-        min-width: unset;
-        max-width: unset;
-        align-items: center;
-    }
-    .main-section {
-        width: 99%;
-        min-width: unset;
-        max-width: unset;
-        margin-bottom: 1.2em;
-    }
-    .image-box {
-        max-width: 98vw;
-        height: 140px;
-    }
-}
