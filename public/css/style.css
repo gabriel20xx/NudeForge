@@ -117,51 +117,18 @@ h2 {
 
 .carousel-slide {
     display: flex;
-    width: 200%; /* Twice the width for the duplicated images */
     height: 100%;
-    animation: carousel-scroll 40s linear infinite;
+    /* Width will be set dynamically by JavaScript */
 }
 
 .carousel-slide img {
     height: 100%;
     object-fit: cover;
     flex-shrink: 0;
-    /* Default: 8 images visible (12.5% each) */
-    width: 12.5%;
+    /* Width will be set dynamically by JavaScript */
 }
 
-/* Tablet and smaller desktop: 6 images visible */
-@media (max-width: 1200px) {
-    .carousel-slide img {
-        width: 16.666%; /* 100% / 6 = 16.666% */
-    }
-}
 
-/* Small tablet: 4 images visible */
-@media (max-width: 900px) {
-    .carousel-slide img {
-        width: 25%; /* 100% / 4 = 25% */
-    }
-}
-
-/* Mobile: 3 images visible */
-@media (max-width: 600px) {
-    .carousel-slide img {
-        width: 33.333%; /* 100% / 3 = 33.333% */
-    }
-}
-
-/* Very small mobile: 2 images visible */
-@media (max-width: 400px) {
-    .carousel-slide img {
-        width: 50%; /* 100% / 2 = 50% */
-    }
-}
-
-@keyframes carousel-scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
 
 .main-container {
     display: flex;
@@ -591,13 +558,13 @@ input[type="file"] {
     .upload-section.main-section {
         grid-area: input;
     }
-    .output-section.main-section {
-        grid-area: output;
-    }
     .comparison-section.main-section {
         grid-area: comparison;
         justify-self: center;
         max-width: 420px;
+    }
+    .output-section.main-section {
+        grid-area: output;
     }
     .settings-section {
         grid-area: settings;

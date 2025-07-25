@@ -661,33 +661,127 @@ async function fetchQueueStatus() {
     }
 }
 
-// --- Seamless Carousel Setup ---
+// --- Responsive Carousel Setup ---
+let carouselImages = [];
+let carouselAnimation = null;
+let carouselCurrentPosition = 0;
+
+function getVisibleImageCount() {
+    const width = window.innerWidth;
+    if (width <= 400) return 2;
+    if (width <= 600) return 3;
+    if (width <= 900) return 4;
+    if (width <= 1200) return 6;
+    return 8;
+}
+
+function setupCarouselLayout() {
+    const carouselSlide = document.querySelector('.carousel-slide');
+    if (!carouselSlide || carouselImages.length === 0) return;
+
+    const visibleCount = getVisibleImageCount();
+    const imageWidth = 100 / visibleCount; // Percentage width per image
+    
+    // Set image widths
+    const images = carouselSlide.querySelectorAll('img');
+    images.forEach(img => {
+        img.style.width = imageWidth + '%';
+    });
+    
+    // Set total slide width (original images + duplicates)
+    const totalImages = carouselImages.length * 2; // Doubled for seamless loop
+    carouselSlide.style.width = (totalImages * imageWidth) + '%';
+    
+    // Start animation
+    startCarouselAnimation();
+}
+
+function startCarouselAnimation() {
+    const carouselSlide = document.querySelector('.carousel-slide');
+    if (!carouselSlide) return;
+    
+    // Stop existing animation
+    if (carouselAnimation) {
+        cancelAnimationFrame(carouselAnimation);
+    }
+    
+    const visibleCount = getVisibleImageCount();
+    const imageWidth = 100 / visibleCount;
+    const totalImages = carouselImages.length;
+    
+    // Speed: move one image width every 3 seconds
+    const pixelsPerSecond = imageWidth / 3; // % per second
+    
+    let lastTime = performance.now();
+    
+    function animate(currentTime) {
+        const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+        lastTime = currentTime;
+        
+        // Move the carousel
+        carouselCurrentPosition += pixelsPerSecond * deltaTime;
+        
+        // Reset position when we've moved past the original set of images
+        const resetPoint = totalImages * imageWidth;
+        if (carouselCurrentPosition >= resetPoint) {
+            carouselCurrentPosition = 0;
+        }
+        
+        // Apply transform
+        carouselSlide.style.transform = `translateX(-${carouselCurrentPosition}%)`;
+        
+        carouselAnimation = requestAnimationFrame(animate);
+    }
+    
+    carouselAnimation = requestAnimationFrame(animate);
+}
+
 async function setupCarousel() {
-    debugLog('Setting up carousel...');
     const carouselSlide = document.querySelector('.carousel-slide');
     if (!carouselSlide) {
-        debugLog('No carousel-slide element found');
         return;
     }
+    
     try {
         const response = await fetch('/api/carousel-images');
         if (!response.ok) {
             throw new Error('Failed to fetch carousel images');
         }
-        const carouselImages = await response.json();
-        debugLog('Carousel images:', carouselImages);
+        
+        carouselImages = await response.json();
+        
         if (carouselImages.length > 0) {
+            // Clear existing content
+            carouselSlide.innerHTML = '';
+            
+            // Add original images
             carouselImages.forEach(image => {
                 const img = document.createElement('img');
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
                 carouselSlide.appendChild(img);
             });
-            const images = carouselSlide.querySelectorAll('img');
-            images.forEach(img => {
-                const clone = img.cloneNode(true);
-                carouselSlide.appendChild(clone);
+            
+            // Add duplicate images for seamless loop
+            carouselImages.forEach(image => {
+                const img = document.createElement('img');
+                img.src = `/img/carousel/${image}`;
+                img.alt = "Carousel Image";
+                carouselSlide.appendChild(img);
             });
+            
+            // Setup layout and start animation
+            setupCarouselLayout();
+            
+            // Handle window resize
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    setupCarouselLayout();
+                }, 150);
+            });
+            
         } else {
             carouselSlide.innerHTML = '<p>No images found in carousel.</p>';
         }
