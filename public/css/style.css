@@ -168,6 +168,8 @@ h2 {
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+    display: flex;
+    justify-content: center;
 }
 
 .settings-container {
@@ -182,10 +184,13 @@ h2 {
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+    display: flex;
+    justify-content: center;
 }
 
 /* Synchronized width class for matching sections */
 .width-synced {
+    width: var(--sync-width, 100%);
     max-width: var(--sync-width, 100%);
 }
 
