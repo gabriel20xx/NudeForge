@@ -677,20 +677,29 @@ function getVisibleImageCount() {
 
 function setupCarouselLayout() {
     const carouselSlide = document.querySelector('.carousel-slide');
-    if (!carouselSlide || carouselImages.length === 0) return;
+    const carouselContainer = document.querySelector('.carousel-container');
+    if (!carouselSlide || !carouselContainer || carouselImages.length === 0) return;
 
     const visibleCount = getVisibleImageCount();
-    const imageWidth = 100 / visibleCount; // Percentage width per image
+    const containerWidth = carouselContainer.offsetWidth;
+    const imageWidth = Math.floor(containerWidth / visibleCount); // Use pixel width to ensure full images
     
-    // Set image widths
+    // Set image widths in pixels to ensure complete visibility
     const images = carouselSlide.querySelectorAll('img');
     images.forEach(img => {
-        img.style.width = imageWidth + '%';
+        img.style.width = imageWidth + 'px';
+        img.style.minWidth = imageWidth + 'px';
+        img.style.maxWidth = imageWidth + 'px';
     });
     
-    // Set total slide width (original images + duplicates)
+    // Set total slide width (original images + duplicates) in pixels
     const totalImages = carouselImages.length * 2; // Doubled for seamless loop
-    carouselSlide.style.width = (totalImages * imageWidth) + '%';
+    const totalWidth = totalImages * imageWidth;
+    carouselSlide.style.width = totalWidth + 'px';
+    
+    // Reset position to ensure we start correctly
+    carouselCurrentPosition = 0;
+    carouselSlide.style.transform = 'translateX(0px)';
     
     // Start animation
     startCarouselAnimation();
@@ -698,7 +707,8 @@ function setupCarouselLayout() {
 
 function startCarouselAnimation() {
     const carouselSlide = document.querySelector('.carousel-slide');
-    if (!carouselSlide) return;
+    const carouselContainer = document.querySelector('.carousel-container');
+    if (!carouselSlide || !carouselContainer) return;
     
     // Stop existing animation
     if (carouselAnimation) {
@@ -706,11 +716,12 @@ function startCarouselAnimation() {
     }
     
     const visibleCount = getVisibleImageCount();
-    const imageWidth = 100 / visibleCount;
+    const containerWidth = carouselContainer.offsetWidth;
+    const imageWidth = Math.floor(containerWidth / visibleCount);
     const totalImages = carouselImages.length;
     
-    // Speed: move one image width every 3 seconds
-    const pixelsPerSecond = imageWidth / 3; // % per second
+    // Speed: move one image width every 3 seconds (pixels per second)
+    const pixelsPerSecond = imageWidth / 3;
     
     let lastTime = performance.now();
     
@@ -718,7 +729,7 @@ function startCarouselAnimation() {
         const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
         lastTime = currentTime;
         
-        // Move the carousel
+        // Move the carousel (in pixels)
         carouselCurrentPosition += pixelsPerSecond * deltaTime;
         
         // Reset position when we've moved past the original set of images
@@ -727,8 +738,8 @@ function startCarouselAnimation() {
             carouselCurrentPosition = 0;
         }
         
-        // Apply transform
-        carouselSlide.style.transform = `translateX(-${carouselCurrentPosition}%)`;
+        // Apply transform in pixels
+        carouselSlide.style.transform = `translateX(-${carouselCurrentPosition}px)`;
         
         carouselAnimation = requestAnimationFrame(animate);
     }
@@ -778,6 +789,11 @@ async function setupCarousel() {
             window.addEventListener('resize', () => {
                 clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(() => {
+                    // Stop current animation before recalculating
+                    if (carouselAnimation) {
+                        cancelAnimationFrame(carouselAnimation);
+                        carouselAnimation = null;
+                    }
                     setupCarouselLayout();
                 }, 150);
             });
