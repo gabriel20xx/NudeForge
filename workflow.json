@@ -130,7 +130,7 @@
   },
   "200": {
     "inputs": {
-      "custom_path": "",
+      "custom_path": "/comfy/mnt/ComfyUI/output/Nudify/Single/",
       "filename_prefix": [
         "251",
         0
@@ -395,7 +395,7 @@
   },
   "253": {
     "inputs": {
-      "custom_path": "comparison/",
+      "custom_path": "/comfy/mnt/ComfyUI/output/Nudify/Comparison/",
       "filename_prefix": [
         "251",
         0
