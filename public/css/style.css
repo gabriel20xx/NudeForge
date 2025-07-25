@@ -1,6 +1,6 @@
 /* Clean Image Comparison Slider Styles */
 :root {
-    --box-max-width: 420px;
+    --box-max-width: none;
 }
 
 .comparison-container {
@@ -166,7 +166,6 @@ h2 {
 
 .comparison-col {
     width: 100%;
-    max-width: var(--box-max-width);
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -181,7 +180,6 @@ h2 {
 
 .settings-col {
     width: 100%;
-    max-width: var(--box-max-width);
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -190,7 +188,6 @@ h2 {
 .main-section {
     width: 100%;
     min-width: 0;
-    max-width: var(--box-max-width);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -203,12 +200,10 @@ h2 {
 
 /* Section styling */
 .comparison-section.main-section {
-    max-width: var(--box-max-width);
     margin: 0 auto;
 }
 
 .settings-section {
-    max-width: var(--box-max-width);
     margin: 0 auto;
 }
 
@@ -259,7 +254,6 @@ input[type="file"] {
     box-sizing: border-box;
     margin-bottom: 1.2em;
     min-width: 0;
-    max-width: var(--box-max-width);
 }
 
 .image-box img {
@@ -361,7 +355,6 @@ input[type="file"] {
 .settings-section {
     width: 100%;
     min-width: 0;
-    max-width: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -379,7 +372,6 @@ input[type="file"] {
 
 .settings-box {
     width: 100%;
-    max-width: var(--box-max-width);
     background: #23272f;
     border: 2.5px dashed #ffb84d;
     border-radius: 12px;
@@ -595,16 +587,11 @@ input[type="file"] {
         margin: 1.5rem 0;
     }
     .comparison-section.main-section {
-        max-width: var(--box-max-width);
         margin: 0 auto;
     }
     .settings-section {
         margin: 0 auto;
-        max-width: var(--box-max-width);
         width: 100%;
-    }
-    .settings-box {
-        max-width: var(--box-max-width);
     }
     .main-section {
         width: 100%;
