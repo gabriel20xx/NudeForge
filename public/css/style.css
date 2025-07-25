@@ -169,7 +169,7 @@ h2 {
 .settings-col.collapsible.open {
     max-height: 1000px; /* Adjust as needed */
     width: 100%;
-    max-width: 1400px; /* Match main-container max-width */
+    max-width: 1340px; /* Match actual content width: 3×420px + 2×40px gaps */
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -338,7 +338,7 @@ input[type="file"] {
 .settings-section {
     width: 100%;
     min-width: 0;
-    max-width: 1400px; /* Match main-container max-width */
+    max-width: 1340px; /* Match actual content width: 3×420px + 2×40px gaps */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -540,7 +540,7 @@ input[type="file"] {
         grid-template-columns: 1fr 1fr;
         grid-template-rows: auto auto auto;
         grid-template-areas:
-            "input output"
+            "upload output"
             "comparison comparison"
             "settings settings";
         gap: 1.5rem;
@@ -557,7 +557,7 @@ input[type="file"] {
         flex-direction: column;
     }
     .upload-section.main-section {
-        grid-area: input;
+        grid-area: upload;
     }
     .comparison-section.main-section {
         grid-area: comparison;
