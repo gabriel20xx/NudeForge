@@ -877,13 +877,6 @@ function initialize() {
 
     fetchQueueStatus();
     pollingIntervalId = setInterval(fetchQueueStatus, 2000);
-
-    // Settings Toggle
-    const settingsToggle = document.getElementById('settings-toggle');
-    const settingsCol = document.querySelector('.settings-col.collapsible');
-    settingsToggle.addEventListener('click', () => {
-        settingsCol.classList.toggle('open');
-    });
 }
 
 initialize();
