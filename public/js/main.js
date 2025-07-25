@@ -682,20 +682,39 @@ function setupCarouselLayout() {
 
     const visibleCount = getVisibleImageCount();
     const containerWidth = carouselContainer.offsetWidth;
-    const imageWidth = Math.floor(containerWidth / visibleCount); // Use pixel width to ensure full images
+    const containerHeight = carouselContainer.offsetHeight;
     
-    // Set image widths in pixels to ensure complete visibility
+    // Calculate widths based on image aspect ratios to ensure full visibility
     const images = carouselSlide.querySelectorAll('img');
-    images.forEach(img => {
-        img.style.width = imageWidth + 'px';
-        img.style.minWidth = imageWidth + 'px';
-        img.style.maxWidth = imageWidth + 'px';
+    let totalCalculatedWidth = 0;
+    
+    // First pass: calculate natural widths for all images
+    const imageWidths = [];
+    images.forEach((img, index) => {
+        if (img.naturalWidth && img.naturalHeight) {
+            // Calculate width based on container height and image aspect ratio
+            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            const calculatedWidth = Math.floor(containerHeight * aspectRatio);
+            imageWidths.push(calculatedWidth);
+            totalCalculatedWidth += calculatedWidth;
+        } else {
+            // Fallback for images not yet loaded
+            const fallbackWidth = Math.floor(containerWidth / visibleCount);
+            imageWidths.push(fallbackWidth);
+            totalCalculatedWidth += fallbackWidth;
+        }
     });
     
-    // Set total slide width (original images + duplicates) in pixels
-    const totalImages = carouselImages.length * 2; // Doubled for seamless loop
-    const totalWidth = totalImages * imageWidth;
-    carouselSlide.style.width = totalWidth + 'px';
+    // Apply calculated widths to ensure full image visibility
+    images.forEach((img, index) => {
+        const width = imageWidths[index];
+        img.style.width = width + 'px';
+        img.style.minWidth = width + 'px';
+        img.style.maxWidth = width + 'px';
+    });
+    
+    // Set total slide width
+    carouselSlide.style.width = totalCalculatedWidth + 'px';
     
     // Reset position to ensure we start correctly
     carouselCurrentPosition = 0;
@@ -715,13 +734,20 @@ function startCarouselAnimation() {
         cancelAnimationFrame(carouselAnimation);
     }
     
-    const visibleCount = getVisibleImageCount();
-    const containerWidth = carouselContainer.offsetWidth;
-    const imageWidth = Math.floor(containerWidth / visibleCount);
-    const totalImages = carouselImages.length;
+    const images = carouselSlide.querySelectorAll('img');
+    const totalImages = carouselImages.length; // Original images count
     
-    // Speed: move one image width every 3 seconds (pixels per second)
-    const pixelsPerSecond = imageWidth / 3;
+    // Calculate total width of original images
+    let originalSetWidth = 0;
+    for (let i = 0; i < totalImages; i++) {
+        if (images[i]) {
+            originalSetWidth += images[i].offsetWidth;
+        }
+    }
+    
+    // Speed: move the width of one average image every 3 seconds
+    const averageImageWidth = originalSetWidth / totalImages;
+    const pixelsPerSecond = averageImageWidth / 3;
     
     let lastTime = performance.now();
     
@@ -733,8 +759,7 @@ function startCarouselAnimation() {
         carouselCurrentPosition += pixelsPerSecond * deltaTime;
         
         // Reset position when we've moved past the original set of images
-        const resetPoint = totalImages * imageWidth;
-        if (carouselCurrentPosition >= resetPoint) {
+        if (carouselCurrentPosition >= originalSetWidth) {
             carouselCurrentPosition = 0;
         }
         
@@ -765,12 +790,22 @@ async function setupCarousel() {
             // Clear existing content
             carouselSlide.innerHTML = '';
             
+            // Create promises for image loading
+            const imageLoadPromises = [];
+            
             // Add original images
             carouselImages.forEach(image => {
                 const img = document.createElement('img');
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
                 carouselSlide.appendChild(img);
+                
+                // Create promise for image load
+                const loadPromise = new Promise((resolve) => {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // Resolve even on error to continue
+                });
+                imageLoadPromises.push(loadPromise);
             });
             
             // Add duplicate images for seamless loop
@@ -779,9 +814,19 @@ async function setupCarousel() {
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
                 carouselSlide.appendChild(img);
+                
+                // Create promise for image load
+                const loadPromise = new Promise((resolve) => {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // Resolve even on error to continue
+                });
+                imageLoadPromises.push(loadPromise);
             });
             
-            // Setup layout and start animation
+            // Wait for all images to load before setting up layout
+            await Promise.all(imageLoadPromises);
+            
+            // Setup layout and start animation after images are loaded
             setupCarouselLayout();
             
             // Handle window resize
