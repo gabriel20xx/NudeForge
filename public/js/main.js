@@ -77,7 +77,6 @@ const outputPlaceholder = document.getElementById('outputPlaceholder');
 const downloadLink = document.getElementById('downloadLink');
 const queueSizeSpan = document.getElementById('queueSize');
 const processingStatusSpan = document.getElementById('processingStatus');
-const yourPositionSpan = document.getElementById('yourPosition');
 const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
 const uploadButton = uploadForm.querySelector('.upload-btn');
 
@@ -169,15 +168,13 @@ socket.on('queueUpdate', (data) => {
 
     if (currentRequestId && data.requestId === currentRequestId) {
         if (data.status === 'processing') {
-            yourPositionSpan.textContent = 'Processing';
             processingStatusSpan.textContent = 'Processing';
             updateProgressPercentage('');
             outputPlaceholder.textContent = `Processing your image...`;
             outputPlaceholder.style.display = 'block';
             outputImage.style.display = 'none';
         } else if (data.status === 'pending') {
-            yourPositionSpan.textContent = `${data.yourPosition}`;
-            processingStatusSpan.textContent = 'Waiting';
+            processingStatusSpan.textContent = `Waiting (Position ${data.yourPosition})`;
             updateProgressPercentage('');
             outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
             outputPlaceholder.style.display = 'block';
@@ -185,7 +182,6 @@ socket.on('queueUpdate', (data) => {
         }
     } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
         processingStatusSpan.textContent = 'Idle';
-        yourPositionSpan.textContent = 'N/A';
         updateProgressPercentage('');
         outputPlaceholder.textContent = 'Your processed image will appear here.';
         outputPlaceholder.style.display = 'block';
@@ -197,7 +193,6 @@ socket.on('queueUpdate', (data) => {
 socket.on('processingComplete', (data) => {
     debugLog('Received processingComplete:', data);
     if (currentRequestId && data.requestId === currentRequestId && data.outputImage) {
-        yourPositionSpan.textContent = 'Done!';
         processingStatusSpan.textContent = 'Complete';
         updateProgressPercentage('');
         try {
@@ -219,7 +214,6 @@ socket.on('processingComplete', (data) => {
 socket.on('processingFailed', (data) => {
     debugLog('Received processingFailed:', data);
     if (currentRequestId && data.requestId === currentRequestId) {
-        yourPositionSpan.textContent = 'Error!';
         processingStatusSpan.textContent = 'Failed';
         updateProgressPercentage('');
         displayError(data.errorMessage || 'Unknown processing error.');
@@ -244,7 +238,6 @@ function resetUIForNewUpload() {
     outputPlaceholder.textContent = 'Uploading...';
     disableDownload();
     // Do NOT clear currentRequestId here; it is set only after a successful upload response
-    yourPositionSpan.textContent = 'Submitting...';
     processingStatusSpan.textContent = 'Uploading...';
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
@@ -514,8 +507,7 @@ uploadForm.addEventListener('submit', function (e) {
                     // Always join the room for this request
                     socket.emit('joinRoom', currentRequestId);
                     queueSizeSpan.textContent = response.queueSize;
-                    yourPositionSpan.textContent = response.yourPosition > 0 ? response.yourPosition : 'Processing';
-                    processingStatusSpan.textContent = 'Waiting';
+                    processingStatusSpan.textContent = response.yourPosition > 0 ? `Waiting (Position ${response.yourPosition})` : 'Processing';
                     updateProgressPercentage('');
                     outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
                     // Always clear and start polling
@@ -544,7 +536,6 @@ uploadForm.addEventListener('submit', function (e) {
                         clearInterval(pollingIntervalId);
                         pollingIntervalId = null;
                     }
-                    yourPositionSpan.textContent = 'Error';
                     processingStatusSpan.textContent = 'Failed';
                     updateProgressPercentage('');
                     debugLog('Upload error:', errorMsg);
@@ -583,21 +574,18 @@ async function fetchQueueStatus() {
         if (currentRequestId) {
             switch (data.status) {
                 case 'pending':
-                    yourPositionSpan.textContent = `${data.yourPosition}`;
-                    processingStatusSpan.textContent = 'Waiting';
+                    processingStatusSpan.textContent = `Waiting (Position ${data.yourPosition})`;
                     updateProgressPercentage('');
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     break;
                 case 'processing':
-                    yourPositionSpan.textContent = 'Processing';
                     processingStatusSpan.textContent = 'Processing';
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     break;
                 case 'completed':
-                    yourPositionSpan.textContent = 'Done!';
                     processingStatusSpan.textContent = 'Complete';
                     updateProgressPercentage('');
                     if (data.result && data.result.outputImage) {
@@ -616,7 +604,6 @@ async function fetchQueueStatus() {
                     }
                     break;
                 case 'failed':
-                    yourPositionSpan.textContent = 'Error!';
                     processingStatusSpan.textContent = 'Failed';
                     updateProgressPercentage('');
                     displayError(data.result && data.result.errorMessage ? data.result.errorMessage : 'Unknown processing error from polling.');
@@ -629,13 +616,11 @@ async function fetchQueueStatus() {
                     }
                     break;
                 default:
-                    yourPositionSpan.textContent = 'N/A';
                     updateProgressPercentage('');
                     break;
             }
         } else if (!data.isProcessing && data.queueSize === 0) {
             processingStatusSpan.textContent = 'Idle';
-            yourPositionSpan.textContent = 'N/A';
             updateProgressPercentage('');
             outputPlaceholder.textContent = 'Your processed image will appear here.';
             outputPlaceholder.style.display = 'block';
@@ -650,7 +635,6 @@ async function fetchQueueStatus() {
         if (currentRequestId || processingStatusSpan.textContent !== 'Idle') {
             queueSizeSpan.textContent = 'Error';
             processingStatusSpan.textContent = 'Error';
-            yourPositionSpan.textContent = 'Error';
             updateProgressPercentage('');
             displayError('Failed to get status. Please check connection.');
             if (pollingIntervalId) {
