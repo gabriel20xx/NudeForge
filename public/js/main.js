@@ -666,21 +666,11 @@ let carouselImages = [];
 let carouselAnimation = null;
 let carouselCurrentPosition = 0;
 
-function getVisibleImageCount() {
-    const width = window.innerWidth;
-    if (width <= 400) return 2;
-    if (width <= 600) return 3;
-    if (width <= 900) return 4;
-    if (width <= 1200) return 6;
-    return 8;
-}
-
 function setupCarouselLayout() {
     const carouselSlide = document.querySelector('.carousel-slide');
     const carouselContainer = document.querySelector('.carousel-container');
     if (!carouselSlide || !carouselContainer || carouselImages.length === 0) return;
 
-    const visibleCount = getVisibleImageCount();
     const containerWidth = carouselContainer.offsetWidth;
     const containerHeight = carouselContainer.offsetHeight;
     
@@ -698,8 +688,8 @@ function setupCarouselLayout() {
             imageWidths.push(calculatedWidth);
             totalCalculatedWidth += calculatedWidth;
         } else {
-            // Fallback for images not yet loaded
-            const fallbackWidth = Math.floor(containerWidth / visibleCount);
+            // Fallback for images not yet loaded - use a reasonable default
+            const fallbackWidth = Math.floor(containerHeight * (16/9)); // Assume 16:9 aspect ratio
             imageWidths.push(fallbackWidth);
             totalCalculatedWidth += fallbackWidth;
         }
