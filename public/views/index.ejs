@@ -40,13 +40,14 @@
                     <h2>Comparison</h2>
                     <div class="image-box">
                         <p id="comparisonPlaceholder" class="placeholder">Comparison will appear here.</p>
-                        <div id="imgCompContainer" class="img-comp-container" style="display:none;width:100%;height:100%;">
-                            <div class="img-comp-img">
-                                <img id="comparison-input-image" src="" style="object-fit:contain;width:100%;height:100%;background:#181c24;" />
+                        <div id="comparisonContainer" class="comparison-container" style="display:none;">
+                            <div class="comparison-before">
+                                <img id="comparisonBeforeImg" src="" alt="Before" />
                             </div>
-                            <div class="img-comp-img img-comp-overlay">
-                                <img id="comparison-output-image" src="" style="object-fit:contain;width:100%;height:100%;background:#181c24;" />
+                            <div class="comparison-after">
+                                <img id="comparisonAfterImg" src="" alt="After" />
                             </div>
+                            <div class="comparison-slider"></div>
                         </div>
                     </div>
                     <button type="button" id="settings-toggle" class="btn settings-btn">Settings</button>

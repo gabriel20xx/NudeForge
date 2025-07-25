@@ -1,43 +1,75 @@
-/* Image Comparison Slider Custom Styles */
-.img-comp-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  max-width: 420px;
-}
-.img-comp-img {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-.img-comp-img img {
-  display: block;
-  vertical-align: middle;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.img-comp-slider {
-  position: absolute;
-  z-index: 9;
-  cursor: ew-resize;
-  width: 40px;
-  height: 40px;
-  background-color: #ff9800;
-  opacity: 0.9;
-  border-radius: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.3);
-  border: 3px solid #fff;
-  transition: opacity 0.2s ease;
+/* Clean Image Comparison Slider Styles */
+.comparison-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 8px;
 }
 
-.img-comp-slider:hover {
-  opacity: 1;
-  box-shadow: 0 4px 16px 0 rgba(0,0,0,0.4);
+.comparison-before,
+.comparison-after {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+
+.comparison-before img,
+.comparison-after img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.comparison-after {
+    overflow: hidden;
+    width: 50%;
+}
+
+.comparison-slider {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    background: #ff9800;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    cursor: ew-resize;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: box-shadow 0.2s ease;
+}
+
+.comparison-slider:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.comparison-slider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 20px;
+    background: #fff;
+}
+
+.comparison-slider::after {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100px;
+    background: #ff9800;
+    z-index: -1;
 }
 body {
     font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
@@ -144,39 +176,6 @@ h2 {
     margin-right: calc(-1 * (100vw - 100%) / 2);
     box-sizing: border-box;
 }
-
-/* Removed conflicting comparison styles - using custom img-comp-slider instead */
-/*
-.comparison-image {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    -webkit-appearance: none;
-    background: transparent;
-    pointer-events: auto;
-    z-index: 2;
-    display: block;
-    transform: rotate(90deg) translateY(-100%);
-    transform-origin: top right;
-}
-
-.comparison-slider {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    -webkit-appearance: none;
-    background: transparent;
-    pointer-events: auto;
-    z-index: 2;
-}
-*/
-
 
 /* Unified section style for all three main sections */
 .main-section {
