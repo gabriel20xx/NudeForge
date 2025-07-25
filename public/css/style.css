@@ -135,29 +135,39 @@ h2 {
 
 
 .main-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto;
-    grid-template-areas:
-        "upload output"
-        "comparison comparison"
-        "settings settings";
-    gap: 2.5rem;
-    justify-items: center;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
     align-items: stretch;
+    gap: 2.5rem;
     padding: 1rem;
     max-width: 1400px;
     margin: 0 auto;
 }
 
-/* Unified column style for all sections */
+/* Unified column style for main input/output columns */
 .main-col {
     width: 100%;
     min-width: 280px;
-    max-width: var(--box-max-width);
     display: flex;
     flex-direction: column;
     align-items: center;
+    box-sizing: border-box;
+}
+
+/* Comparison container wrapper - similar to settings-container */
+.comparison-container-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2rem 0;
+}
+
+.comparison-col {
+    width: 100%;
+    max-width: var(--box-max-width);
+    margin: 0 auto;
     box-sizing: border-box;
 }
 
@@ -191,25 +201,15 @@ h2 {
     box-sizing: border-box;
 }
 
-/* Grid area assignments for desktop */
-.upload-section.main-section {
-    grid-area: upload;
-}
-
+/* Section styling */
 .comparison-section.main-section {
-    grid-area: comparison;
     max-width: var(--box-max-width);
-    justify-self: center;
-}
-
-.output-section.main-section {
-    grid-area: output;
+    margin: 0 auto;
 }
 
 .settings-section {
-    grid-area: settings;
     max-width: var(--box-max-width);
-    justify-self: center;
+    margin: 0 auto;
 }
 
 .drop-area {
@@ -245,7 +245,7 @@ input[type="file"] {
 
 .image-box {
     width: 100%;
-    height: 340px;
+    aspect-ratio: 16/9;
     background: #23272f;
     border: 2.5px dashed #ffb84d;
     border-radius: 12px;
@@ -576,16 +576,11 @@ input[type="file"] {
 /* Tablet Responsive */
 @media (max-width: 1100px) {
     .main-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto auto;
-        grid-template-areas:
-            "upload output"
-            "comparison comparison"
-            "settings settings";
-        gap: 1.5rem;
-        justify-items: center;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
         align-items: stretch;
+        gap: 1.5rem;
         padding: 2rem 1rem;
     }
     .main-col {
@@ -596,30 +591,17 @@ input[type="file"] {
         display: flex;
         flex-direction: column;
     }
-    .upload-section.main-section {
-        grid-area: upload;
-        max-width: 100%;
+    .comparison-container-wrapper {
+        margin: 1.5rem 0;
     }
     .comparison-section.main-section {
-        grid-area: comparison;
         max-width: var(--box-max-width);
-        justify-self: center;
-    }
-    .output-section.main-section {
-        grid-area: output;
-        max-width: 100%;
+        margin: 0 auto;
     }
     .settings-section {
-        grid-area: settings;
-        margin: 0;
+        margin: 0 auto;
         max-width: var(--box-max-width);
         width: 100%;
-        border-radius: 18px;
-        box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-        justify-self: center;
-        left: auto;
-        transform: none;
-        position: static;
     }
     .settings-box {
         max-width: var(--box-max-width);
@@ -642,17 +624,10 @@ input[type="file"] {
     }
     
     .main-container {
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto auto;
-        grid-template-areas:
-            "upload"
-            "output"
-            "comparison"
-            "settings";
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         gap: 1.5rem;
-        justify-items: center;
-        align-items: stretch;
         padding: 1rem;
         max-width: none;
     }
@@ -662,15 +637,12 @@ input[type="file"] {
         max-width: 100%;
         align-items: center;
     }
-    .upload-section.main-section {
-        grid-area: upload;
+    .comparison-container-wrapper {
+        margin: 1rem 0;
     }
     .comparison-section.main-section {
-        grid-area: comparison;
         max-width: 100%;
-    }
-    .output-section.main-section {
-        grid-area: output;
+        margin: 0 auto;
     }
     .main-section {
         width: 100%;
@@ -679,14 +651,10 @@ input[type="file"] {
         margin-bottom: 0;
     }
     .settings-section {
-        grid-area: settings;
-        margin: 0;
+        margin: 0 auto;
         max-width: 100%;
         width: 100%;
         padding: 1.5rem;
-        left: auto;
-        transform: none;
-        position: relative;
     }
     .settings-box {
         max-width: 100%;
@@ -694,7 +662,7 @@ input[type="file"] {
     }
     .image-box {
         max-width: 100%;
-        height: 200px;
+        /* Aspect ratio will handle height automatically */
     }
 }
 
