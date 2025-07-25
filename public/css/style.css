@@ -604,7 +604,6 @@ input[type="file"] {
     .main-section {
         width: 100%;
         min-width: 0;
-        max-width: 100%;
         margin-bottom: 0;
     }
     .image-box {
@@ -642,7 +641,6 @@ input[type="file"] {
     .main-section {
         width: 100%;
         min-width: unset;
-        max-width: 100%;
         margin-bottom: 0;
     }
     .settings-section {
