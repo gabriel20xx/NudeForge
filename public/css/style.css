@@ -123,10 +123,39 @@ h2 {
 }
 
 .carousel-slide img {
-    width: 12.5%; /* Each image takes up 1/8th of the total width */
     height: 100%;
     object-fit: cover;
     flex-shrink: 0;
+    /* Default: 8 images visible (12.5% each) */
+    width: 12.5%;
+}
+
+/* Tablet and smaller desktop: 6 images visible */
+@media (max-width: 1200px) {
+    .carousel-slide img {
+        width: 16.666%; /* 100% / 6 = 16.666% */
+    }
+}
+
+/* Small tablet: 4 images visible */
+@media (max-width: 900px) {
+    .carousel-slide img {
+        width: 25%; /* 100% / 4 = 25% */
+    }
+}
+
+/* Mobile: 3 images visible */
+@media (max-width: 600px) {
+    .carousel-slide img {
+        width: 33.333%; /* 100% / 3 = 33.333% */
+    }
+}
+
+/* Very small mobile: 2 images visible */
+@media (max-width: 400px) {
+    .carousel-slide img {
+        width: 50%; /* 100% / 2 = 50% */
+    }
 }
 
 @keyframes carousel-scroll {
