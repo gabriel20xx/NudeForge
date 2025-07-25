@@ -345,7 +345,6 @@ input[type="file"] {
     background: rgba(30,32,38,0.97);
     border-radius: 18px;
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-    border: 2.5px dashed #ffb84d;
     padding: 1.5rem;
     box-sizing: border-box;
     margin: 2rem auto 1.5rem auto;
@@ -353,6 +352,23 @@ input[type="file"] {
     left: auto;
     transform: none;
     gap: 1.2em;
+}
+
+.settings-box {
+    width: 100%;
+    background: #23272f;
+    border: 2.5px dashed #ffb84d;
+    border-radius: 12px;
+    position: relative;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    margin-bottom: 1.2em;
+    min-width: 0;
 }
 
 .settings-label {
@@ -395,7 +411,7 @@ input[type="file"] {
 }
 
 .lora-fieldset {
-    border: 1.5px solid #444;
+    border: 1.5px solid #555;
     border-radius: 10px;
     padding: 1em 1em 0.5em 1em;
     margin-bottom: 0.7em;
@@ -423,7 +439,7 @@ input[type="file"] {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.2em;
-    background: #23272f;
+    background: #2a2e35;
     padding: 0.5em 0.7em 0.7em 0.7em;
     border-radius: 8px;
     margin-bottom: 0.4em;
@@ -455,7 +471,7 @@ input[type="file"] {
     width: 60px;
     background: #181c24;
     color: #fff;
-    border: 1.5px solid #333;
+    border: 1.5px solid #555;
     border-radius: 6px;
     padding: 0.2em 0.4em;
     font-size: 1em;
@@ -480,7 +496,7 @@ input[type="file"] {
     align-items: center;
     gap: 0.7em;
     box-shadow: 0 1px 8px 0 rgba(0,0,0,0.10);
-    border: 1.5px solid #444;
+    border: 1.5px solid #555;
 }
 .captcha-row {
     display: flex;
@@ -574,11 +590,13 @@ input[type="file"] {
         width: 100%;
         border-radius: 18px;
         box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-        border: 2.5px dashed #ffb84d;
         justify-self: stretch;
         left: auto;
         transform: none;
         position: static;
+    }
+    .settings-box {
+        max-width: 98vw;
     }
     .main-section {
         width: 100%;
@@ -619,7 +637,10 @@ input[type="file"] {
         left: auto;
         transform: none;
         position: relative;
-        border: 2.5px dashed #ffb84d;
+    }
+    .settings-box {
+        max-width: 98vw;
+        padding: 1rem 0.5rem;
     }
     .image-box {
         max-width: 98vw;
