@@ -470,8 +470,11 @@ uploadForm.addEventListener('submit', function (e) {
         formData.append('steps', document.getElementById('steps').value);
         formData.append('outputHeight', document.getElementById('outputHeight').value);
         for (let i = 1; i <= 5; i++) {
-            formData.append(`lora_${i}_on`, document.getElementById(`lora_${i}_on`).checked ? 'true' : 'false');
-            formData.append(`lora_${i}_strength`, document.getElementById(`lora_${i}_strength`).value);
+            const isChecked = document.getElementById(`lora_${i}_on`).checked;
+            const strengthValue = document.getElementById(`lora_${i}_strength`).value;
+            debugLog(`LoRA ${i}: checked=${isChecked}, strength=${strengthValue}`);
+            formData.append(`lora_${i}_on`, isChecked ? 'true' : 'false');
+            formData.append(`lora_${i}_strength`, strengthValue);
         }
         if (!isLocal && !captchaDisabled) {
             var captchaAnswer = document.getElementById('captcha_answer');
