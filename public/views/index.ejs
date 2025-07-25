@@ -12,8 +12,8 @@
 <body>
     <div class="header-container">
         <h1>Image Nudifier</h1>
-        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
-                id="processingStatus">Idle</span><span class="progressPercentage"></span></p>
+        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span></p>
+        <p id="processingStatusDisplay">Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span></p>
     </div>
 
     <div class="carousel-container">
@@ -25,7 +25,7 @@
         <div class="main-container">
             <div class="main-col">
                 <div class="main-section upload-section">
-                    <h2>Upload Image</h2>
+                    <h2>Image Input</h2>
                     <div id="dropArea" class="drop-area image-box">
                         <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
                         <img id="previewImage" />
@@ -54,7 +54,7 @@
             </div>
             <div class="main-col">
                 <div class="main-section output-section">
-                    <h2>Processed Output</h2>
+                    <h2>Image Output</h2>
                     <div id="outputArea" class="image-box">
                         <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
                         <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
@@ -67,7 +67,7 @@
         </div>
 
         <div class="settings-container">
-            <div class="settings-col collapsible">
+            <div class="settings-col">
                 <div class="main-section settings-section">
                     <h2>Settings</h2>
                     <div class="settings-box">
@@ -159,7 +159,7 @@ Preserve the exact same face details, shape and expression. " />
                                 <div id="captchaError" class="captcha-error"></div>
                         </div>
                     </div>
-                    <button type="button" id="apply-settings" class="btn upload-btn">Apply Settings</button>
+                    <button type="button" id="apply-settings" class="btn upload-btn">Apply</button>
                 </div>
             </div>
         </div>
