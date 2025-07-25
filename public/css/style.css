@@ -188,12 +188,6 @@ h2 {
     justify-content: center;
 }
 
-/* Synchronized width class for matching sections */
-.width-synced {
-    width: var(--sync-width, 100%);
-    max-width: var(--sync-width, 100%);
-}
-
 /* Unified section style for all main sections */
 .main-section {
     width: 100%;
@@ -211,10 +205,12 @@ h2 {
 /* Section styling */
 .comparison-section.main-section {
     margin: 0 auto;
+    max-width: 600px;
 }
 
 .settings-section {
     margin: 0 auto;
+    max-width: 600px;
 }
 
 .drop-area {
@@ -598,10 +594,12 @@ input[type="file"] {
     }
     .comparison-section.main-section {
         margin: 0 auto;
+        max-width: 600px;
     }
     .settings-section {
         margin: 0 auto;
         width: 100%;
+        max-width: 600px;
     }
     .main-section {
         width: 100%;

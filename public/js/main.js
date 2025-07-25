@@ -859,34 +859,6 @@ function initialize() {
 
 initialize();
 
-// Width synchronization function
-function syncSectionWidths() {
-    const inputSection = document.querySelector('.input-col');
-    const widthSyncedElements = document.querySelectorAll('.width-synced');
-    
-    if (inputSection && widthSyncedElements.length > 0) {
-        const inputWidth = inputSection.offsetWidth;
-        widthSyncedElements.forEach(element => {
-            element.style.setProperty('--sync-width', `${inputWidth}px`);
-        });
-    }
-}
-
-// Initialize width synchronization
-function initWidthSync() {
-    // Sync widths on page load
-    window.addEventListener('load', syncSectionWidths);
-    
-    // Sync widths on window resize
-    window.addEventListener('resize', syncSectionWidths);
-    
-    // Also sync after a short delay to handle dynamic content loading
-    setTimeout(syncSectionWidths, 100);
-}
-
-// Initialize width synchronization
-initWidthSync();
-
 function disableUpload() {
     debugLog('Disabling upload button');
     setUploadButtonState({ disabled: true, text: 'Processing...' });
