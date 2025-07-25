@@ -250,15 +250,22 @@ function resetUIForNewUpload() {
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
 
+    // Reset comparison section
     const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
     showElement(comparisonPlaceholder);
-    // Hide the custom comparison slider until output image is present
+    
+    // Hide the comparison container and clear images
     const imgCompContainer = document.getElementById('imgCompContainer');
-    if (imgCompContainer) imgCompContainer.style.display = 'none';
+    if (imgCompContainer) hideElement(imgCompContainer);
+    
     const comparisonInputImage = document.getElementById('comparison-input-image');
     const comparisonOutputImage = document.getElementById('comparison-output-image');
     if (comparisonInputImage) comparisonInputImage.src = '';
     if (comparisonOutputImage) comparisonOutputImage.src = '';
+    
+    // Remove any existing sliders
+    const oldSliders = document.querySelectorAll('.img-comp-slider');
+    oldSliders.forEach(slider => slider.remove());
 
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
@@ -277,48 +284,55 @@ function displayResult(imageUrl) {
         try {
             showElement(outputImage);
             hideElement(outputPlaceholder);
+            
+            // Setup comparison section
             const imgCompContainer = document.getElementById('imgCompContainer');
             const comparisonInputImage = document.getElementById('comparison-input-image');
             const comparisonOutputImage = document.getElementById('comparison-output-image');
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
             const previewImageSrc = previewImage.src;
-            let inputLoaded = false, outputLoaded = false;
-            if (comparisonInputImage && previewImageSrc) {
-                comparisonInputImage.onload = () => {
-                    inputLoaded = true;
-                    debugLog('comparisonInputImage loaded');
-                    if (inputLoaded && outputLoaded) {
-                        debugLog('Both images loaded, initializing comparison slider');
-                        showComparisonSlider();
-                    }
-                };
+            
+            if (imgCompContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
+                debugLog('Setting up comparison images with:', previewImageSrc, 'and', imageUrl);
+                
+                // Set the source images
                 comparisonInputImage.src = previewImageSrc;
-            }
-            if (comparisonOutputImage && imageUrl) {
-                comparisonOutputImage.onload = () => {
-                    outputLoaded = true;
-                    debugLog('comparisonOutputImage loaded');
-                    if (inputLoaded && outputLoaded) {
-                        debugLog('Both images loaded, initializing comparison slider');
-                        showComparisonSlider();
-                    }
-                };
                 comparisonOutputImage.src = imageUrl;
-            }
-            // Fallback: if both images are already cached
-            if (comparisonInputImage && comparisonInputImage.complete) inputLoaded = true;
-            if (comparisonOutputImage && comparisonOutputImage.complete) outputLoaded = true;
-            if (inputLoaded && outputLoaded) {
-                debugLog('Both images already loaded, initializing comparison slider');
-                showComparisonSlider();
-            }
-            function showComparisonSlider() {
-                if (imgCompContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc && imageUrl) {
-                    imgCompContainer.style.display = '';
-                    if (comparisonPlaceholder) hideElement(comparisonPlaceholder);
-                    setTimeout(() => { initComparisons(); }, 50);
+                
+                // Wait for both images to load, then show the comparison
+                let inputLoaded = comparisonInputImage.complete;
+                let outputLoaded = comparisonOutputImage.complete;
+                
+                function checkAndShowComparison() {
+                    if (inputLoaded && outputLoaded) {
+                        debugLog('Both comparison images loaded, showing comparison slider');
+                        showElement(imgCompContainer);
+                        hideElement(comparisonPlaceholder);
+                        // Initialize the comparison slider after a short delay
+                        setTimeout(() => { initComparisons(); }, 100);
+                    }
                 }
+                
+                if (!inputLoaded) {
+                    comparisonInputImage.onload = () => {
+                        inputLoaded = true;
+                        debugLog('comparisonInputImage loaded');
+                        checkAndShowComparison();
+                    };
+                }
+                
+                if (!outputLoaded) {
+                    comparisonOutputImage.onload = () => {
+                        outputLoaded = true;
+                        debugLog('comparisonOutputImage loaded');
+                        checkAndShowComparison();
+                    };
+                }
+                
+                // If both images are already loaded (cached)
+                checkAndShowComparison();
             }
+            
             enableDownload(imageUrl);
         } catch (err) {
             console.error('Error in outputImage.onload:', err);
@@ -327,58 +341,95 @@ function displayResult(imageUrl) {
 // --- Custom Image Comparison Slider Logic ---
 function initComparisons() {
   debugLog('Initializing image comparison slider...');
+  
   // Cleanup: Remove any old sliders
   const oldSliders = document.querySelectorAll('.img-comp-slider');
   oldSliders.forEach(slider => slider.remove());
-  var x, i;
-  x = document.getElementsByClassName("img-comp-overlay");
-  for (i = 0; i < x.length; i++) {
-    compareImages(x[i]);
+  
+  // Find the overlay elements
+  const overlayElements = document.getElementsByClassName("img-comp-overlay");
+  
+  for (let i = 0; i < overlayElements.length; i++) {
+    compareImages(overlayElements[i]);
   }
-  function compareImages(img) {
-    var slider, clicked = 0, w, h;
-    w = img.offsetWidth;
-    h = img.offsetHeight;
-    img.style.width = (w / 2) + "px";
+  
+  function compareImages(overlayDiv) {
+    debugLog('Setting up comparison for overlay:', overlayDiv);
+    
+    let slider, clicked = 0;
+    const container = overlayDiv.parentElement;
+    
+    if (!container) {
+      debugLog('No container found for overlay');
+      return;
+    }
+    
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    
+    debugLog('Container dimensions:', w, 'x', h);
+    
+    // Set initial overlay width to show half of each image
+    overlayDiv.style.width = (w / 2) + "px";
+    
+    // Create slider element
     slider = document.createElement("DIV");
     slider.setAttribute("class", "img-comp-slider");
-    img.parentElement.insertBefore(slider, img);
+    
+    // Insert slider before overlay
+    container.insertBefore(slider, overlayDiv);
+    
+    // Position slider in the center
     slider.style.top = (h / 2) - (slider.offsetHeight / 2) + "px";
     slider.style.left = (w / 2) - (slider.offsetWidth / 2) + "px";
-    debugLog('Slider created and positioned:', slider, 'for image:', img);
+    
+    debugLog('Slider created and positioned at:', slider.style.left, slider.style.top);
+    
+    // Add event listeners
     slider.addEventListener("mousedown", slideReady);
     window.addEventListener("mouseup", slideFinish);
     slider.addEventListener("touchstart", slideReady);
     window.addEventListener("touchend", slideFinish);
+    
     function slideReady(e) {
       e.preventDefault();
       clicked = 1;
       window.addEventListener("mousemove", slideMove);
       window.addEventListener("touchmove", slideMove);
     }
+    
     function slideFinish() {
       clicked = 0;
+      window.removeEventListener("mousemove", slideMove);
+      window.removeEventListener("touchmove", slideMove);
     }
+    
     function slideMove(e) {
-      var pos;
       if (clicked == 0) return false;
-      pos = getCursorPos(e)
-      if (pos < 0) pos = 0;
-      if (pos > w) pos = w;
+      
+      const pos = getCursorPos(e);
       slide(pos);
     }
+    
     function getCursorPos(e) {
-      var a, x = 0;
-      e = (e.changedTouches) ? e.changedTouches[0] : e;
-      a = img.getBoundingClientRect();
-      x = e.pageX - a.left;
-      x = x - window.pageXOffset;
+      const rect = container.getBoundingClientRect();
+      const eventX = (e.changedTouches) ? e.changedTouches[0].clientX : e.clientX;
+      let x = eventX - rect.left;
+      
+      // Constrain within container bounds
+      if (x < 0) x = 0;
+      if (x > w) x = w;
+      
       return x;
     }
+    
     function slide(x) {
-      img.style.width = x + "px";
-      slider.style.left = img.offsetWidth - (slider.offsetWidth / 2) + "px";
-      debugLog('Slider moved to', slider.style.left, 'Overlay width:', img.style.width);
+      // Update overlay width
+      overlayDiv.style.width = x + "px";
+      // Update slider position
+      slider.style.left = x - (slider.offsetWidth / 2) + "px";
+      
+      debugLog('Slider moved to position:', x, 'Overlay width:', overlayDiv.style.width);
     }
   }
 }
@@ -387,9 +438,9 @@ function initComparisons() {
         hideElement(outputImage);
         showElement(outputPlaceholder);
         disableDownload();
-        // Hide the comparison slider if error
-        const comparisonSlider = document.getElementById('comparison-slider');
-        hideElement(comparisonSlider);
+        // Hide the comparison container if error
+        const imgCompContainer = document.getElementById('imgCompContainer');
+        hideElement(imgCompContainer);
         debugLog('Error loading output image:', imageUrl);
     };
 }
