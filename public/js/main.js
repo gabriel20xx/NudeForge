@@ -83,13 +83,12 @@ const uploadButton = uploadForm.querySelector('.upload-btn');
 
 // --- Helper functions for show/hide ---
 function debugLog(...args) {
-    if (window.DEBUG_MODE) {
-        console.debug('[DEBUG]', ...args);
-    }
+    // Always enable debug logging for comparison debugging
+    console.debug('[DEBUG]', ...args);
 }
 function showElement(el) {
     if (el) {
-        el.style.display = '';
+        el.style.display = 'block';
         debugLog('Show element:', el.id || el.className || el);
     }
 }
@@ -292,45 +291,79 @@ function displayResult(imageUrl) {
             const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
             const previewImageSrc = previewImage.src;
             
+            debugLog('Comparison elements found:', {
+                imgCompContainer: !!imgCompContainer,
+                comparisonInputImage: !!comparisonInputImage, 
+                comparisonOutputImage: !!comparisonOutputImage,
+                comparisonPlaceholder: !!comparisonPlaceholder,
+                previewImageSrc: previewImageSrc
+            });
+            
             if (imgCompContainer && comparisonInputImage && comparisonOutputImage && previewImageSrc) {
                 debugLog('Setting up comparison images with:', previewImageSrc, 'and', imageUrl);
+                
+                // Reset any previous states
+                comparisonInputImage.style.display = '';
+                comparisonOutputImage.style.display = '';
                 
                 // Set the source images
                 comparisonInputImage.src = previewImageSrc;
                 comparisonOutputImage.src = imageUrl;
                 
-                // Wait for both images to load, then show the comparison
-                let inputLoaded = comparisonInputImage.complete;
-                let outputLoaded = comparisonOutputImage.complete;
+                // Track loading state
+                let inputLoaded = false;
+                let outputLoaded = false;
                 
                 function checkAndShowComparison() {
+                    debugLog('Checking comparison load state:', { inputLoaded, outputLoaded });
                     if (inputLoaded && outputLoaded) {
                         debugLog('Both comparison images loaded, showing comparison slider');
                         showElement(imgCompContainer);
                         hideElement(comparisonPlaceholder);
                         // Initialize the comparison slider after a short delay
-                        setTimeout(() => { initComparisons(); }, 100);
+                        setTimeout(() => { 
+                            debugLog('Initializing comparison slider...');
+                            initComparisons(); 
+                        }, 150);
                     }
                 }
                 
-                if (!inputLoaded) {
-                    comparisonInputImage.onload = () => {
-                        inputLoaded = true;
-                        debugLog('comparisonInputImage loaded');
-                        checkAndShowComparison();
-                    };
+                // Handle input image loading
+                comparisonInputImage.onload = () => {
+                    inputLoaded = true;
+                    debugLog('comparisonInputImage loaded successfully');
+                    checkAndShowComparison();
+                };
+                
+                comparisonInputImage.onerror = () => {
+                    debugLog('Error loading comparisonInputImage:', previewImageSrc);
+                };
+                
+                // Handle output image loading  
+                comparisonOutputImage.onload = () => {
+                    outputLoaded = true;
+                    debugLog('comparisonOutputImage loaded successfully');
+                    checkAndShowComparison();
+                };
+                
+                comparisonOutputImage.onerror = () => {
+                    debugLog('Error loading comparisonOutputImage:', imageUrl);
+                };
+                
+                // Check if images are already loaded (cached)
+                if (comparisonInputImage.complete && comparisonInputImage.src) {
+                    inputLoaded = true;
+                    debugLog('comparisonInputImage already loaded from cache');
+                }
+                if (comparisonOutputImage.complete && comparisonOutputImage.src) {
+                    outputLoaded = true;
+                    debugLog('comparisonOutputImage already loaded from cache');
                 }
                 
-                if (!outputLoaded) {
-                    comparisonOutputImage.onload = () => {
-                        outputLoaded = true;
-                        debugLog('comparisonOutputImage loaded');
-                        checkAndShowComparison();
-                    };
-                }
-                
-                // If both images are already loaded (cached)
+                // Final check
                 checkAndShowComparison();
+            } else {
+                debugLog('Missing comparison elements or preview image');
             }
             
             enableDownload(imageUrl);
@@ -348,6 +381,7 @@ function initComparisons() {
   
   // Find the overlay elements
   const overlayElements = document.getElementsByClassName("img-comp-overlay");
+  debugLog('Found overlay elements:', overlayElements.length);
   
   for (let i = 0; i < overlayElements.length; i++) {
     compareImages(overlayElements[i]);
@@ -364,10 +398,19 @@ function initComparisons() {
       return;
     }
     
+    // Force a reflow to get correct dimensions
+    container.offsetHeight;
+    
     const w = container.offsetWidth;
     const h = container.offsetHeight;
     
     debugLog('Container dimensions:', w, 'x', h);
+    
+    if (w === 0 || h === 0) {
+      debugLog('Container has zero dimensions, retrying...');
+      setTimeout(() => compareImages(overlayDiv), 100);
+      return;
+    }
     
     // Set initial overlay width to show half of each image
     overlayDiv.style.width = (w / 2) + "px";
@@ -380,33 +423,36 @@ function initComparisons() {
     container.insertBefore(slider, overlayDiv);
     
     // Position slider in the center
-    slider.style.top = (h / 2) - (slider.offsetHeight / 2) + "px";
-    slider.style.left = (w / 2) - (slider.offsetWidth / 2) + "px";
+    slider.style.top = (h / 2) - (20) + "px"; // 20px is half of slider height
+    slider.style.left = (w / 2) - (20) + "px"; // 20px is half of slider width
     
     debugLog('Slider created and positioned at:', slider.style.left, slider.style.top);
     
     // Add event listeners
     slider.addEventListener("mousedown", slideReady);
     window.addEventListener("mouseup", slideFinish);
-    slider.addEventListener("touchstart", slideReady);
+    slider.addEventListener("touchstart", slideReady, { passive: false });
     window.addEventListener("touchend", slideFinish);
     
     function slideReady(e) {
       e.preventDefault();
       clicked = 1;
       window.addEventListener("mousemove", slideMove);
-      window.addEventListener("touchmove", slideMove);
+      window.addEventListener("touchmove", slideMove, { passive: false });
+      debugLog('Slider interaction started');
     }
     
     function slideFinish() {
       clicked = 0;
       window.removeEventListener("mousemove", slideMove);
       window.removeEventListener("touchmove", slideMove);
+      debugLog('Slider interaction finished');
     }
     
     function slideMove(e) {
       if (clicked == 0) return false;
       
+      e.preventDefault();
       const pos = getCursorPos(e);
       slide(pos);
     }
@@ -416,7 +462,7 @@ function initComparisons() {
       const eventX = (e.changedTouches) ? e.changedTouches[0].clientX : e.clientX;
       let x = eventX - rect.left;
       
-      // Constrain within container bounds
+      // Allow slider to go all the way to the edges
       if (x < 0) x = 0;
       if (x > w) x = w;
       
@@ -426,10 +472,13 @@ function initComparisons() {
     function slide(x) {
       // Update overlay width
       overlayDiv.style.width = x + "px";
-      // Update slider position
-      slider.style.left = x - (slider.offsetWidth / 2) + "px";
+      // Update slider position - keep slider within bounds
+      let sliderPos = x - 20; // 20px is half of slider width
+      if (sliderPos < 0) sliderPos = 0;
+      if (sliderPos > w - 40) sliderPos = w - 40; // 40px is full slider width
+      slider.style.left = sliderPos + "px";
       
-      debugLog('Slider moved to position:', x, 'Overlay width:', overlayDiv.style.width);
+      debugLog('Slider moved to position:', x, 'Overlay width:', overlayDiv.style.width, 'Slider pos:', sliderPos);
     }
   }
 }

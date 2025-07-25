@@ -2,7 +2,7 @@
 .img-comp-container {
   position: relative;
   width: 100%;
-  height: 340px;
+  height: 100%;
   max-width: 420px;
 }
 .img-comp-img {
