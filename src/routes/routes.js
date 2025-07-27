@@ -15,41 +15,49 @@ router.get('/', (req, res) => {
 
 // Optimized carousel images route - serves compressed, resized images
 router.get('/img/carousel/:filename', async (req, res) => {
-    console.log(`[CAROUSEL] Optimizing image: ${req.params.filename}`);
     try {
         const filename = req.params.filename;
         const originalPath = path.join(__dirname, '../../public/img/carousel', filename);
-        const thumbnailPath = path.join(__dirname, '../../public/img/carousel/thumbnails', `thumb_${filename}`);
+        const thumbnailsDir = path.join(__dirname, '../../public/img/carousel/thumbnails');
         
-        // Check if original file exists
-        if (!fs.existsSync(originalPath)) {
-            console.log(`[CAROUSEL] Original image not found: ${originalPath}`);
+        // Ensure thumbnails directory exists
+        await fs.promises.mkdir(thumbnailsDir, { recursive: true });
+        
+        // Create thumbnail filename with same extension as original
+        const ext = path.extname(filename);
+        const nameWithoutExt = path.basename(filename, ext);
+        const thumbnailFilename = `thumb_${nameWithoutExt}.jpg`; // Always save as JPEG for consistency
+        const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
+        
+        console.log(`[CAROUSEL] Optimizing image: ${filename}`);
+        
+        // Check if file exists
+        try {
+            await fs.promises.access(originalPath);
+        } catch (err) {
+            console.error(`[CAROUSEL] Original file not found: ${originalPath}`);
             return res.status(404).send('Image not found');
         }
         
-        // Set appropriate headers for caching and compression
-        res.set({
-            'Content-Type': 'image/jpeg',
-            'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
-            'ETag': `"carousel-${filename}-optimized"`
-        });
-        
-        // Check if client has cached version
-        if (req.headers['if-none-match'] === `"carousel-${filename}-optimized"`) {
-            console.log(`[CAROUSEL] Serving cached version for: ${filename}`);
-            return res.status(304).end();
-        }
-        
-        // Check if thumbnail already exists and is newer than original
-        if (fs.existsSync(thumbnailPath)) {
-            const originalStats = fs.statSync(originalPath);
-            const thumbnailStats = fs.statSync(thumbnailPath);
+        // Check if thumbnail exists and is newer than original
+        try {
+            const [thumbnailStats, originalStats] = await Promise.all([
+                fs.promises.stat(thumbnailPath),
+                fs.promises.stat(originalPath)
+            ]);
             
             if (thumbnailStats.mtime > originalStats.mtime) {
-                console.log(`[CAROUSEL] Serving existing thumbnail: ${filename}`);
+                // Set proper headers for caching
+                res.set({
+                    'Cache-Control': 'public, max-age=86400', // 24 hours
+                    'Content-Type': 'image/jpeg'
+                });
+                
                 // Serve cached thumbnail
                 return res.sendFile(thumbnailPath);
             }
+        } catch (err) {
+            // Thumbnail doesn't exist, we'll create it
         }
         
         console.log(`[CAROUSEL] Generating new thumbnail for: ${filename}`);
@@ -88,6 +96,12 @@ router.get('/img/carousel/:filename', async (req, res) => {
         // Save thumbnail to cache
         await fs.promises.writeFile(thumbnailPath, optimizedImage);
         console.log(`[CAROUSEL] Thumbnail saved: ${thumbnailPath}`);
+        
+        // Set proper headers
+        res.set({
+            'Cache-Control': 'public, max-age=86400', // 24 hours
+            'Content-Type': 'image/jpeg'
+        });
         
         res.send(optimizedImage);
         
