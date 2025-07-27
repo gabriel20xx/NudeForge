@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
-const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR } = require("../config");
+const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR } = require("../config/config");
 
 const processingQueue = [];
 let isProcessing = false;
