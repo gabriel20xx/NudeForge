@@ -12,9 +12,9 @@
 <body>
     <div class="header-container">
         <h1>Image Nudifier</h1>
-        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span>, Status: <span
-                id="processingStatus">Idle</span><span class="progressPercentage"></span>, Your Position: <span
-                id="yourPosition">N/A</span></p>
+        <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span></p>
+        <p id="processingStatusDisplay">Status: <span id="processingStatus">Idle</span><span
+                class="progressPercentage"></span></p>
     </div>
 
     <div class="carousel-container">
@@ -26,7 +26,7 @@
         <div class="main-container">
             <div class="main-col">
                 <div class="main-section upload-section">
-                    <h2>Upload Image</h2>
+                    <h2>Image Input</h2>
                     <div id="dropArea" class="drop-area image-box">
                         <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
                         <img id="previewImage" />
@@ -36,28 +36,8 @@
                 </div>
             </div>
             <div class="main-col">
-                <div class="main-section comparison-section">
-                    <h2>Comparison</h2>
-                    <div class="image-box">
-                        <p id="comparisonPlaceholder" class="placeholder">Comparison will appear here.</p>
-                        <div id="imgCompContainer" class="img-comp-container"
-                            style="display:none;width:100%;height:100%;">
-                            <div class="img-comp-img">
-                                <img id="comparison-input-image" src=""
-                                    style="object-fit:contain;width:100%;height:100%;background:#181c24;" />
-                            </div>
-                            <div class="img-comp-img img-comp-overlay">
-                                <img id="comparison-output-image" src=""
-                                    style="object-fit:contain;width:100%;height:100%;background:#181c24;" />
-                            </div>
-                        </div>
-                    </div>
-                    <button type="button" id="settings-toggle" class="btn settings-btn">Settings</button>
-                </div>
-            </div>
-            <div class="main-col">
                 <div class="main-section output-section">
-                    <h2>Processed Output</h2>
+                    <h2>Image Output</h2>
                     <div id="outputArea" class="image-box">
                         <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
                         <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
@@ -69,106 +49,132 @@
             </div>
         </div>
 
+        <div class="comparison-container-wrapper">
+            <div class="comparison-col">
+                <div class="main-section comparison-section">
+                    <h2>Comparison</h2>
+                    <div class="image-box">
+                        <p id="comparisonPlaceholder" class="placeholder">Comparison will appear here.</p>
+                        <div id="comparisonContainer" class="comparison-container" style="display:none;">
+                            <div class="comparison-before">
+                                <img id="comparisonBeforeImg" src="" alt="Before" />
+                            </div>
+                            <div class="comparison-after">
+                                <img id="comparisonAfterImg" src="" alt="After" />
+                            </div>
+                            <div class="comparison-slider"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="settings-container">
-            <div class="settings-col collapsible">
-                <div class="settings-section">
-                    <label for="prompt" class="settings-label">Prompt:</label>
-                    <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
+            <div class="settings-col">
+                <div class="main-section settings-section">
+                    <h2>Settings</h2>
+                    <div class="settings-box">
+                        <label for="prompt" class="settings-label">Prompt:</label>
+                        <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
 Preserve the person in the exact same position, scale, and pose. 
 Preserve the exact same face details, shape and expression. " />
-                    <div class="settings-row">
-                        <div class="settings-item">
-                            <label for="steps" class="settings-label">Steps:</label>
-                            <input type="range" id="steps" name="steps" class="settings-input" value="20" min="1" max="100" step="1" oninput="document.getElementById('stepsValue').textContent = this.value" />
-                            <span id="stepsValue">20</span>
+                        <div class="settings-row">
+                            <div class="settings-item">
+                                <label for="steps" class="settings-label">Steps:</label>
+                                <input type="range" id="steps" name="steps" class="settings-input" value="20" min="1"
+                                    max="100" step="1"
+                                    oninput="document.getElementById('stepsValue').textContent = this.value" />
+                                <span id="stepsValue">20</span>
+                            </div>
+                            <div class="settings-item">
+                                <label for="outputHeight" class="settings-label">Output Height:</label>
+                                <select id="outputHeight" name="outputHeight" class="settings-input">
+                                    <option value="480">480p (SD)</option>
+                                    <option value="720">720p (HD)</option>
+                                    <option value="1080" selected>1080p (Full HD)</option>
+                                    <option value="1440">1440p (2K)</option>
+                                    <option value="2160">2160p (4K)</option>
+                                    <option value="512">512px (Square)</option>
+                                    <option value="768">768px</option>
+                                    <option value="1024">1024px</option>
+                                    <option value="1536">1536px</option>
+                                    <option value="2048">2048px</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="settings-item">
-                            <label for="outputHeight" class="settings-label">Output Height:</label>
-                            <select id="outputHeight" name="outputHeight" class="settings-input">
-                                <option value="480">480p (SD)</option>
-                                <option value="720">720p (HD)</option>
-                                <option value="1080" selected>1080p (Full HD)</option>
-                                <option value="1440">1440p (2K)</option>
-                                <option value="2160">2160p (4K)</option>
-                                <option value="512">512px (Square)</option>
-                                <option value="768">768px</option>
-                                <option value="1024">1024px</option>
-                                <option value="1536">1536px</option>
-                                <option value="2048">2048px</option>
-                            </select>
+                        <fieldset class="lora-fieldset">
+                            <legend>LoRA Settings</legend>
+                            <div class="lora-grid">
+                                <div class="lora-row">
+                                    <div class="lora-main">
+                                        <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
+                                        <label for="lora_1_on">change_clothes_to_nothing_000011200</label>
+                                    </div>
+                                    <div class="lora-strength-group">
+                                        <input type="number" id="lora_1_strength" name="lora_1_strength" value="1"
+                                            min="0" max="2" step="0.01" class="lora-strength" />
+                                        <label for="lora_1_strength">Strength</label>
+                                    </div>
+                                </div>
+                                <div class="lora-row">
+                                    <div class="lora-main">
+                                        <input type="checkbox" id="lora_2_on" name="lora_2_on">
+                                        <label for="lora_2_on">real_textures-000011</label>
+                                    </div>
+                                    <div class="lora-strength-group">
+                                        <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7"
+                                            min="0" max="2" step="0.01" class="lora-strength" />
+                                        <label for="lora_2_strength">Strength</label>
+                                    </div>
+                                </div>
+                                <div class="lora-row">
+                                    <div class="lora-main">
+                                        <input type="checkbox" id="lora_3_on" name="lora_3_on">
+                                        <label for="lora_3_on">Flux_Ultimator</label>
+                                    </div>
+                                    <div class="lora-strength-group">
+                                        <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5"
+                                            min="0" max="2" step="0.01" class="lora-strength" />
+                                        <label for="lora_3_strength">Strength</label>
+                                    </div>
+                                </div>
+                                <div class="lora-row">
+                                    <div class="lora-main">
+                                        <input type="checkbox" id="lora_4_on" name="lora_4_on">
+                                        <label for="lora_4_on">FLUX_FD-Nipple-Detail-R4</label>
+                                    </div>
+                                    <div class="lora-strength-group">
+                                        <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8"
+                                            min="0" max="2" step="0.01" class="lora-strength" />
+                                        <label for="lora_4_strength">Strength</label>
+                                    </div>
+                                </div>
+                                <div class="lora-row">
+                                    <div class="lora-main">
+                                        <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
+                                        <label for="lora_5_on">aidmaRealisticSkin-FLUX-v0.1</label>
+                                    </div>
+                                    <div class="lora-strength-group">
+                                        <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6"
+                                            min="0" max="2" step="0.01" class="lora-strength" />
+                                        <label for="lora_5_strength">Strength</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        <div class="captcha-container" id="captchaContainer">
+                            <div class="captcha-row">
+                                <span id="captchaImage"></span>
+                                <button type="button" class="refresh-captcha-btn" onclick="fetchCaptcha()"
+                                    title="Refresh CAPTCHA">&#x21bb;</button>
+                            </div>
+                            <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Enter CAPTCHA"
+                                required autocomplete="off" class="captcha-input" />
+                            <input type="hidden" id="captcha_token" name="captcha_token" />
+                            <div id="captchaError" class="captcha-error"></div>
                         </div>
                     </div>
-                    <fieldset class="lora-fieldset">
-                        <legend>LoRA Settings</legend>
-                        <div class="lora-grid">
-                            <div class="lora-row">
-                                <div class="lora-main">
-                                    <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
-                                    <label for="lora_1_on">change_clothes_to_nothing_000011200</label>
-                                </div>
-                                <div class="lora-strength-group">
-                                    <input type="number" id="lora_1_strength" name="lora_1_strength" value="1" min="0"
-                                        max="2" step="0.01" class="lora-strength" />
-                                    <label for="lora_1_strength">Strength</label>
-                                </div>
-                            </div>
-                            <div class="lora-row">
-                                <div class="lora-main">
-                                    <input type="checkbox" id="lora_2_on" name="lora_2_on">
-                                    <label for="lora_2_on">real_textures-000011</label>
-                                </div>
-                                <div class="lora-strength-group">
-                                    <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7" min="0"
-                                        max="2" step="0.01" class="lora-strength" />
-                                    <label for="lora_2_strength">Strength</label>
-                                </div>
-                            </div>
-                            <div class="lora-row">
-                                <div class="lora-main">
-                                    <input type="checkbox" id="lora_3_on" name="lora_3_on">
-                                    <label for="lora_3_on">Flux_Ultimator</label>
-                                </div>
-                                <div class="lora-strength-group">
-                                    <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5" min="0"
-                                        max="2" step="0.01" class="lora-strength" />
-                                    <label for="lora_3_strength">Strength</label>
-                                </div>
-                            </div>
-                            <div class="lora-row">
-                                <div class="lora-main">
-                                    <input type="checkbox" id="lora_4_on" name="lora_4_on">
-                                    <label for="lora_4_on">FLUX_FD-Nipple-Detail-R4</label>
-                                </div>
-                                <div class="lora-strength-group">
-                                    <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8" min="0"
-                                        max="2" step="0.01" class="lora-strength" />
-                                    <label for="lora_4_strength">Strength</label>
-                                </div>
-                            </div>
-                            <div class="lora-row">
-                                <div class="lora-main">
-                                    <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
-                                    <label for="lora_5_on">aidmaRealisticSkin-FLUX-v0.1</label>
-                                </div>
-                                <div class="lora-strength-group">
-                                    <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6" min="0"
-                                        max="2" step="0.01" class="lora-strength" />
-                                    <label for="lora_5_strength">Strength</label>
-                                </div>
-                            </div>
-                        </div>
-                    </fieldset>
-                    <div class="captcha-container" id="captchaContainer">
-                        <div class="captcha-row">
-                            <span id="captchaImage"></span>
-                            <button type="button" class="refresh-captcha-btn" onclick="fetchCaptcha()"
-                                title="Refresh CAPTCHA">&#x21bb;</button>
-                        </div>
-                        <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Enter CAPTCHA"
-                            required autocomplete="off" class="captcha-input" />
-                        <input type="hidden" id="captcha_token" name="captcha_token" />
-                        <div id="captchaError" class="captcha-error"></div>
-                    </div>
+                    <button type="button" id="apply-settings" class="btn settings-btn">Apply</button>
                 </div>
             </div>
         </div>
