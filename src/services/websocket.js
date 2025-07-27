@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const { COMFYUI_WS_URL } = require('../config/config');
-const { getRequestStatus, getCurrentlyProcessingRequestId } = require('../queue/queue');
+const { getRequestStatus, getCurrentlyProcessingRequestId } = require('./queue');
 
 let comfyUiWs = null;
 // Track stage progress for each request

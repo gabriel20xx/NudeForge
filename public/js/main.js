@@ -198,7 +198,7 @@ socket.on('processingComplete', (data) => {
         processingStatusSpan.textContent = 'Complete';
         updateProgressPercentage('');
         try {
-            displayResult(data.outputImage);
+            displayResult(data.outputImage, data.downloadUrl);
         } catch (err) {
             console.error('Error displaying result image:', err, data);
         }
@@ -264,7 +264,7 @@ function resetUIForNewUpload() {
     }
 }
 
-function displayResult(imageUrl) {
+function displayResult(imageUrl, downloadUrl) {
     if (!imageUrl) {
         displayError("No image URL provided for display.");
         return;
@@ -274,7 +274,7 @@ function displayResult(imageUrl) {
     outputImage.onload = () => {
         showElement(outputImage);
         hideElement(outputPlaceholder);
-        enableDownload(imageUrl);
+        enableDownload(downloadUrl || imageUrl);
         
         // Setup comparison slider
         setupComparison(previewImage.src, imageUrl);
@@ -596,7 +596,7 @@ async function fetchQueueStatus() {
                     updateProgressPercentage('');
                     if (data.result && data.result.outputImage) {
                         try {
-                            displayResult(data.result.outputImage);
+                            displayResult(data.result.outputImage, data.result.downloadUrl);
                         } catch (err) {
                             console.error('Error displaying result from polling:', err, data);
                         }

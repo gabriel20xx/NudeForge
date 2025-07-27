@@ -71,7 +71,7 @@ async function processQueue(io) {
     }
 
     isProcessing = true;
-    const { requestId, uploadedFilename, uploadedPathForComfyUI } = processingQueue.shift();
+    const { requestId, uploadedFilename, originalFilename, uploadedPathForComfyUI } = processingQueue.shift();
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
@@ -155,12 +155,17 @@ async function processQueue(io) {
         // Add a short delay to further ensure file is ready
         await new Promise((resolve) => setTimeout(resolve, 300));
         const finalOutputRelativePath = `/output/${foundOutputFilename}`;
+        const downloadUrl = `/download/${requestId}`;
         requestStatus[requestId].status = "completed";
-        requestStatus[requestId].data = { outputImage: finalOutputRelativePath };
+        requestStatus[requestId].data = { 
+            outputImage: finalOutputRelativePath,
+            downloadUrl: downloadUrl
+        };
 
-        console.log(`[PROCESS] Completed for requestId=${requestId}, output=${finalOutputRelativePath}`);
+        console.log(`[PROCESS] Completed for requestId=${requestId}, output=${finalOutputRelativePath}, download=${downloadUrl}`);
         io.to(requestId).emit("processingComplete", {
             outputImage: finalOutputRelativePath,
+            downloadUrl: downloadUrl,
             requestId: requestId,
         });
     } catch (err) {
