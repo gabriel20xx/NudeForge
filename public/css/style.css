@@ -1,85 +1,47 @@
-/* Clean Image Comparison Slider Styles */
-:root {
-    --box-max-width: none;
-}
-
-.comparison-container {
+/* Image Comparison Slider Custom Styles */
+.img-comp-container {
     position: relative;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
-    border-radius: 8px;
+    height: 340px;
+    max-width: 420px;
 }
 
-.comparison-before,
-.comparison-after {
+.img-comp-img {
     position: absolute;
     width: 100%;
     height: 100%;
-    top: 0;
-    left: 0;
+    overflow: hidden;
 }
 
-.comparison-before img,
-.comparison-after img {
+.img-comp-img img {
+    display: block;
+    vertical-align: middle;
     width: 100%;
     height: 100%;
     object-fit: contain;
-    display: block;
 }
 
-.comparison-after {
-    overflow: hidden;
-    width: 50%;
-}
-
-.comparison-slider {
+.img-comp-slider {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    z-index: 9;
+    cursor: ew-resize;
     width: 40px;
     height: 40px;
-    background: #ff9800;
-    border: 3px solid #fff;
+    background-color: #2196F3;
+    opacity: 0.7;
     border-radius: 50%;
-    cursor: ew-resize;
-    z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    transition: box-shadow 0.2s ease;
-}
-
-.comparison-slider:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-}
-
-.comparison-slider::before {
-    content: '';
-    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 2px;
-    height: 20px;
-    background: #fff;
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.10);
+    border: 2px solid #fff;
 }
 
-.comparison-slider::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 2px;
-    height: 100%;
-    background: #ff9800;
-    z-index: -1;
-}
 body {
     font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background: linear-gradient(135deg, #181c24 0%, #23272f 100%);
+    background: black;
     color: #f7f7fa;
     text-align: center;
     min-height: 100vh;
@@ -88,9 +50,9 @@ body {
 .header-container {
     background: linear-gradient(90deg, #ff9800 0%, #ffb84d 100%);
     color: #fff;
-    padding: 0.5em 0 0.5em 0;
+    padding: 1.2em 0 1.2em 0;
     margin: 0;
-    box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.10);
 }
 
 h1 {
@@ -99,10 +61,10 @@ h1 {
     letter-spacing: 1px;
 }
 
-#queueStatusDisplay, #processingStatusDisplay {
+#queueStatusDisplay {
     font-size: 1em;
     font-weight: 400;
-    margin: 0.5em 0 0.5em 0;
+    margin-top: 0.5em;
     color: #fff;
 }
 
@@ -115,24 +77,32 @@ h2 {
 
 .carousel-container {
     width: 100%;
-    height: 200px;
     overflow: hidden;
+    margin-bottom: 2rem;
 }
 
 .carousel-slide {
     display: flex;
-    height: 100%;
-    /* Width will be set dynamically by JavaScript */
+    width: 200%;
+    /* Twice the width for the duplicated images */
+    animation: carousel-scroll 40s linear infinite;
 }
 
 .carousel-slide img {
-    height: 100%;
-    object-fit: contain;
+    width: 12.5%;
+    /* Each image takes up 1/8th of the total width */
     flex-shrink: 0;
-    /* Width will be set dynamically by JavaScript */
 }
 
+@keyframes carousel-scroll {
+    0% {
+        transform: translateX(0);
+    }
 
+    100% {
+        transform: translateX(-50%);
+    }
+}
 
 .main-container {
     display: flex;
@@ -140,36 +110,18 @@ h2 {
     justify-content: center;
     align-items: stretch;
     gap: 2.5rem;
-    padding: 1rem;
-    max-width: 1400px;
-    margin: 0 auto;
+    padding: 2.5rem 1rem 2rem 1rem;
 }
 
-/* Unified column style for main input/output columns */
+/* Unified column style for all three main columns */
 .main-col {
-    width: 100%;
+    flex: 1;
     min-width: 280px;
+    max-width: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;
     box-sizing: border-box;
-}
-
-/* Comparison container wrapper - similar to settings-container */
-.comparison-container-wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 2rem 0;
-}
-
-.comparison-col {
-    width: 100%;
-    margin: 0 auto;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
 }
 
 .settings-container {
@@ -177,40 +129,71 @@ h2 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    grid-area: settings;
+    margin-top: 2rem;
 }
 
-.settings-col {
-    width: 100%;
-    margin: 0 auto;
+.settings-col.collapsible {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+}
+
+.settings-col.collapsible.open {
+    max-height: 1000px;
+    /* Adjust as needed */
+    width: 100vw;
+    max-width: none;
+    margin-left: calc(-1 * (100vw - 100%) / 2);
+    margin-right: calc(-1 * (100vw - 100%) / 2);
     box-sizing: border-box;
-    display: flex;
-    justify-content: center;
 }
 
-/* Unified section style for all main sections */
+.comparison-image {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    -webkit-appearance: none;
+    background: transparent;
+    pointer-events: auto;
+    z-index: 2;
+    display: block;
+    /* Always show, JS will control visibility if needed */
+    /* Vertical orientation */
+    transform: rotate(90deg) translateY(-100%);
+    transform-origin: top right;
+}
+
+
+.comparison-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    -webkit-appearance: none;
+    background: transparent;
+    pointer-events: auto;
+    z-index: 2;
+}
+
+
+/* Unified section style for all three main sections */
 .main-section {
     width: 100%;
     min-width: 0;
+    max-width: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: rgba(30,32,38,0.97);
+    background: rgba(30, 32, 38, 0.97);
     border-radius: 18px;
-    box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-    padding: 1.5rem;
+    box-shadow: 0 4px 32px 0 rgba(0, 0, 0, 0.18);
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
     box-sizing: border-box;
-}
-
-/* Section styling */
-.comparison-section.main-section {
-    margin: 0 auto;
-    max-width: 600px;
-}
-
-.settings-section {
-    margin: 0 auto;
-    max-width: 600px;
 }
 
 .drop-area {
@@ -246,7 +229,7 @@ input[type="file"] {
 
 .image-box {
     width: 100%;
-    aspect-ratio: 16/9;
+    height: 340px;
     background: #23272f;
     border: 2.5px dashed #ffb84d;
     border-radius: 12px;
@@ -260,6 +243,7 @@ input[type="file"] {
     box-sizing: border-box;
     margin-bottom: 1.2em;
     min-width: 0;
+    max-width: 420px;
 }
 
 .image-box img {
@@ -300,7 +284,7 @@ input[type="file"] {
     margin-bottom: 0;
     font-weight: 500;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.10);
     transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
@@ -314,11 +298,13 @@ input[type="file"] {
     color: #23272f;
     transition: background 0.2s, color 0.2s, box-shadow 0.2s, opacity 0.2s;
 }
+
 .upload-btn:hover:not(:disabled):not(.disabled) {
     background: linear-gradient(90deg, #ffb84d 0%, #ff9800 100%);
     color: #fff;
-    box-shadow: 0 4px 16px 0 rgba(255,184,77,0.15);
+    box-shadow: 0 4px 16px 0 rgba(255, 184, 77, 0.15);
 }
+
 .upload-btn:disabled,
 .upload-btn.disabled {
     background: #555 !important;
@@ -359,38 +345,21 @@ input[type="file"] {
 
 /* Settings Section */
 .settings-section {
-    width: 100%;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: rgba(30,32,38,0.97);
-    border-radius: 18px;
-    box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
-    padding: 1.5rem;
-    box-sizing: border-box;
-    margin: 0;
-    position: relative;
-    left: auto;
-    transform: none;
-    gap: 1.2em;
-}
-
-.settings-box {
-    width: 100%;
     background: #23272f;
-    border: 2.5px dashed #ffb84d;
-    border-radius: 12px;
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+    margin: 2rem auto 1.5rem auto;
+    left: 50%;
+    transform: translateX(-50%);
     position: relative;
-    overflow: visible;
+    border-radius: 16px;
+    box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.18);
+    width: 100%;
+    max-width: 1200px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
     align-items: stretch;
-    padding: 1.5rem;
-    box-sizing: border-box;
-    margin-bottom: 1.2em;
-    min-width: 0;
+    gap: 1.2em;
 }
 
 .settings-label {
@@ -433,13 +402,13 @@ input[type="file"] {
 }
 
 .lora-fieldset {
-    border: 1.5px solid #555;
+    border: 1.5px solid #444;
     border-radius: 10px;
     padding: 1em 1em 0.5em 1em;
     margin-bottom: 0.7em;
     background: #181c24;
     color: #ffb84d;
-    box-shadow: 0 1px 8px 0 rgba(0,0,0,0.10);
+    box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.10);
 }
 
 .lora-fieldset legend {
@@ -461,7 +430,7 @@ input[type="file"] {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.2em;
-    background: #2a2e35;
+    background: #23272f;
     padding: 0.5em 0.7em 0.7em 0.7em;
     border-radius: 8px;
     margin-bottom: 0.4em;
@@ -493,7 +462,7 @@ input[type="file"] {
     width: 60px;
     background: #181c24;
     color: #fff;
-    border: 1.5px solid #555;
+    border: 1.5px solid #333;
     border-radius: 6px;
     padding: 0.2em 0.4em;
     font-size: 1em;
@@ -517,23 +486,26 @@ input[type="file"] {
     flex-direction: column;
     align-items: center;
     gap: 0.7em;
-    box-shadow: 0 1px 8px 0 rgba(0,0,0,0.10);
-    border: 1.5px solid #555;
+    box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.10);
+    border: 1.5px solid #444;
 }
+
 .captcha-row {
     display: flex;
     align-items: center;
     gap: 0.7em;
     margin-bottom: 0.2em;
 }
+
 #captchaImage svg {
     display: block;
     width: 140px;
     height: 48px;
     background: #fff;
     border-radius: 6px;
-    box-shadow: 0 1px 4px 0 rgba(0,0,0,0.10);
+    box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.10);
 }
+
 .captcha-input {
     width: 140px;
     padding: 0.4em 0.7em;
@@ -545,11 +517,13 @@ input[type="file"] {
     text-align: center;
     transition: border 0.2s, box-shadow 0.2s;
 }
+
 .captcha-input:focus {
     outline: 2px solid #ffb84d;
     border-color: #ffb84d;
     box-shadow: 0 0 0 2px #ffb84d33;
 }
+
 .refresh-captcha-btn {
     background: #23272f;
     color: #ffb84d;
@@ -559,103 +533,146 @@ input[type="file"] {
     padding: 0.2em 0.5em;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
-    box-shadow: 0 1px 4px 0 rgba(0,0,0,0.10);
+    box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.10);
 }
+
 .refresh-captcha-btn:hover {
     background: #ffb84d;
     color: #23272f;
 }
+
 .captcha-error {
     color: #ff4d4d;
     font-size: 0.95em;
     min-height: 1.2em;
 }
 
-/* Tablet Responsive */
+/* Mobile Responsive */
 @media (max-width: 1100px) {
     .main-container {
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-        align-items: stretch;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        grid-template-areas:
+            "input output"
+            "settings comparison";
         gap: 1.5rem;
+        justify-items: stretch;
+        align-items: stretch;
         padding: 2rem 1rem;
     }
+
     .main-col {
         width: 100%;
         min-width: unset;
-        max-width: 100%;
-        align-items: center;
+        max-width: unset;
+        align-items: stretch;
         display: flex;
         flex-direction: column;
     }
-    .comparison-container-wrapper {
-        margin: 1.5rem 0;
+
+    .upload-section.main-section {
+        grid-area: input;
     }
-    .comparison-section.main-section {
-        margin: 0 auto;
-        max-width: 600px;
+
+    .output-section.main-section {
+        grid-area: output;
     }
+
     .settings-section {
-        margin: 0 auto;
+        grid-area: settings;
+        margin: 0 auto 0 auto;
+        max-width: unset;
         width: 100%;
-        max-width: 600px;
+        border-radius: 18px;
+        box-shadow: 0 4px 32px 0 rgba(0, 0, 0, 0.18);
+        justify-self: center;
+        left: 50%;
+        transform: translateX(-50%);
+        position: relative;
     }
+
+    .comparison-section.main-section {
+        grid-area: comparison;
+    }
+
     .main-section {
         width: 100%;
         min-width: 0;
+        max-width: unset;
         margin-bottom: 0;
     }
+
     .image-box {
-        max-width: 100%;
+        max-width: 98vw;
     }
 }
 
-/* Mobile Responsive */
 @media (max-width: 600px) {
-    :root {
-        --box-max-width: calc(100vw - 2rem);
-    }
-    
     .main-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 1.5rem;
-        padding: 1rem;
-        max-width: none;
+        padding: 1rem 0.2rem 1rem 0.2rem;
     }
+
     .main-col {
         width: 100%;
         min-width: unset;
-        max-width: 100%;
+        max-width: unset;
         align-items: center;
     }
-    .comparison-container-wrapper {
-        margin: 1rem 0;
-    }
-    .comparison-section.main-section {
-        max-width: 100%;
-        margin: 0 auto;
-    }
+
     .main-section {
-        width: 100%;
+        width: 99%;
         min-width: unset;
-        margin-bottom: 0;
+        max-width: unset;
+        margin-bottom: 1.2em;
     }
+
     .settings-section {
-        margin: 0 auto;
-        max-width: 100%;
-        width: 100%;
-        padding: 1.5rem;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 98vw;
+        padding: 1.2rem 0.5rem 1rem 0.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        position: relative;
     }
-    .settings-box {
-        max-width: 100%;
-        padding: 1.5rem;
-    }
+
     .image-box {
-        max-width: 100%;
-        /* Aspect ratio will handle height automatically */
+        max-width: 98vw;
+        height: 140px;
     }
 }
 
+@media (max-width: 600px) {
+    .settings-section {
+        padding: 1.2rem 0.5rem 1rem 0.5rem;
+        max-width: 98vw;
+    }
+
+    .main-container {
+        padding: 1rem 0.2rem 1rem 0.2rem;
+    }
+
+    .main-col {
+        width: 100%;
+        min-width: unset;
+        max-width: unset;
+        align-items: center;
+    }
+
+    .main-section {
+        width: 99%;
+        min-width: unset;
+        max-width: unset;
+        margin-bottom: 1.2em;
+    }
+
+    .image-box {
+        max-width: 98vw;
+        height: 140px;
+    }
+}

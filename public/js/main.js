@@ -1,49 +1,51 @@
-
 // main.js: Handles upload button state for UX
 // --- Download Button Helpers ---
 function disableDownload() {
     if (downloadLink) {
-        downloadLink.classList.add('disabled');
-        const btn = downloadLink.querySelector('button');
+        downloadLink.classList.add("disabled");
+        const btn = downloadLink.querySelector("button");
         if (btn) btn.disabled = true;
-        downloadLink.removeAttribute('href');
+        downloadLink.removeAttribute("href");
     }
 }
 
 function enableDownload(url) {
     if (downloadLink) {
-        downloadLink.classList.remove('disabled');
-        const btn = downloadLink.querySelector('button');
+        downloadLink.classList.remove("disabled");
+        const btn = downloadLink.querySelector("button");
         if (btn) btn.disabled = false;
-        if (url) downloadLink.setAttribute('href', url);
+        if (url) downloadLink.setAttribute("href", url);
     }
 }
 // --- CAPTCHA Logic (moved from index.ejs) ---
 // Fetch and display advanced SVG CAPTCHA
 async function fetchCaptcha() {
-    const captchaContainer = document.getElementById('captchaContainer');
-    const captchaImage = document.getElementById('captchaImage');
-    const captchaToken = document.getElementById('captcha_token');
-    const captchaAnswer = document.getElementById('captcha_answer');
-    if (captchaAnswer) captchaAnswer.value = '';
+    const captchaContainer = document.getElementById("captchaContainer");
+    const captchaImage = document.getElementById("captchaImage");
+    const captchaToken = document.getElementById("captcha_token");
+    const captchaAnswer = document.getElementById("captcha_answer");
+    if (captchaAnswer) captchaAnswer.value = "";
     try {
-        const res = await fetch('/captcha');
-        if (!res.ok) throw new Error('Failed to fetch CAPTCHA');
+        const res = await fetch("/captcha");
+        if (!res.ok) throw new Error("Failed to fetch CAPTCHA");
         const data = await res.json();
         if (captchaImage) captchaImage.innerHTML = data.image;
         if (captchaToken) captchaToken.value = data.token;
     } catch (e) {
-        if (captchaImage) captchaImage.innerHTML = '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
-        if (captchaToken) captchaToken.value = '';
+        if (captchaImage)
+            captchaImage.innerHTML =
+                '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
+        if (captchaToken) captchaToken.value = "";
     }
 }
 
 // Fetch captchaDisabled from API and show/hide CAPTCHA accordingly
 let captchaDisabled = false;
 async function checkCaptchaStatusAndInit() {
-    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    const isLocal =
+        location.hostname === "localhost" || location.hostname === "127.0.0.1";
     try {
-        const res = await fetch('/api/captcha-status');
+        const res = await fetch("/api/captcha-status");
         if (res.ok) {
             const data = await res.json();
             captchaDisabled = !!data.captchaDisabled;
@@ -51,67 +53,72 @@ async function checkCaptchaStatusAndInit() {
     } catch (e) {
         captchaDisabled = false;
     }
-    const captchaContainer = document.getElementById('captchaContainer');
-    const captchaAnswer = document.getElementById('captcha_answer');
+    const captchaContainer = document.getElementById("captchaContainer");
+    const captchaAnswer = document.getElementById("captcha_answer");
     if (captchaContainer) {
         if (isLocal || captchaDisabled) {
-            captchaContainer.style.display = 'none';
-            if (captchaAnswer) captchaAnswer.removeAttribute('required');
+            captchaContainer.style.display = "none";
+            if (captchaAnswer) captchaAnswer.removeAttribute("required");
         } else {
-            captchaContainer.style.display = '';
-            if (captchaAnswer) captchaAnswer.setAttribute('required', 'required');
+            captchaContainer.style.display = "";
+            if (captchaAnswer)
+                captchaAnswer.setAttribute("required", "required");
         }
     }
     if (!isLocal && !captchaDisabled) fetchCaptcha();
 }
 
-window.addEventListener('DOMContentLoaded', checkCaptchaStatusAndInit);
+window.addEventListener("DOMContentLoaded", checkCaptchaStatusAndInit);
 // --- DOM Elements (single query, reused everywhere) ---
-const inputImage = document.getElementById('inputImage');
-const previewImage = document.getElementById('previewImage');
-const dropArea = document.getElementById('dropArea');
-const dropText = document.getElementById('dropText');
-const uploadForm = document.getElementById('uploadForm');
-const outputImage = document.getElementById('outputImage');
-const outputPlaceholder = document.getElementById('outputPlaceholder');
-const downloadLink = document.getElementById('downloadLink');
-const queueSizeSpan = document.getElementById('queueSize');
-const processingStatusSpan = document.getElementById('processingStatus');
-const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
-const uploadButton = uploadForm.querySelector('.upload-btn');
+const inputImage = document.getElementById("inputImage");
+const previewImage = document.getElementById("previewImage");
+const dropArea = document.getElementById("dropArea");
+const dropText = document.getElementById("dropText");
+const uploadForm = document.getElementById("uploadForm");
+const outputImage = document.getElementById("outputImage");
+const outputPlaceholder = document.getElementById("outputPlaceholder");
+const downloadLink = document.getElementById("downloadLink");
+const queueSizeSpan = document.getElementById("queueSize");
+const processingStatusSpan = document.getElementById("processingStatus");
+const yourPositionSpan = document.getElementById("yourPosition");
+const progressPercentageSpans = document.querySelectorAll(
+    ".progressPercentage"
+);
+const uploadButton = uploadForm.querySelector(".upload-btn");
 
 // --- Helper functions for show/hide ---
 function debugLog(...args) {
-    // Always enable debug logging for comparison debugging
-    console.debug('[DEBUG]', ...args);
+    if (window.DEBUG_MODE) {
+        console.debug("[DEBUG]", ...args);
+    }
 }
 function showElement(el) {
     if (el) {
-        el.style.display = 'block';
-        debugLog('Show element:', el.id || el.className || el);
+        el.style.display = "";
+        debugLog("Show element:", el.id || el.className || el);
     }
 }
 function hideElement(el) {
     if (el) {
-        el.style.display = 'none';
-        debugLog('Hide element:', el.id || el.className || el);
+        el.style.display = "none";
+        debugLog("Hide element:", el.id || el.className || el);
     }
 }
 
 // --- Centralized upload button state ---
 function setUploadButtonState({ disabled, text }) {
     if (!uploadButton) {
-        debugLog('Upload button not found');
+        debugLog("Upload button not found");
         return;
     }
     uploadButton.disabled = !!disabled;
     if (disabled) {
-        uploadButton.classList.add('disabled');
+        uploadButton.classList.add("disabled");
     } else {
-        uploadButton.classList.remove('disabled');
+        uploadButton.classList.remove("disabled");
     }
-    if (typeof text === 'string') uploadButton.textContent = text;
-    debugLog('Set upload button state:', { disabled, text });
+    if (typeof text === "string") uploadButton.textContent = text;
+    debugLog("Set upload button state:", { disabled, text });
 }
 
 // State Variables
@@ -120,27 +127,27 @@ let pollingIntervalId = null;
 
 // --- Socket.IO Setup ---
 const socket = io();
-debugLog('Socket.IO initialized');
+debugLog("Socket.IO initialized");
 
-socket.on('connect', () => {
-    debugLog('Socket connected');
+socket.on("connect", () => {
+    debugLog("Socket connected");
     if (currentRequestId) {
-        debugLog('Joining room for requestId:', currentRequestId);
-        socket.emit('joinRoom', currentRequestId);
+        debugLog("Joining room for requestId:", currentRequestId);
+        socket.emit("joinRoom", currentRequestId);
     }
 });
 
 // Helper to update all progress percentage spans
 function updateProgressPercentage(text) {
-    progressPercentageSpans.forEach(span => {
+    progressPercentageSpans.forEach((span) => {
         span.textContent = text;
     });
-    debugLog('Progress percentage updated:', text);
+    debugLog("Progress percentage updated:", text);
 }
 
 // Listen for processing progress updates from the server
-socket.on('processingProgress', (progress) => {
-    debugLog('Received processingProgress:', progress);
+socket.on("processingProgress", (progress) => {
+    debugLog("Received processingProgress:", progress);
     let percentage;
     try {
         if (progress.type === "global_steps") {
@@ -149,111 +156,128 @@ socket.on('processingProgress', (progress) => {
             percentage = Math.round((progress.value / progress.max) * 100);
         }
     } catch (err) {
-        console.error('Error calculating progress percentage:', err, progress);
+        console.error("Error calculating progress percentage:", err, progress);
         return;
     }
     if (isNaN(percentage)) {
-        debugLog('Progress percentage is NaN, skipping update.');
+        debugLog("Progress percentage is NaN, skipping update.");
         return;
     }
     updateProgressPercentage(`: ${percentage}%`);
-    processingStatusSpan.textContent = 'Processing';
+    processingStatusSpan.textContent = "Processing";
     outputPlaceholder.textContent = `Processing your image: ${percentage}% Done`;
 });
 
 // Listen for immediate queue updates
-socket.on('queueUpdate', (data) => {
-    debugLog('Received queueUpdate:', data);
+socket.on("queueUpdate", (data) => {
+    debugLog("Received queueUpdate:", data);
     queueSizeSpan.textContent = data.queueSize;
 
     if (currentRequestId && data.requestId === currentRequestId) {
-        if (data.status === 'processing') {
-            processingStatusSpan.textContent = 'Processing';
-            updateProgressPercentage('');
+        if (data.status === "processing") {
+            yourPositionSpan.textContent = "Processing";
+            processingStatusSpan.textContent = "Processing";
+            updateProgressPercentage("");
             outputPlaceholder.textContent = `Processing your image...`;
-            outputPlaceholder.style.display = 'block';
-            outputImage.style.display = 'none';
-        } else if (data.status === 'pending') {
-            processingStatusSpan.textContent = `Waiting (Position ${data.yourPosition})`;
-            updateProgressPercentage('');
+            outputPlaceholder.style.display = "block";
+            outputImage.style.display = "none";
+        } else if (data.status === "pending") {
+            yourPositionSpan.textContent = `${data.yourPosition}`;
+            processingStatusSpan.textContent = "Waiting";
+            updateProgressPercentage("");
             outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
-            outputPlaceholder.style.display = 'block';
-            outputImage.style.display = 'none';
+            outputPlaceholder.style.display = "block";
+            outputImage.style.display = "none";
         }
-    } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
-        processingStatusSpan.textContent = 'Idle';
-        updateProgressPercentage('');
-        outputPlaceholder.textContent = 'Your processed image will appear here.';
-        outputPlaceholder.style.display = 'block';
-        outputImage.style.display = 'none';
+    } else if (
+        !currentRequestId &&
+        !data.isProcessing &&
+        data.queueSize === 0
+    ) {
+        processingStatusSpan.textContent = "Idle";
+        yourPositionSpan.textContent = "N/A";
+        updateProgressPercentage("");
+        outputPlaceholder.textContent =
+            "Your processed image will appear here.";
+        outputPlaceholder.style.display = "block";
+        outputImage.style.display = "none";
     }
 });
 
 // Handle processing completion via Socket.IO
-socket.on('processingComplete', (data) => {
-    debugLog('Received processingComplete:', data);
-    if (currentRequestId && data.requestId === currentRequestId && data.outputImage) {
-        processingStatusSpan.textContent = 'Complete';
-        updateProgressPercentage('');
+socket.on("processingComplete", (data) => {
+    debugLog("Received processingComplete:", data);
+    if (
+        currentRequestId &&
+        data.requestId === currentRequestId &&
+        data.outputImage
+    ) {
+        yourPositionSpan.textContent = "Done!";
+        processingStatusSpan.textContent = "Complete";
+        updateProgressPercentage("");
         try {
             displayResult(data.outputImage);
         } catch (err) {
-            console.error('Error displaying result image:', err, data);
+            console.error("Error displaying result image:", err, data);
         }
         if (pollingIntervalId) {
             clearInterval(pollingIntervalId);
             pollingIntervalId = null;
         }
-        sessionStorage.removeItem('activeRequestId');
+        sessionStorage.removeItem("activeRequestId");
         enableUpload();
     }
     fetchQueueStatus();
 });
 
 // Listen for processing failure
-socket.on('processingFailed', (data) => {
-    debugLog('Received processingFailed:', data);
+socket.on("processingFailed", (data) => {
+    debugLog("Received processingFailed:", data);
     if (currentRequestId && data.requestId === currentRequestId) {
-        processingStatusSpan.textContent = 'Failed';
-        updateProgressPercentage('');
-        displayError(data.errorMessage || 'Unknown processing error.');
+        yourPositionSpan.textContent = "Error!";
+        processingStatusSpan.textContent = "Failed";
+        updateProgressPercentage("");
+        displayError(data.errorMessage || "Unknown processing error.");
         currentRequestId = null;
         if (pollingIntervalId) {
             clearInterval(pollingIntervalId);
             pollingIntervalId = null;
         }
-        sessionStorage.removeItem('activeRequestId');
+        sessionStorage.removeItem("activeRequestId");
         enableUpload();
     }
     fetchQueueStatus();
 });
 
-
 function resetUIForNewUpload() {
-    debugLog('Resetting UI for new upload');
+    debugLog("Resetting UI for new upload");
     hideElement(outputImage);
-    outputImage.src = '';
+    outputImage.src = "";
     showElement(outputPlaceholder);
-    outputPlaceholder.style.color = '#fff';
-    outputPlaceholder.textContent = 'Uploading...';
+    outputPlaceholder.style.color = "#fff";
+    outputPlaceholder.textContent = "Uploading...";
     disableDownload();
     // Do NOT clear currentRequestId here; it is set only after a successful upload response
-    processingStatusSpan.textContent = 'Uploading...';
-    updateProgressPercentage('');
-    queueSizeSpan.textContent = '0';
+    yourPositionSpan.textContent = "Submitting...";
+    processingStatusSpan.textContent = "Uploading...";
+    updateProgressPercentage("");
+    queueSizeSpan.textContent = "0";
 
-    // Reset comparison section
-    const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+    const comparisonPlaceholder = document.getElementById(
+        "comparisonPlaceholder"
+    );
     showElement(comparisonPlaceholder);
-    
-    // Hide the comparison container and clear images
-    const comparisonContainer = document.getElementById('comparisonContainer');
-    if (comparisonContainer) hideElement(comparisonContainer);
-    
-    const comparisonBeforeImg = document.getElementById('comparisonBeforeImg');
-    const comparisonAfterImg = document.getElementById('comparisonAfterImg');
-    if (comparisonBeforeImg) comparisonBeforeImg.src = '';
-    if (comparisonAfterImg) comparisonAfterImg.src = '';
+    // Hide the custom comparison slider until output image is present
+    const imgCompContainer = document.getElementById("imgCompContainer");
+    if (imgCompContainer) imgCompContainer.style.display = "none";
+    const comparisonInputImage = document.getElementById(
+        "comparison-input-image"
+    );
+    const comparisonOutputImage = document.getElementById(
+        "comparison-output-image"
+    );
+    if (comparisonInputImage) comparisonInputImage.src = "";
+    if (comparisonOutputImage) comparisonOutputImage.src = "";
 
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
@@ -262,182 +286,244 @@ function resetUIForNewUpload() {
 }
 
 function displayResult(imageUrl) {
+    debugLog("Displaying result image:", imageUrl);
     if (!imageUrl) {
         displayError("No image URL provided for display.");
         return;
     }
-    
     outputImage.src = imageUrl;
     outputImage.onload = () => {
-        showElement(outputImage);
-        hideElement(outputPlaceholder);
-        enableDownload(imageUrl);
-        
-        // Setup comparison slider
-        setupComparison(previewImage.src, imageUrl);
+        try {
+            showElement(outputImage);
+            hideElement(outputPlaceholder);
+            const imgCompContainer =
+                document.getElementById("imgCompContainer");
+            const comparisonInputImage = document.getElementById(
+                "comparison-input-image"
+            );
+            const comparisonOutputImage = document.getElementById(
+                "comparison-output-image"
+            );
+            const comparisonPlaceholder = document.getElementById(
+                "comparisonPlaceholder"
+            );
+            const previewImageSrc = previewImage.src;
+            let inputLoaded = false,
+                outputLoaded = false;
+            if (comparisonInputImage && previewImageSrc) {
+                comparisonInputImage.onload = () => {
+                    inputLoaded = true;
+                    debugLog("comparisonInputImage loaded");
+                    if (inputLoaded && outputLoaded) {
+                        debugLog(
+                            "Both images loaded, initializing comparison slider"
+                        );
+                        showComparisonSlider();
+                    }
+                };
+                comparisonInputImage.src = previewImageSrc;
+            }
+            if (comparisonOutputImage && imageUrl) {
+                comparisonOutputImage.onload = () => {
+                    outputLoaded = true;
+                    debugLog("comparisonOutputImage loaded");
+                    if (inputLoaded && outputLoaded) {
+                        debugLog(
+                            "Both images loaded, initializing comparison slider"
+                        );
+                        showComparisonSlider();
+                    }
+                };
+                comparisonOutputImage.src = imageUrl;
+            }
+            // Fallback: if both images are already cached
+            if (comparisonInputImage && comparisonInputImage.complete)
+                inputLoaded = true;
+            if (comparisonOutputImage && comparisonOutputImage.complete)
+                outputLoaded = true;
+            if (inputLoaded && outputLoaded) {
+                debugLog(
+                    "Both images already loaded, initializing comparison slider"
+                );
+                showComparisonSlider();
+            }
+            function showComparisonSlider() {
+                if (
+                    imgCompContainer &&
+                    comparisonInputImage &&
+                    comparisonOutputImage &&
+                    previewImageSrc &&
+                    imageUrl
+                ) {
+                    imgCompContainer.style.display = "";
+                    if (comparisonPlaceholder)
+                        hideElement(comparisonPlaceholder);
+                    setTimeout(() => {
+                        initComparisons();
+                    }, 50);
+                }
+            }
+            enableDownload(imageUrl);
+        } catch (err) {
+            console.error("Error in outputImage.onload:", err);
+        }
     };
-    
+    // --- Custom Image Comparison Slider Logic ---
+    function initComparisons() {
+        debugLog("Initializing image comparison slider...");
+        // Cleanup: Remove any old sliders
+        const oldSliders = document.querySelectorAll(".img-comp-slider");
+        oldSliders.forEach((slider) => slider.remove());
+        var x, i;
+        x = document.getElementsByClassName("img-comp-overlay");
+        for (i = 0; i < x.length; i++) {
+            compareImages(x[i]);
+        }
+        function compareImages(img) {
+            var slider,
+                clicked = 0,
+                w,
+                h;
+            w = img.offsetWidth;
+            h = img.offsetHeight;
+            img.style.width = w / 2 + "px";
+            slider = document.createElement("DIV");
+            slider.setAttribute("class", "img-comp-slider");
+            img.parentElement.insertBefore(slider, img);
+            slider.style.top = h / 2 - slider.offsetHeight / 2 + "px";
+            slider.style.left = w / 2 - slider.offsetWidth / 2 + "px";
+            debugLog(
+                "Slider created and positioned:",
+                slider,
+                "for image:",
+                img
+            );
+            slider.addEventListener("mousedown", slideReady);
+            window.addEventListener("mouseup", slideFinish);
+            slider.addEventListener("touchstart", slideReady);
+            window.addEventListener("touchend", slideFinish);
+            function slideReady(e) {
+                e.preventDefault();
+                clicked = 1;
+                window.addEventListener("mousemove", slideMove);
+                window.addEventListener("touchmove", slideMove);
+            }
+            function slideFinish() {
+                clicked = 0;
+            }
+            function slideMove(e) {
+                var pos;
+                if (clicked == 0) return false;
+                pos = getCursorPos(e);
+                if (pos < 0) pos = 0;
+                if (pos > w) pos = w;
+                slide(pos);
+            }
+            function getCursorPos(e) {
+                var a,
+                    x = 0;
+                e = e.changedTouches ? e.changedTouches[0] : e;
+                a = img.getBoundingClientRect();
+                x = e.pageX - a.left;
+                x = x - window.pageXOffset;
+                return x;
+            }
+            function slide(x) {
+                img.style.width = x + "px";
+                slider.style.left =
+                    img.offsetWidth - slider.offsetWidth / 2 + "px";
+                debugLog(
+                    "Slider moved to",
+                    slider.style.left,
+                    "Overlay width:",
+                    img.style.width
+                );
+            }
+        }
+    }
     outputImage.onerror = () => {
-        displayError("Failed to load processed image.");
+        displayError(
+            "Failed to load processed image. Check console for network errors."
+        );
         hideElement(outputImage);
         showElement(outputPlaceholder);
         disableDownload();
+        // Hide the comparison slider if error
+        const comparisonSlider = document.getElementById("comparison-slider");
+        hideElement(comparisonSlider);
+        debugLog("Error loading output image:", imageUrl);
     };
 }
 
-function setupComparison(beforeImageUrl, afterImageUrl) {
-    const comparisonContainer = document.getElementById('comparisonContainer');
-    const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
-    const beforeImg = document.getElementById('comparisonBeforeImg');
-    const afterImg = document.getElementById('comparisonAfterImg');
-    
-    if (!comparisonContainer || !beforeImg || !afterImg || !beforeImageUrl) {
-        return;
-    }
-    
-    // Set image sources
-    beforeImg.src = beforeImageUrl;
-    afterImg.src = afterImageUrl;
-    
-    let imagesLoaded = 0;
-    
-    function onImageLoad() {
-        imagesLoaded++;
-        if (imagesLoaded === 2) {
-            hideElement(comparisonPlaceholder);
-            showElement(comparisonContainer);
-            initializeSlider();
-        }
-    }
-    
-    beforeImg.onload = onImageLoad;
-    afterImg.onload = onImageLoad;
-    
-    // Check if images are already loaded
-    if (beforeImg.complete) onImageLoad();
-    if (afterImg.complete) onImageLoad();
-}
-
-function initializeSlider() {
-    const container = document.getElementById('comparisonContainer');
-    const afterDiv = container.querySelector('.comparison-after');
-    const slider = container.querySelector('.comparison-slider');
-    
-    if (!container || !afterDiv || !slider) return;
-    
-    let isDragging = false;
-    
-    function updateSlider(clientX) {
-        const rect = container.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        
-        afterDiv.style.width = percentage + '%';
-        slider.style.left = percentage + '%';
-    }
-    
-    function startDrag(e) {
-        isDragging = true;
-        e.preventDefault();
-        updateSlider(e.touches ? e.touches[0].clientX : e.clientX);
-    }
-    
-    function onDrag(e) {
-        if (!isDragging) return;
-        e.preventDefault();
-        updateSlider(e.touches ? e.touches[0].clientX : e.clientX);
-    }
-    
-    function stopDrag() {
-        isDragging = false;
-    }
-    
-    // Mouse events
-    slider.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', stopDrag);
-    
-    // Touch events
-    slider.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', onDrag, { passive: false });
-    document.addEventListener('touchend', stopDrag);
-    
-    // Click to move slider
-    container.addEventListener('click', (e) => {
-        if (e.target !== slider) {
-            updateSlider(e.clientX);
-        }
-    });
-}
-
 function displayError(errorMessage) {
+    debugLog("Display error:", errorMessage);
     outputPlaceholder.textContent = `Error: ${errorMessage}`;
-    outputPlaceholder.style.color = 'red';
+    outputPlaceholder.style.color = "red";
     showElement(outputPlaceholder);
     hideElement(outputImage);
 }
 
 // --- Image Preview and Drag/Drop ---
 function showPreview(file) {
-    debugLog('Showing preview for file:', file);
+    debugLog("Showing preview for file:", file);
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = (e) => {
         previewImage.src = e.target.result;
-        previewImage.style.display = 'block';
-        dropText.style.display = 'none';
+        previewImage.style.display = "block";
+        dropText.style.display = "none";
     };
-    reader.onerror = err => {
-        console.error('Error reading file for preview:', err);
+    reader.onerror = (err) => {
+        console.error("Error reading file for preview:", err);
     };
     try {
         reader.readAsDataURL(file);
     } catch (err) {
-        console.error('Error in showPreview:', err);
+        console.error("Error in showPreview:", err);
     }
 }
 
-inputImage.addEventListener('change', () => {
-    debugLog('inputImage changed:', inputImage.files[0]);
+inputImage.addEventListener("change", () => {
+    debugLog("inputImage changed:", inputImage.files[0]);
     if (inputImage.files[0]) showPreview(inputImage.files[0]);
     if (inputImage.files[0]) {
         const formData = new FormData();
-        formData.append('image', inputImage.files[0]);
-        fetch('/upload-copy', {
-            method: 'POST',
-            body: formData
+        formData.append("image", inputImage.files[0]);
+        fetch("/upload-copy", {
+            method: "POST",
+            body: formData,
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to upload image copy');
-            }
-            return response.json();
-        })
-        .then(data => debugLog('Image copy uploaded:', data))
-        .catch(error => {
-            console.error('Error uploading image copy:', error);
-        });
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to upload image copy");
+                }
+                return response.json();
+            })
+            .then((data) => debugLog("Image copy uploaded:", data))
+            .catch((error) => {
+                console.error("Error uploading image copy:", error);
+            });
     }
 });
 
-['dragenter', 'dragover'].forEach(event =>
-    dropArea.addEventListener(event, e => {
+["dragenter", "dragover"].forEach((event) =>
+    dropArea.addEventListener(event, (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropArea.classList.add('drag-over');
+        dropArea.classList.add("drag-over");
     })
 );
 
-['dragleave', 'drop'].forEach(event =>
-    dropArea.addEventListener(event, e => {
+["dragleave", "drop"].forEach((event) =>
+    dropArea.addEventListener(event, (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropArea.classList.remove('drag-over');
+        dropArea.classList.remove("drag-over");
     })
 );
 
-dropArea.addEventListener('click', () => inputImage.click());
+dropArea.addEventListener("click", () => inputImage.click());
 
-dropArea.addEventListener('drop', e => {
+dropArea.addEventListener("drop", (e) => {
     const file = e.dataTransfer.files[0];
     if (file) {
         inputImage.files = e.dataTransfer.files;
@@ -446,72 +532,101 @@ dropArea.addEventListener('drop', e => {
 });
 
 // --- Upload Form Submission ---
-uploadForm.addEventListener('submit', function (e) {
+uploadForm.addEventListener("submit", function (e) {
     try {
-        debugLog('Upload form submitted');
+        debugLog("Upload form submitted");
         e.preventDefault();
         if (!inputImage.files || inputImage.files.length === 0) {
-            alert('Please select an image before uploading.');
-            debugLog('No image selected for upload');
+            alert("Please select an image before uploading.");
+            debugLog("No image selected for upload");
             return;
         }
         // Prevent double submission (only if a request is actively being processed or queued)
         if (currentRequestId) {
-            alert('A request is already being processed or queued. Please wait.');
-            debugLog('Upload blocked: currentRequestId exists', currentRequestId);
+            alert(
+                "A request is already being processed or queued. Please wait."
+            );
+            debugLog(
+                "Upload blocked: currentRequestId exists",
+                currentRequestId
+            );
             return;
         }
-        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const isLocal =
+            location.hostname === "localhost" ||
+            location.hostname === "127.0.0.1";
         disableUpload();
         resetUIForNewUpload();
         const formData = new FormData();
-        formData.append('image', inputImage.files[0]);
-        formData.append('prompt', document.getElementById('prompt').value);
-        formData.append('steps', document.getElementById('steps').value);
-        formData.append('outputHeight', document.getElementById('outputHeight').value);
+        formData.append("image", inputImage.files[0]);
+        formData.append("prompt", document.getElementById("prompt").value);
+        formData.append("steps", document.getElementById("steps").value);
+        formData.append(
+            "outputHeight",
+            document.getElementById("outputHeight").value
+        );
         for (let i = 1; i <= 5; i++) {
-            const isChecked = document.getElementById(`lora_${i}_on`).checked;
-            const strengthValue = document.getElementById(`lora_${i}_strength`).value;
-            debugLog(`LoRA ${i}: checked=${isChecked}, strength=${strengthValue}`);
-            formData.append(`lora_${i}_on`, isChecked ? 'true' : 'false');
-            formData.append(`lora_${i}_strength`, strengthValue);
+            formData.append(
+                `lora_${i}_on`,
+                document.getElementById(`lora_${i}_on`).checked
+                    ? "true"
+                    : "false"
+            );
+            formData.append(
+                `lora_${i}_strength`,
+                document.getElementById(`lora_${i}_strength`).value
+            );
         }
         if (!isLocal && !captchaDisabled) {
-            var captchaAnswer = document.getElementById('captcha_answer');
-            var captchaToken = document.getElementById('captcha_token');
+            var captchaAnswer = document.getElementById("captcha_answer");
+            var captchaToken = document.getElementById("captcha_token");
             if (captchaAnswer && captchaToken) {
-                formData.append('captcha_answer', captchaAnswer.value.trim());
-                formData.append('captcha_token', captchaToken.value);
+                formData.append("captcha_answer", captchaAnswer.value.trim());
+                formData.append("captcha_token", captchaToken.value);
             }
         }
         const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener('progress', e => {
+        xhr.upload.addEventListener("progress", (e) => {
             if (e.lengthComputable) {
                 const percent = (e.loaded / e.total) * 100;
-                processingStatusSpan.textContent = `Uploading: ${Math.round(percent)}%`;
-                debugLog('Upload progress:', percent);
+                processingStatusSpan.textContent = `Uploading: ${Math.round(
+                    percent
+                )}%`;
+                debugLog("Upload progress:", percent);
             }
         });
         xhr.onreadystatechange = () => {
             if (xhr.readyState === 4) {
-                debugLog('XHR upload complete, status:', xhr.status, xhr.responseText);
+                debugLog(
+                    "XHR upload complete, status:",
+                    xhr.status,
+                    xhr.responseText
+                );
                 if (xhr.status === 202) {
                     let response;
                     try {
                         response = JSON.parse(xhr.responseText);
                     } catch (err) {
                         enableUpload();
-                        displayError('Invalid server response.');
-                        console.error('Error parsing upload response:', err, xhr.responseText);
+                        displayError("Invalid server response.");
+                        console.error(
+                            "Error parsing upload response:",
+                            err,
+                            xhr.responseText
+                        );
                         return;
                     }
                     currentRequestId = response.requestId;
-                    sessionStorage.setItem('activeRequestId', currentRequestId);
+                    sessionStorage.setItem("activeRequestId", currentRequestId);
                     // Always join the room for this request
-                    socket.emit('joinRoom', currentRequestId);
+                    socket.emit("joinRoom", currentRequestId);
                     queueSizeSpan.textContent = response.queueSize;
-                    processingStatusSpan.textContent = response.yourPosition > 0 ? `Waiting (Position ${response.yourPosition})` : 'Processing';
-                    updateProgressPercentage('');
+                    yourPositionSpan.textContent =
+                        response.yourPosition > 0
+                            ? response.yourPosition
+                            : "Processing";
+                    processingStatusSpan.textContent = "Waiting";
+                    updateProgressPercentage("");
                     outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
                     // Always clear and start polling
                     if (pollingIntervalId) {
@@ -521,16 +636,21 @@ uploadForm.addEventListener('submit', function (e) {
                     fetchQueueStatus();
                 } else {
                     enableUpload();
-                    let errorMsg = 'Upload failed: ';
+                    let errorMsg = "Upload failed: ";
                     if (xhr.status === 0) {
-                        errorMsg += 'Network error or server not reachable.';
-                    } else if (xhr.status === 400 && xhr.responseText && xhr.responseText.includes('CAPTCHA')) {
-                        errorMsg += 'CAPTCHA validation failed. Please try again.';
-                        if (typeof fetchCaptcha === 'function') fetchCaptcha();
+                        errorMsg += "Network error or server not reachable.";
+                    } else if (
+                        xhr.status === 400 &&
+                        xhr.responseText &&
+                        xhr.responseText.includes("CAPTCHA")
+                    ) {
+                        errorMsg +=
+                            "CAPTCHA validation failed. Please try again.";
+                        if (typeof fetchCaptcha === "function") fetchCaptcha();
                     } else if (xhr.responseText) {
                         errorMsg += xhr.responseText;
                     } else {
-                        errorMsg += 'Unknown error';
+                        errorMsg += "Unknown error";
                     }
                     alert(errorMsg);
                     displayError(errorMsg);
@@ -539,31 +659,32 @@ uploadForm.addEventListener('submit', function (e) {
                         clearInterval(pollingIntervalId);
                         pollingIntervalId = null;
                     }
-                    processingStatusSpan.textContent = 'Failed';
-                    updateProgressPercentage('');
-                    debugLog('Upload error:', errorMsg);
+                    yourPositionSpan.textContent = "Error";
+                    processingStatusSpan.textContent = "Failed";
+                    updateProgressPercentage("");
+                    debugLog("Upload error:", errorMsg);
                 }
             }
         };
-        xhr.onerror = err => {
+        xhr.onerror = (err) => {
             enableUpload();
-            displayError('Network error during upload.');
-            console.error('XHR upload error:', err);
+            displayError("Network error during upload.");
+            console.error("XHR upload error:", err);
         };
-        xhr.open('POST', '/upload', true);
+        xhr.open("POST", "/upload", true);
         xhr.send(formData);
     } catch (err) {
         enableUpload();
-        displayError('Unexpected error during upload.');
-        console.error('Unexpected error in uploadForm submit:', err);
+        displayError("Unexpected error during upload.");
+        console.error("Unexpected error in uploadForm submit:", err);
     }
 });
 
 // --- Frontend Queue Polling ---
 async function fetchQueueStatus() {
     try {
-        debugLog('Fetching queue status...');
-        let url = '/queue-status';
+        debugLog("Fetching queue status...");
+        let url = "/queue-status";
         if (currentRequestId) {
             url += `?requestId=${currentRequestId}`;
         }
@@ -572,33 +693,40 @@ async function fetchQueueStatus() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        debugLog('Queue status response:', data);
+        debugLog("Queue status response:", data);
         queueSizeSpan.textContent = data.queueSize;
         if (currentRequestId) {
             switch (data.status) {
-                case 'pending':
-                    processingStatusSpan.textContent = `Waiting (Position ${data.yourPosition})`;
-                    updateProgressPercentage('');
+                case "pending":
+                    yourPositionSpan.textContent = `${data.yourPosition}`;
+                    processingStatusSpan.textContent = "Waiting";
+                    updateProgressPercentage("");
                     outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
-                    outputPlaceholder.style.display = 'block';
-                    outputImage.style.display = 'none';
+                    outputPlaceholder.style.display = "block";
+                    outputImage.style.display = "none";
                     break;
-                case 'processing':
-                    processingStatusSpan.textContent = 'Processing';
-                    outputPlaceholder.style.display = 'block';
-                    outputImage.style.display = 'none';
+                case "processing":
+                    yourPositionSpan.textContent = "Processing";
+                    processingStatusSpan.textContent = "Processing";
+                    outputPlaceholder.style.display = "block";
+                    outputImage.style.display = "none";
                     break;
-                case 'completed':
-                    processingStatusSpan.textContent = 'Complete';
-                    updateProgressPercentage('');
+                case "completed":
+                    yourPositionSpan.textContent = "Done!";
+                    processingStatusSpan.textContent = "Complete";
+                    updateProgressPercentage("");
                     if (data.result && data.result.outputImage) {
                         try {
                             displayResult(data.result.outputImage);
                         } catch (err) {
-                            console.error('Error displaying result from polling:', err, data);
+                            console.error(
+                                "Error displaying result from polling:",
+                                err,
+                                data
+                            );
                         }
                     }
-                    sessionStorage.removeItem('activeRequestId');
+                    sessionStorage.removeItem("activeRequestId");
                     enableUpload();
                     currentRequestId = null;
                     if (pollingIntervalId) {
@@ -606,11 +734,16 @@ async function fetchQueueStatus() {
                         pollingIntervalId = null;
                     }
                     break;
-                case 'failed':
-                    processingStatusSpan.textContent = 'Failed';
-                    updateProgressPercentage('');
-                    displayError(data.result && data.result.errorMessage ? data.result.errorMessage : 'Unknown processing error from polling.');
-                    sessionStorage.removeItem('activeRequestId');
+                case "failed":
+                    yourPositionSpan.textContent = "Error!";
+                    processingStatusSpan.textContent = "Failed";
+                    updateProgressPercentage("");
+                    displayError(
+                        data.result && data.result.errorMessage
+                            ? data.result.errorMessage
+                            : "Unknown processing error from polling."
+                    );
+                    sessionStorage.removeItem("activeRequestId");
                     enableUpload();
                     currentRequestId = null;
                     if (pollingIntervalId) {
@@ -619,27 +752,31 @@ async function fetchQueueStatus() {
                     }
                     break;
                 default:
-                    updateProgressPercentage('');
+                    yourPositionSpan.textContent = "N/A";
+                    updateProgressPercentage("");
                     break;
             }
         } else if (!data.isProcessing && data.queueSize === 0) {
-            processingStatusSpan.textContent = 'Idle';
-            updateProgressPercentage('');
-            outputPlaceholder.textContent = 'Your processed image will appear here.';
-            outputPlaceholder.style.display = 'block';
-            outputImage.style.display = 'none';
+            processingStatusSpan.textContent = "Idle";
+            yourPositionSpan.textContent = "N/A";
+            updateProgressPercentage("");
+            outputPlaceholder.textContent =
+                "Your processed image will appear here.";
+            outputPlaceholder.style.display = "block";
+            outputImage.style.display = "none";
             if (pollingIntervalId) {
                 clearInterval(pollingIntervalId);
                 pollingIntervalId = null;
             }
         }
     } catch (error) {
-        console.error('Error fetching queue status:', error);
-        if (currentRequestId || processingStatusSpan.textContent !== 'Idle') {
-            queueSizeSpan.textContent = 'Error';
-            processingStatusSpan.textContent = 'Error';
-            updateProgressPercentage('');
-            displayError('Failed to get status. Please check connection.');
+        console.error("Error fetching queue status:", error);
+        if (currentRequestId || processingStatusSpan.textContent !== "Idle") {
+            queueSizeSpan.textContent = "Error";
+            processingStatusSpan.textContent = "Error";
+            yourPositionSpan.textContent = "Error";
+            updateProgressPercentage("");
+            displayError("Failed to get status. Please check connection.");
             if (pollingIntervalId) {
                 clearInterval(pollingIntervalId);
                 pollingIntervalId = null;
@@ -648,258 +785,104 @@ async function fetchQueueStatus() {
     }
 }
 
-// --- Responsive Carousel Setup ---
-let carouselImages = [];
-let carouselAnimation = null;
-let carouselCurrentPosition = 0;
-
-function setupCarouselLayout() {
-    const carouselSlide = document.querySelector('.carousel-slide');
-    const carouselContainer = document.querySelector('.carousel-container');
-    if (!carouselSlide || !carouselContainer || carouselImages.length === 0) return;
-
-    const containerWidth = carouselContainer.offsetWidth;
-    const containerHeight = carouselContainer.offsetHeight;
-    
-    // Calculate widths based on image aspect ratios to ensure full visibility
-    const images = carouselSlide.querySelectorAll('img');
-    let totalCalculatedWidth = 0;
-    
-    // First pass: calculate natural widths for all images
-    const imageWidths = [];
-    images.forEach((img, index) => {
-        let calculatedWidth;
-        
-        if (img.naturalWidth && img.naturalHeight && img.naturalWidth > 0 && img.naturalHeight > 0) {
-            // Calculate width based on container height and image aspect ratio
-            const aspectRatio = img.naturalWidth / img.naturalHeight;
-            calculatedWidth = Math.floor(containerHeight * aspectRatio);
-        } else {
-            // Fallback for images not yet loaded - use a reasonable default
-            calculatedWidth = Math.floor(containerHeight * (16/9)); // Assume 16:9 aspect ratio
-        }
-        
-        // Ensure minimum width to prevent too narrow images
-        calculatedWidth = Math.max(calculatedWidth, Math.floor(containerHeight * 0.5));
-        
-        imageWidths.push(calculatedWidth);
-        totalCalculatedWidth += calculatedWidth;
-    });
-    
-    // Apply calculated widths to ensure full image visibility
-    images.forEach((img, index) => {
-        const width = imageWidths[index];
-        img.style.width = width + 'px';
-        img.style.minWidth = width + 'px';
-        img.style.maxWidth = width + 'px';
-        img.style.height = containerHeight + 'px';
-        img.style.objectFit = 'contain';
-    });
-    
-    // Set total slide width with a small buffer to prevent gaps
-    carouselSlide.style.width = (totalCalculatedWidth + 10) + 'px';
-    
-    // Reset position to ensure we start correctly
-    carouselCurrentPosition = 0;
-    carouselSlide.style.transform = 'translateX(0px)';
-    
-    // Start animation after a brief delay to ensure layout is stable
-    setTimeout(() => {
-        startCarouselAnimation();
-    }, 100);
-}
-
-function startCarouselAnimation() {
-    const carouselSlide = document.querySelector('.carousel-slide');
-    const carouselContainer = document.querySelector('.carousel-container');
-    if (!carouselSlide || !carouselContainer) return;
-    
-    // Stop existing animation
-    if (carouselAnimation) {
-        cancelAnimationFrame(carouselAnimation);
-    }
-    
-    const images = carouselSlide.querySelectorAll('img');
-    const totalImages = carouselImages.length; // Original images count
-    
-    // Calculate total width of original images only
-    let originalSetWidth = 0;
-    for (let i = 0; i < totalImages; i++) {
-        if (images[i] && images[i].offsetWidth > 0) {
-            originalSetWidth += images[i].offsetWidth;
-        }
-    }
-    
-    // If we don't have proper dimensions yet, try again in a moment
-    if (originalSetWidth === 0) {
-        setTimeout(() => startCarouselAnimation(), 200);
-        return;
-    }
-    
-    // Speed: move the width of one average image every 3 seconds
-    const averageImageWidth = originalSetWidth / totalImages;
-    const pixelsPerSecond = averageImageWidth / 3;
-    
-    let lastTime = performance.now();
-    
-    function animate(currentTime) {
-        const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-        lastTime = currentTime;
-        
-        // Move the carousel (in pixels)
-        carouselCurrentPosition += pixelsPerSecond * deltaTime;
-        
-        // Reset position when we've moved past the original set of images
-        // Reset exactly at the boundary for seamless transition
-        if (carouselCurrentPosition >= originalSetWidth) {
-            carouselCurrentPosition = carouselCurrentPosition - originalSetWidth;
-        }
-        
-        // Apply transform in pixels
-        carouselSlide.style.transform = `translateX(-${carouselCurrentPosition}px)`;
-        
-        carouselAnimation = requestAnimationFrame(animate);
-    }
-    
-    carouselAnimation = requestAnimationFrame(animate);
-}
-
+// --- Seamless Carousel Setup ---
 async function setupCarousel() {
-    const carouselSlide = document.querySelector('.carousel-slide');
+    debugLog("Setting up carousel...");
+    const carouselSlide = document.querySelector(".carousel-slide");
     if (!carouselSlide) {
+        debugLog("No carousel-slide element found");
         return;
     }
-    
     try {
-        const response = await fetch('/api/carousel-images');
+        const response = await fetch("/api/carousel-images");
         if (!response.ok) {
-            throw new Error('Failed to fetch carousel images');
+            throw new Error("Failed to fetch carousel images");
         }
-        
-        carouselImages = await response.json();
-        
+        const carouselImages = await response.json();
+        debugLog("Carousel images:", carouselImages);
         if (carouselImages.length > 0) {
-            // Clear existing content
-            carouselSlide.innerHTML = '';
-            
-            // Create promises for image loading
-            const imageLoadPromises = [];
-            
-            // Add original images
-            carouselImages.forEach(image => {
-                const img = document.createElement('img');
+            carouselImages.forEach((image) => {
+                const img = document.createElement("img");
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
-                img.style.display = 'block'; // Ensure images are displayed
                 carouselSlide.appendChild(img);
-                
-                // Create promise for image load
-                const loadPromise = new Promise((resolve) => {
-                    if (img.complete && img.naturalWidth > 0) {
-                        resolve();
-                    } else {
-                        img.onload = () => resolve();
-                        img.onerror = () => resolve(); // Resolve even on error to continue
-                        // Timeout fallback in case image doesn't load
-                        setTimeout(() => resolve(), 5000);
-                    }
-                });
-                imageLoadPromises.push(loadPromise);
             });
-            
-            // Add duplicate images for seamless loop
-            carouselImages.forEach(image => {
-                const img = document.createElement('img');
-                img.src = `/img/carousel/${image}`;
-                img.alt = "Carousel Image";
-                img.style.display = 'block'; // Ensure images are displayed
-                carouselSlide.appendChild(img);
-                
-                // Create promise for image load
-                const loadPromise = new Promise((resolve) => {
-                    if (img.complete && img.naturalWidth > 0) {
-                        resolve();
-                    } else {
-                        img.onload = () => resolve();
-                        img.onerror = () => resolve(); // Resolve even on error to continue
-                        // Timeout fallback in case image doesn't load
-                        setTimeout(() => resolve(), 5000);
-                    }
-                });
-                imageLoadPromises.push(loadPromise);
+            const images = carouselSlide.querySelectorAll("img");
+            images.forEach((img) => {
+                const clone = img.cloneNode(true);
+                carouselSlide.appendChild(clone);
             });
-            
-            // Wait for all images to load before setting up layout
-            await Promise.all(imageLoadPromises);
-            
-            // Setup layout and start animation after images are loaded
-            setupCarouselLayout();
-            
-            // Handle window resize
-            let resizeTimeout;
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => {
-                    // Stop current animation before recalculating
-                    if (carouselAnimation) {
-                        cancelAnimationFrame(carouselAnimation);
-                        carouselAnimation = null;
-                    }
-                    setupCarouselLayout();
-                }, 150);
-            });
-            
         } else {
-            carouselSlide.innerHTML = '<p>No images found in carousel.</p>';
+            carouselSlide.innerHTML = "<p>No images found in carousel.</p>";
         }
     } catch (error) {
-        console.error('Error setting up carousel:', error);
-        carouselSlide.innerHTML = '<p>Error loading carousel images.</p>';
+        console.error("Error setting up carousel:", error);
+        carouselSlide.innerHTML = "<p>Error loading carousel images.</p>";
     }
 }
 
 // --- Initial Page Load Logic ---
 function initialize() {
-    debugLog('Initializing page...');
+    debugLog("Initializing page...");
     setupCarousel();
 
-    const storedRequestId = sessionStorage.getItem('activeRequestId');
+    const storedRequestId = sessionStorage.getItem("activeRequestId");
     if (storedRequestId) {
         currentRequestId = storedRequestId;
         disableUpload();
-        socket.emit('joinRoom', currentRequestId);
+        socket.emit("joinRoom", currentRequestId);
     }
 
-    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    const isLocal =
+        location.hostname === "localhost" || location.hostname === "127.0.0.1";
     if (isLocal || captchaDisabled) {
-        const captchaContainer = document.getElementById('captchaContainer');
+        const captchaContainer = document.getElementById("captchaContainer");
         if (captchaContainer) {
-            captchaContainer.style.display = 'none';
+            captchaContainer.style.display = "none";
         }
     }
 
     fetchQueueStatus();
     pollingIntervalId = setInterval(fetchQueueStatus, 2000);
+
+    // Settings Toggle
+    const settingsToggle = document.getElementById("settings-toggle");
+    const settingsCol = document.querySelector(".settings-col.collapsible");
+    settingsToggle.addEventListener("click", () => {
+        settingsCol.classList.toggle("open");
+    });
+
+    // Image Comparison Slider (legacy, now using web component)
+    const slider = document.getElementById("comparison-slider");
+    const outputImage = document.getElementById("comparison-output-image");
+    if (slider && outputImage) {
+        slider.addEventListener("input", (e) => {
+            outputImage.style.clipPath = `inset(0 ${
+                100 - e.target.value
+            }% 0 0)`;
+        });
+    }
 }
 
 initialize();
 
 function disableUpload() {
-    debugLog('Disabling upload button');
-    setUploadButtonState({ disabled: true, text: 'Processing...' });
-    processingStatusSpan.textContent = 'Processing';
-    outputPlaceholder.textContent = 'Uploading and processing your image...';
+    debugLog("Disabling upload button");
+    setUploadButtonState({ disabled: true, text: "Processing..." });
+    processingStatusSpan.textContent = "Processing";
+    outputPlaceholder.textContent = "Uploading and processing your image...";
     showElement(outputPlaceholder);
     hideElement(outputImage);
 }
 
 function enableUpload() {
-    debugLog('Enabling upload button');
-    setUploadButtonState({ disabled: false, text: 'Upload' });
-    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    debugLog("Enabling upload button");
+    setUploadButtonState({ disabled: false, text: "Upload" });
+    const isLocal =
+        location.hostname === "localhost" || location.hostname === "127.0.0.1";
     if (!isLocal && !captchaDisabled) {
         fetchCaptcha();
     }
-    var captchaAnswer = document.getElementById('captcha_answer');
-    if (captchaAnswer) captchaAnswer.value = '';
+    var captchaAnswer = document.getElementById("captcha_answer");
+    if (captchaAnswer) captchaAnswer.value = "";
 }

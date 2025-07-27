@@ -4,9 +4,14 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR } = require("./config");
-const { connectToComfyUIWebSocket } = require("./websocket");
-const routes = require("./routes");
+const {
+    PORT,
+    INPUT_DIR,
+    OUTPUT_DIR,
+    UPLOAD_COPY_DIR,
+} = require("./config/config");
+const { connectToComfyUIWebSocket } = require("./websocket/websocket");
+const routes = require("./routes/routes");
 
 const app = express();
 const server = http.createServer(app);
@@ -17,7 +22,7 @@ const io = new Server(server, {
     },
 });
 
-app.set('io', io);
+app.set("io", io);
 
 // Ensure required directories exist
 [INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR].forEach((dir) => {
@@ -34,7 +39,7 @@ app.use("/output", express.static(OUTPUT_DIR));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "../public/views"));
 
-app.use('/', routes);
+app.use("/", routes);
 
 io.on("connection", (socket) => {
     socket.on("joinRoom", (requestId) => {
