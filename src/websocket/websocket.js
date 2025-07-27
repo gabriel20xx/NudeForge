@@ -3,6 +3,8 @@ const { COMFYUI_WS_URL } = require('../config/config');
 const { getRequestStatus, getCurrentlyProcessingRequestId } = require('../queue/queue');
 
 let comfyUiWs = null;
+// Track stage progress for each request
+const requestStageTracker = new Map();
 
 function connectToComfyUIWebSocket(io) {
     if (comfyUiWs && comfyUiWs.readyState === WebSocket.OPEN) {
@@ -32,11 +34,29 @@ function connectToComfyUIWebSocket(io) {
                     type: "global_steps",
                 };
                 
-                // Determine which stage we're in based on progress
-                let stage = "Stage 1: Generating image...";
-                if (message.data.value > message.data.max * 0.6) {
-                    stage = "Stage 2: Scaling image to correct size...";
+                // Initialize tracking for this request if not exists
+                if (!requestStageTracker.has(currentlyProcessingRequestId)) {
+                    requestStageTracker.set(currentlyProcessingRequestId, {
+                        stage: 1,
+                        hasCompletedStage1: false,
+                        lastProgressValue: 0
+                    });
                 }
+                
+                const tracker = requestStageTracker.get(currentlyProcessingRequestId);
+                const currentProgress = message.data.value / message.data.max;
+                
+                // Check if we've completed stage 1 and are starting stage 2
+                if (tracker.stage === 1 && currentProgress >= 0.95) {
+                    tracker.hasCompletedStage1 = true;
+                } else if (tracker.hasCompletedStage1 && currentProgress < 0.3 && message.data.value < tracker.lastProgressValue) {
+                    // Progress reset to low value after completing stage 1 - we're in stage 2
+                    tracker.stage = 2;
+                }
+                
+                tracker.lastProgressValue = message.data.value;
+                
+                let stage = tracker.stage === 1 ? "Stage 1: Generating image..." : "Stage 2: Scaling image to correct size...";
                 
                 io.to(currentlyProcessingRequestId).emit(
                     "processingProgress",
@@ -59,4 +79,12 @@ function connectToComfyUIWebSocket(io) {
     };
 }
 
-module.exports = { connectToComfyUIWebSocket };
+// Function to clean up stage tracking for a completed request
+function cleanupStageTracker(requestId) {
+    if (requestStageTracker.has(requestId)) {
+        requestStageTracker.delete(requestId);
+        console.log(`[WEBSOCKET] Cleaned up stage tracker for requestId=${requestId}`);
+    }
+}
+
+module.exports = { connectToComfyUIWebSocket, cleanupStageTracker };
