@@ -102,6 +102,7 @@ router.get('/queue-status', (req, res) => {
         yourPosition: yourPosition,
         status: status,
         result: resultData,
+        uploadedFilename: getRequestStatus()[requestId]?.uploadedFilename,
     });
 });
 
@@ -124,6 +125,7 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
             status: "pending",
             totalNodesInWorkflow: 0,
             originalFilename: originalFilename,
+            uploadedFilename: uploadedFilename,
             settings: { prompt, steps, outputHeight, ...loraSettings },
         };
 

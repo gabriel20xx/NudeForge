@@ -63,6 +63,12 @@ async function checkCaptchaStatusAndInit() {
         }
     }
     if (!isLocal && !captchaDisabled) fetchCaptcha();
+    
+    // Initialize comparison section - show placeholder, hide container
+    const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+    const comparisonContainer = document.getElementById('comparisonContainer');
+    showElement(comparisonPlaceholder);
+    hideElement(comparisonContainer);
 }
 
 window.addEventListener('DOMContentLoaded', checkCaptchaStatusAndInit);
@@ -79,6 +85,11 @@ const queueSizeSpan = document.getElementById('queueSize');
 const processingStatusSpan = document.getElementById('processingStatus');
 const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
 const uploadButton = uploadForm.querySelector('.upload-btn');
+
+// Global variable to store the uploaded copy filename for comparison
+let uploadedCopyFilename = null;
+// Global variable to store the main upload filename for comparison
+let mainUploadFilename = null;
 
 // --- Helper functions for show/hide ---
 function debugLog(...args) {
@@ -245,13 +256,15 @@ function resetUIForNewUpload() {
     updateProgressPercentage('');
     queueSizeSpan.textContent = '0';
 
-    // Reset comparison section
+    // Clear uploaded copy filename for fresh comparison
+    uploadedCopyFilename = null;
+    mainUploadFilename = null;
+
+    // Reset comparison section - show placeholder, hide container during upload
     const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
-    showElement(comparisonPlaceholder);
-    
-    // Hide the comparison container and clear images
     const comparisonContainer = document.getElementById('comparisonContainer');
-    if (comparisonContainer) hideElement(comparisonContainer);
+    showElement(comparisonPlaceholder);
+    hideElement(comparisonContainer);
     
     const comparisonBeforeImg = document.getElementById('comparisonBeforeImg');
     const comparisonAfterImg = document.getElementById('comparisonAfterImg');
@@ -276,8 +289,14 @@ function displayResult(imageUrl, downloadUrl) {
         hideElement(outputPlaceholder);
         enableDownload(downloadUrl || imageUrl);
         
-        // Setup comparison slider
-        setupComparison(previewImage.src, imageUrl);
+        // Setup comparison slider only if we have a valid main upload filename
+        if (mainUploadFilename) {
+            const beforeImageUrl = `/input/${mainUploadFilename}`;
+            Logger.info('FRONTEND', 'Setting up comparison with main upload file');
+            setupComparison(beforeImageUrl, imageUrl);
+        } else {
+            Logger.warn('FRONTEND', 'No main upload filename available for comparison');
+        }
     };
     
     outputImage.onerror = () => {
@@ -294,7 +313,10 @@ function setupComparison(beforeImageUrl, afterImageUrl) {
     const beforeImg = document.getElementById('comparisonBeforeImg');
     const afterImg = document.getElementById('comparisonAfterImg');
     
-    if (!comparisonContainer || !beforeImg || !afterImg || !beforeImageUrl) {
+    debugLog('Setting up comparison with:', { beforeImageUrl, afterImageUrl });
+    
+    if (!comparisonContainer || !beforeImg || !afterImg || !beforeImageUrl || !afterImageUrl) {
+        debugLog('Comparison setup failed - missing elements or URLs');
         return;
     }
     
@@ -306,19 +328,28 @@ function setupComparison(beforeImageUrl, afterImageUrl) {
     
     function onImageLoad() {
         imagesLoaded++;
+        debugLog(`Comparison image loaded: ${imagesLoaded}/2`);
         if (imagesLoaded === 2) {
             hideElement(comparisonPlaceholder);
             showElement(comparisonContainer);
             initializeSlider();
+            debugLog('Comparison setup complete');
         }
+    }
+    
+    function onImageError(imgType) {
+        Logger.error('COMPARISON', `Failed to load ${imgType} image for comparison`);
+        debugLog('Comparison setup failed due to image load error');
     }
     
     beforeImg.onload = onImageLoad;
     afterImg.onload = onImageLoad;
+    beforeImg.onerror = () => onImageError('before');
+    afterImg.onerror = () => onImageError('after');
     
     // Check if images are already loaded
-    if (beforeImg.complete) onImageLoad();
-    if (afterImg.complete) onImageLoad();
+    if (beforeImg.complete && beforeImg.naturalWidth > 0) onImageLoad();
+    if (afterImg.complete && afterImg.naturalWidth > 0) onImageLoad();
 }
 
 function initializeSlider() {
@@ -415,9 +446,12 @@ inputImage.addEventListener('change', () => {
             }
             return response.json();
         })
-        .then(data => debugLog('Image copy uploaded:', data))
+        .then(data => {
+            // Store filename silently for comparison (no console output)
+            uploadedCopyFilename = data.filename;
+        })
         .catch(error => {
-            Logger.error('UPLOAD-COPY', 'Error uploading image copy:', error);
+            // Silent error handling for upload-copy (no console output)
         });
     }
 });
@@ -576,6 +610,12 @@ async function fetchQueueStatus() {
         }
         const data = await response.json();
         debugLog('Queue status response:', data);
+        
+        // Store the uploaded filename for comparison when available
+        if (data.uploadedFilename) {
+            mainUploadFilename = data.uploadedFilename;
+        }
+        
         queueSizeSpan.textContent = data.queueSize;
         if (currentRequestId) {
             switch (data.status) {
