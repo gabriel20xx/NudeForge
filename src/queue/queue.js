@@ -124,25 +124,7 @@ async function processQueue(io) {
             `[PROCESS] Sending workflow to ComfyUI for requestId=${requestId}`
         );
         
-        // Update status to indicate we're starting image generation
-        io.to(requestId).emit("queueUpdate", {
-            queueSize: processingQueue.length,
-            yourPosition: 0,
-            status: "processing",
-            stage: "Stage 1: Generating image...",
-            progress: { value: 0, max: 100, type: "global_steps" },
-        });
-        
         await sendWorkflowWithRetry(workflow, requestId);
-
-        // Update status to indicate we're now scaling the image
-        io.to(requestId).emit("queueUpdate", {
-            queueSize: processingQueue.length,
-            yourPosition: 0,
-            status: "processing", 
-            stage: "Stage 2: Scaling image to correct size...",
-            progress: { value: 50, max: 100, type: "global_steps" },
-        });
 
         const expectedOutputSuffix = `${path.parse(uploadedFilename).name}-nudified_00001.png`;
         let foundOutputFilename = null;
