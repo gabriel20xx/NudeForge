@@ -25,6 +25,44 @@ function getIsProcessing() {
     return isProcessing;
 }
 
+// Function to send workflow with retry logic for connection errors
+async function sendWorkflowWithRetry(workflow, requestId) {
+    let attempt = 0;
+    while (true) { // Wait indefinitely
+        try {
+            await axios.post(
+                COMFYUI_URL,
+                { prompt: workflow },
+                { 
+                    headers: { "Content-Type": "application/json" },
+                    timeout: 30000 // 30 second timeout
+                }
+            );
+            console.log(`[PROCESS] Successfully sent workflow to ComfyUI for requestId=${requestId}`);
+            return; // Success, exit the retry loop
+        } catch (error) {
+            attempt++;
+            const isConnectionError = error.code === 'ECONNREFUSED' || 
+                                    error.code === 'ECONNRESET' || 
+                                    error.code === 'ENOTFOUND' ||
+                                    error.code === 'ETIMEDOUT' ||
+                                    error.message.includes('connect') ||
+                                    error.message.includes('timeout');
+            
+            if (isConnectionError) {
+                const delay = Math.min(1000 * Math.pow(2, Math.min(attempt - 1, 6)), 30000); // Exponential backoff, max 30s, cap at 2^6
+                console.log(`[PROCESS] ComfyUI connection error for requestId=${requestId}, attempt ${attempt}. Retrying in ${delay}ms...`);
+                console.log(`[PROCESS] Error details: ${error.code} - ${error.message}`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                // If it's not a connection error, throw the error immediately
+                console.error(`[PROCESS] Non-connection error sending workflow to ComfyUI for requestId=${requestId}: ${error.message}`);
+                throw error;
+            }
+        }
+    }
+}
+
 async function processQueue(io) {
     if (isProcessing || processingQueue.length === 0) {
         if (isProcessing) console.log("[QUEUE] Already processing.");
@@ -46,6 +84,7 @@ async function processQueue(io) {
         queueSize: processingQueue.length,
         yourPosition: 0,
         status: "processing",
+        stage: "Initializing workflow...",
         progress: { value: 0, max: 100, type: "global_steps" },
     });
 
@@ -111,11 +150,26 @@ async function processQueue(io) {
         console.log(
             `[PROCESS] Sending workflow to ComfyUI for requestId=${requestId}`
         );
-        await axios.post(
-            COMFYUI_URL,
-            { prompt: workflow },
-            { headers: { "Content-Type": "application/json" } }
-        );
+        
+        // Update status to indicate we're starting image generation
+        io.to(requestId).emit("queueUpdate", {
+            queueSize: processingQueue.length,
+            yourPosition: 0,
+            status: "processing",
+            stage: "Stage 1: Generating image...",
+            progress: { value: 0, max: 100, type: "global_steps" },
+        });
+        
+        await sendWorkflowWithRetry(workflow, requestId);
+
+        // Update status to indicate we're now scaling the image
+        io.to(requestId).emit("queueUpdate", {
+            queueSize: processingQueue.length,
+            yourPosition: 0,
+            status: "processing", 
+            stage: "Stage 2: Scaling image to correct size...",
+            progress: { value: 50, max: 100, type: "global_steps" },
+        });
 
         const expectedOutputSuffix = `${
             path.parse(uploadedFilename).name

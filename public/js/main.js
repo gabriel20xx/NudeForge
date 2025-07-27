@@ -164,8 +164,8 @@ socket.on("processingProgress", (progress) => {
         return;
     }
     updateProgressPercentage(`: ${percentage}%`);
-    processingStatusSpan.textContent = "Processing";
-    outputPlaceholder.textContent = `Processing your image: ${percentage}% Done`;
+    processingStatusSpan.textContent = progress.stage || "Processing";
+    outputPlaceholder.textContent = `${progress.stage || "Processing your image"}: ${percentage}% Done`;
 });
 
 // Listen for immediate queue updates
@@ -176,9 +176,9 @@ socket.on("queueUpdate", (data) => {
     if (currentRequestId && data.requestId === currentRequestId) {
         if (data.status === "processing") {
             yourPositionSpan.textContent = "Processing";
-            processingStatusSpan.textContent = "Processing";
+            processingStatusSpan.textContent = data.stage || "Processing";
             updateProgressPercentage("");
-            outputPlaceholder.textContent = `Processing your image...`;
+            outputPlaceholder.textContent = data.stage || `Processing your image...`;
             outputPlaceholder.style.display = "block";
             outputImage.style.display = "none";
         } else if (data.status === "pending") {

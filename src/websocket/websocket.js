@@ -38,9 +38,16 @@ function connectToComfyUIWebSocket(io) {
                     max: message.data.max,
                     type: "global_steps",
                 };
+                
+                // Determine which stage we're in based on progress
+                let stage = "Stage 1: Generating image...";
+                if (message.data.value > message.data.max * 0.6) {
+                    stage = "Stage 2: Scaling image to correct size...";
+                }
+                
                 io.to(currentlyProcessingRequestId).emit(
                     "processingProgress",
-                    progress
+                    { ...progress, stage }
                 );
             }
         } catch (parseError) {
