@@ -6,7 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR } = require("./config/config");
 const { connectToComfyUIWebSocket } = require("./websocket/websocket");
-const routes = require("./routes/routes");
+const { router: routes, generateAllCarouselThumbnails } = require("./routes/routes");
 
 const app = express();
 const server = http.createServer(app);
@@ -56,8 +56,11 @@ io.on("connection", (socket) => {
 
 connectToComfyUIWebSocket(io);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
     console.log(`✅ Server running at http://localhost:${PORT}`);
+    
+    // Generate carousel thumbnails on startup
+    await generateAllCarouselThumbnails();
 });
 
 module.exports = { app, server };

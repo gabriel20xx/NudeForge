@@ -9,145 +9,162 @@ const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, g
 
 const router = express.Router();
 
+// Function to generate all carousel thumbnails on server startup
+async function generateAllCarouselThumbnails() {
+    try {
+        console.log('[CAROUSEL STARTUP] Starting thumbnail pre-generation...');
+        
+        // Handle both development and production paths
+        const baseDir = process.env.NODE_ENV === 'production' ? '/app' : __dirname + '/../..';
+        const carouselDir = path.join(baseDir, 'public/img/carousel');
+        const thumbnailsDir = path.join(baseDir, 'public/img/carousel/thumbnails');
+        
+        // Ensure thumbnails directory exists
+        await fs.promises.mkdir(thumbnailsDir, { recursive: true });
+        
+        // Get all image files
+        const files = await fs.promises.readdir(carouselDir);
+        const imageFiles = files.filter(file => 
+            /\.(jpg|jpeg|png|gif)$/i.test(file) && 
+            !file.startsWith('thumb_') // Skip existing thumbnails
+        );
+        
+        console.log(`[CAROUSEL STARTUP] Found ${imageFiles.length} images to process`);
+        
+        let processed = 0;
+        let skipped = 0;
+        
+        // Process each image
+        for (const filename of imageFiles) {
+            try {
+                const originalPath = path.join(carouselDir, filename);
+                const ext = path.extname(filename);
+                const nameWithoutExt = path.basename(filename, ext);
+                const thumbnailFilename = `thumb_${nameWithoutExt}.jpg`;
+                const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
+                
+                // Check if thumbnail already exists and is newer than original
+                try {
+                    const [thumbnailStats, originalStats] = await Promise.all([
+                        fs.promises.stat(thumbnailPath),
+                        fs.promises.stat(originalPath)
+                    ]);
+                    
+                    if (thumbnailStats.mtime > originalStats.mtime) {
+                        console.log(`[CAROUSEL STARTUP] Thumbnail already exists for: ${filename}`);
+                        skipped++;
+                        continue;
+                    }
+                } catch (err) {
+                    // Thumbnail doesn't exist, we'll create it
+                }
+                
+                console.log(`[CAROUSEL STARTUP] Generating thumbnail for: ${filename}`);
+                
+                // Get image metadata to calculate optimal dimensions
+                const metadata = await sharp(originalPath).metadata();
+                const originalWidth = metadata.width;
+                const originalHeight = metadata.height;
+                const originalAspectRatio = originalWidth / originalHeight;
+                
+                // Calculate target dimensions maintaining aspect ratio
+                // Max dimensions: 800px width or 600px height, whichever is limiting
+                let targetWidth, targetHeight;
+                if (originalAspectRatio > (800 / 600)) {
+                    // Image is wider, limit by width
+                    targetWidth = Math.min(800, originalWidth);
+                    targetHeight = Math.round(targetWidth / originalAspectRatio);
+                } else {
+                    // Image is taller, limit by height
+                    targetHeight = Math.min(600, originalHeight);
+                    targetWidth = Math.round(targetHeight * originalAspectRatio);
+                }
+                
+                // Generate optimized thumbnail
+                const optimizedImage = await sharp(originalPath)
+                    .resize(targetWidth, targetHeight, { 
+                        fit: 'contain', // Preserve aspect ratio exactly, no cropping
+                        withoutEnlargement: true
+                    })
+                    .jpeg({ 
+                        quality: 75,
+                        progressive: true,
+                        mozjpeg: true
+                    })
+                    .toBuffer();
+                
+                // Save thumbnail
+                await fs.promises.writeFile(thumbnailPath, optimizedImage);
+                console.log(`[CAROUSEL STARTUP] Thumbnail saved: ${thumbnailPath}`);
+                processed++;
+                
+            } catch (error) {
+                console.error(`[CAROUSEL STARTUP] Error processing ${filename}:`, error);
+            }
+        }
+        
+        console.log(`[CAROUSEL STARTUP] Thumbnail generation complete! Processed: ${processed}, Skipped: ${skipped}`);
+        
+    } catch (error) {
+        console.error('[CAROUSEL STARTUP] Error during thumbnail generation:', error);
+    }
+}
+
+// Generate all carousel thumbnails on server startup
+generateAllCarouselThumbnails();
+
 router.get('/', (req, res) => {
     res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
 });
 
-// Optimized carousel images route - serves compressed, resized images
+// Optimized carousel images route - serves pre-generated thumbnails
 router.get('/img/carousel/:filename', async (req, res) => {
     try {
         const filename = req.params.filename;
         
         // Handle both development and production paths
         const baseDir = process.env.NODE_ENV === 'production' ? '/app' : __dirname + '/../..';
-        const originalPath = path.join(baseDir, 'public/img/carousel', filename);
         const thumbnailsDir = path.join(baseDir, 'public/img/carousel/thumbnails');
         
-        console.log(`[CAROUSEL] Processing request for: ${filename}`);
-        console.log(`[CAROUSEL] Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`[CAROUSEL] Original path: ${originalPath}`);
-        
-        // Check if file exists
-        try {
-            await fs.promises.access(originalPath);
-        } catch (err) {
-            console.error(`[CAROUSEL] Original file not found: ${originalPath}`);
-            return res.status(404).send('Image not found');
-        }
-        
-        // Ensure thumbnails directory exists
-        try {
-            await fs.promises.mkdir(thumbnailsDir, { recursive: true });
-        } catch (err) {
-            console.error(`[CAROUSEL] Failed to create thumbnails directory: ${err.message}`);
-        }
-        
-        // Create thumbnail filename with same extension as original
+        // Create thumbnail filename - always JPEG
         const ext = path.extname(filename);
         const nameWithoutExt = path.basename(filename, ext);
-        const thumbnailFilename = `thumb_${nameWithoutExt}.jpg`; // Always save as JPEG for consistency
+        const thumbnailFilename = `thumb_${nameWithoutExt}.jpg`;
         const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
         
-        console.log(`[CAROUSEL] Thumbnail path: ${thumbnailPath}`);
+        console.log(`[CAROUSEL] Serving thumbnail for: ${filename}`);
         
-        // Check if thumbnail exists and is newer than original
+        // Check if thumbnail exists
         try {
-            const [thumbnailStats, originalStats] = await Promise.all([
-                fs.promises.stat(thumbnailPath),
-                fs.promises.stat(originalPath)
-            ]);
+            await fs.promises.access(thumbnailPath);
             
-            if (thumbnailStats.mtime > originalStats.mtime) {
-                console.log(`[CAROUSEL] Serving cached thumbnail for: ${filename}`);
-                // Set proper headers for caching
-                res.set({
-                    'Cache-Control': 'public, max-age=86400', // 24 hours
-                    'Content-Type': 'image/jpeg'
-                });
-                
-                // Serve cached thumbnail
-                return res.sendFile(thumbnailPath);
+            // Set proper headers for caching
+            res.set({
+                'Cache-Control': 'public, max-age=86400', // 24 hours
+                'Content-Type': 'image/jpeg'
+            });
+            
+            // Serve cached thumbnail
+            return res.sendFile(thumbnailPath);
+            
+        } catch (err) {
+            console.error(`[CAROUSEL] Thumbnail not found: ${thumbnailPath}`);
+            
+            // Fallback: try to serve the original file
+            const originalPath = path.join(baseDir, 'public/img/carousel', filename);
+            try {
+                await fs.promises.access(originalPath);
+                console.log(`[CAROUSEL] Serving original file as fallback: ${filename}`);
+                res.sendFile(originalPath);
+            } catch (fallbackError) {
+                console.error('[CAROUSEL] Original file also not found:', fallbackError);
+                res.status(404).send('Image not found');
             }
-        } catch (err) {
-            // Thumbnail doesn't exist or error accessing it, we'll create it
-            console.log(`[CAROUSEL] No cached thumbnail found for: ${filename}, will generate new one`);
         }
-        
-        console.log(`[CAROUSEL] Generating new thumbnail for: ${filename}`);
-        
-        // Check if Sharp is available
-        if (!sharp) {
-            console.error(`[CAROUSEL] Sharp library not available, serving original file`);
-            return res.sendFile(originalPath);
-        }
-        
-        // Generate new thumbnail with proper aspect ratio preservation
-        // First get image metadata to calculate optimal dimensions
-        const metadata = await sharp(originalPath).metadata();
-        console.log(`[CAROUSEL] Image metadata - Width: ${metadata.width}, Height: ${metadata.height}, Format: ${metadata.format}`);
-        
-        const originalWidth = metadata.width;
-        const originalHeight = metadata.height;
-        const originalAspectRatio = originalWidth / originalHeight;
-        
-        // Calculate target dimensions maintaining aspect ratio
-        // Max dimensions: 800px width or 600px height, whichever is limiting
-        let targetWidth, targetHeight;
-        if (originalAspectRatio > (800 / 600)) {
-            // Image is wider, limit by width
-            targetWidth = Math.min(800, originalWidth);
-            targetHeight = Math.round(targetWidth / originalAspectRatio);
-        } else {
-            // Image is taller, limit by height
-            targetHeight = Math.min(600, originalHeight);
-            targetWidth = Math.round(targetHeight * originalAspectRatio);
-        }
-        
-        console.log(`[CAROUSEL] Target dimensions - Width: ${targetWidth}, Height: ${targetHeight}`);
-        
-        const optimizedImage = await sharp(originalPath)
-            .resize(targetWidth, targetHeight, { 
-                fit: 'contain', // Preserve aspect ratio exactly, no cropping
-                withoutEnlargement: true
-            })
-            .jpeg({ 
-                quality: 75,
-                progressive: true,
-                mozjpeg: true
-            })
-            .toBuffer();
-        
-        // Try to save thumbnail to cache
-        try {
-            await fs.promises.writeFile(thumbnailPath, optimizedImage);
-            console.log(`[CAROUSEL] Thumbnail saved: ${thumbnailPath}`);
-        } catch (err) {
-            console.error(`[CAROUSEL] Failed to save thumbnail: ${err.message}`);
-            // Continue anyway, we can still serve the optimized image
-        }
-        
-        // Set proper headers
-        res.set({
-            'Cache-Control': 'public, max-age=86400', // 24 hours
-            'Content-Type': 'image/jpeg'
-        });
-        
-        res.send(optimizedImage);
         
     } catch (error) {
-        console.error('[CAROUSEL] Error optimizing carousel image:', error);
-        
-        // Fallback: try to serve the original file if optimization fails
-        try {
-            const baseDir = process.env.NODE_ENV === 'production' ? '/app' : __dirname + '/../..';
-            const originalPath = path.join(baseDir, 'public/img/carousel', req.params.filename);
-            await fs.promises.access(originalPath);
-            console.log(`[CAROUSEL] Serving original file as fallback: ${req.params.filename}`);
-            res.sendFile(originalPath);
-        } catch (fallbackError) {
-            console.error('[CAROUSEL] Fallback also failed:', fallbackError);
-            res.status(500).send('Error processing image');
-        }
+        console.error('[CAROUSEL] Error serving carousel image:', error);
+        res.status(500).send('Error processing image');
     }
 });
 
@@ -303,4 +320,4 @@ router.post("/upload-copy", uploadCopy.single("image"), (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = { router, generateAllCarouselThumbnails };
