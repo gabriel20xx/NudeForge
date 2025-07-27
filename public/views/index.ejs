@@ -13,8 +13,7 @@
     <div class="header-container">
         <h1>Image Nudifier</h1>
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span></p>
-        <p id="processingStatusDisplay">Status: <span id="processingStatus">Idle</span><span
-                class="progressPercentage"></span></p>
+        <p id="processingStatusDisplay">Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span></p>
     </div>
 
     <div class="carousel-container">
@@ -69,7 +68,33 @@
             </div>
         </div>
 
+        <div class="comparison-container-wrapper">
+            <div class="comparison-col">
+                <div class="main-section comparison-section">
+                    <h2>Comparison</h2>
+                    <div class="image-box">
+                        <p id="comparisonPlaceholder" class="placeholder">Comparison will appear here.</p>
+                        <div id="comparisonContainer" class="comparison-container" style="display:none;">
+                            <div class="comparison-before">
+                                <img id="comparisonBeforeImg" src="" alt="Before" />
+                            </div>
+                            <div class="comparison-after">
+                                <img id="comparisonAfterImg" src="" alt="After" />
+                            </div>
+                            <div class="comparison-slider"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="settings-container">
+            <div class="settings-col">
+                <div class="main-section settings-section">
+                    <h2>Settings</h2>
+                    <div class="settings-box">
+                        <label for="prompt" class="settings-label">Prompt:</label>
+                        <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
             <div class="settings-col">
                 <div class="main-section settings-section">
                     <h2>Settings</h2>

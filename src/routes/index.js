@@ -1,8 +1,8 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const { generateCaptcha, verifyCaptcha } = require('../captcha/captcha');
-const { upload, uploadCopy } = require('../uploads/uploads');
+const { generateCaptcha, verifyCaptcha } = require('../captcha');
+const { upload, uploadCopy } = require('../uploads');
 const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } = require('../queue');
 
 const router = express.Router();

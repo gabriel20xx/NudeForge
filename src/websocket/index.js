@@ -1,9 +1,6 @@
-const WebSocket = require("ws");
-const { COMFYUI_WS_URL } = require("../config/config");
-const {
-    getRequestStatus,
-    getCurrentlyProcessingRequestId,
-} = require("../queue/queue");
+const WebSocket = require('ws');
+const { COMFYUI_WS_URL } = require('../config');
+const { getRequestStatus, getCurrentlyProcessingRequestId } = require('../queue');
 
 let comfyUiWs = null;
 
@@ -21,18 +18,14 @@ function connectToComfyUIWebSocket(io) {
     comfyUiWs.onmessage = (event) => {
         try {
             const message = JSON.parse(event.data);
-            const currentlyProcessingRequestId =
-                getCurrentlyProcessingRequestId();
+            const currentlyProcessingRequestId = getCurrentlyProcessingRequestId();
             const requestStatus = getRequestStatus();
 
-            if (
-                !currentlyProcessingRequestId ||
-                !requestStatus[currentlyProcessingRequestId]
-            ) {
+            if (!currentlyProcessingRequestId || !requestStatus[currentlyProcessingRequestId]) {
                 return;
             }
 
-            if (message.type === "progress" && currentlyProcessingRequestId) {
+            if (message.type === 'progress' && currentlyProcessingRequestId) {
                 const progress = {
                     value: message.data.value,
                     max: message.data.max,
@@ -51,17 +44,12 @@ function connectToComfyUIWebSocket(io) {
                 );
             }
         } catch (parseError) {
-            console.error(
-                `Error parsing message from ComfyUI: ${parseError.message}`,
-                event.data
-            );
+            console.error(`Error parsing message from ComfyUI: ${parseError.message}`, event.data);
         }
     };
 
     comfyUiWs.onclose = () => {
-        console.log(
-            "Disconnected from ComfyUI WebSocket. Reconnecting in 5 seconds..."
-        );
+        console.log("Disconnected from ComfyUI WebSocket. Reconnecting in 5 seconds...");
         setTimeout(() => connectToComfyUIWebSocket(io), 5000);
     };
 
