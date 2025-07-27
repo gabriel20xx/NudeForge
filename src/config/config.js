@@ -5,7 +5,7 @@ require("dotenv").config({ path: path.resolve(__dirname, '../../.env') });
 // Define directories
 const INPUT_DIR = path.join(__dirname, "../../../input");
 const OUTPUT_DIR = path.join(__dirname, "../../../output");
-const UPLOAD_COPY_DIR = path.join(__dirname, "../../../upload");
+const UPLOAD_COPY_DIR = path.join(__dirname, "../../../copy");
 const WORKFLOW_PATH = path.join(__dirname, "../../workflow.json");
 
 // ComfyUI Host

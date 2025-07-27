@@ -46,7 +46,7 @@ app.use((req, res, next) => {
 });
 app.use("/input", express.static(INPUT_DIR));
 app.use("/output", express.static(OUTPUT_DIR));
-app.use("/upload", express.static(UPLOAD_COPY_DIR));
+app.use("/copy", express.static(UPLOAD_COPY_DIR));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "../public/views"));
 

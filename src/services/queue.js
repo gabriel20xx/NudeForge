@@ -176,7 +176,7 @@ async function processQueue(io) {
         isProcessing = false;
         // Clean up stage tracker - use require here to avoid circular dependency
         try {
-            const { cleanupStageTracker } = require("../websocket/websocket");
+            const { cleanupStageTracker } = require("./websocket");
             cleanupStageTracker(requestId);
         } catch (err) {
             Logger.warn('QUEUE', 'Could not cleanup stage tracker:', err.message);
