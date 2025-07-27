@@ -79,13 +79,23 @@ Preserve the exact same face details, shape and expression. " />
                     <div class="settings-row">
                         <div class="settings-item">
                             <label for="steps" class="settings-label">Steps:</label>
-                            <input type="number" id="steps" name="steps" class="settings-input" value="20" min="1"
-                                max="100" />
+                            <input type="range" id="steps" name="steps" class="settings-input" value="20" min="1" max="100" step="1" oninput="document.getElementById('stepsValue').textContent = this.value" />
+                            <span id="stepsValue">20</span>
                         </div>
                         <div class="settings-item">
                             <label for="outputHeight" class="settings-label">Output Height:</label>
-                            <input type="number" id="outputHeight" name="outputHeight" class="settings-input"
-                                value="1080" min="64" max="4096" />
+                            <select id="outputHeight" name="outputHeight" class="settings-input">
+                                <option value="480">480p (SD)</option>
+                                <option value="720">720p (HD)</option>
+                                <option value="1080" selected>1080p (Full HD)</option>
+                                <option value="1440">1440p (2K)</option>
+                                <option value="2160">2160p (4K)</option>
+                                <option value="512">512px (Square)</option>
+                                <option value="768">768px</option>
+                                <option value="1024">1024px</option>
+                                <option value="1536">1536px</option>
+                                <option value="2048">2048px</option>
+                            </select>
                         </div>
                     </div>
                     <fieldset class="lora-fieldset">
