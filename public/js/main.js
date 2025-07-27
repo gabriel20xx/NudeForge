@@ -225,6 +225,7 @@ socket.on("processingComplete", (data) => {
             pollingIntervalId = null;
         }
         sessionStorage.removeItem("activeRequestId");
+        currentRequestId = null;
         enableUpload();
     }
     fetchQueueStatus();
