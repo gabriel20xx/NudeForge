@@ -130,7 +130,7 @@
   },
   "200": {
     "inputs": {
-      "custom_path": "/comfy/mnt/ComfyUI/output/Nudify/Single/",
+      "custom_path": "",
       "filename_prefix": [
         "251",
         0
@@ -371,50 +371,6 @@
     "class_type": "StringConcatenate",
     "_meta": {
       "title": "Concatenate"
-    }
-  },
-  "252": {
-    "inputs": {
-      "direction": "right",
-      "match_image_size": true,
-      "spacing_width": 0,
-      "spacing_color": "white",
-      "image1": [
-        "244",
-        0
-      ],
-      "image2": [
-        "220",
-        0
-      ]
-    },
-    "class_type": "ImageStitch",
-    "_meta": {
-      "title": "Image Stitch"
-    }
-  },
-  "253": {
-    "inputs": {
-      "custom_path": "/comfy/mnt/ComfyUI/output/Nudify/Comparison/",
-      "filename_prefix": [
-        "251",
-        0
-      ],
-      "timestamp": "None",
-      "format": "png",
-      "quality": 100,
-      "meta_data": false,
-      "blind_watermark": "",
-      "save_workflow_as_json": false,
-      "preview": true,
-      "images": [
-        "252",
-        0
-      ]
-    },
-    "class_type": "LayerUtility: SaveImagePlus",
-    "_meta": {
-      "title": "LayerUtility: SaveImage Plus"
     }
   }
 }
