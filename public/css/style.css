@@ -130,6 +130,17 @@ h2 {
     object-fit: contain;
     flex-shrink: 0;
     /* Width will be set dynamically by JavaScript */
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.carousel-slide img.loaded {
+    opacity: 1;
+}
+
+.carousel-slide img.loading {
+    opacity: 0.6;
+    filter: blur(2px);
 }
 
 

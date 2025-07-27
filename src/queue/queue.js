@@ -3,7 +3,6 @@ const path = require("path");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR } = require("../config/config");
-const { cleanupStageTracker } = require("../websocket/websocket");
 
 const processingQueue = [];
 let isProcessing = false;
@@ -171,7 +170,13 @@ async function processQueue(io) {
         io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: err.message });
     } finally {
         isProcessing = false;
-        cleanupStageTracker(requestId);
+        // Clean up stage tracker - use require here to avoid circular dependency
+        try {
+            const { cleanupStageTracker } = require("../websocket/websocket");
+            cleanupStageTracker(requestId);
+        } catch (err) {
+            console.log('[QUEUE] Could not cleanup stage tracker:', err.message);
+        }
         currentlyProcessingRequestId = null;
         delete requestStatus[requestId];
         console.log('[QUEUE] Processing finished. Next in queue:', processingQueue.length);

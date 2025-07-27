@@ -1,16 +1,100 @@
-const express = require('express');
-const { v4: uuidv4 } = require('uuid');
-const path = require('path');
-const { generateCaptcha, verifyCaptcha } = require('../captcha/captcha');
+const express = require("express");
+const { v4: uuidv4 } = require("uuid");
+const path = require("path");
+const sharp = require("sharp");
+const fs = require("fs");
+const { generateCaptcha, verifyCaptcha } = require("../captcha/captcha");
 const { upload, uploadCopy } = require('../uploads/uploads');
 const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } = require('../queue/queue');
 
 const router = express.Router();
 
-const fs = require('fs');
-
 router.get('/', (req, res) => {
     res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
+});
+
+// Optimized carousel images route - serves compressed, resized images
+router.get('/img/carousel/:filename', async (req, res) => {
+    console.log(`[CAROUSEL] Optimizing image: ${req.params.filename}`);
+    try {
+        const filename = req.params.filename;
+        const originalPath = path.join(__dirname, '../../public/img/carousel', filename);
+        const thumbnailPath = path.join(__dirname, '../../public/img/carousel/thumbnails', `thumb_${filename}`);
+        
+        // Check if original file exists
+        if (!fs.existsSync(originalPath)) {
+            console.log(`[CAROUSEL] Original image not found: ${originalPath}`);
+            return res.status(404).send('Image not found');
+        }
+        
+        // Set appropriate headers for caching and compression
+        res.set({
+            'Content-Type': 'image/jpeg',
+            'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+            'ETag': `"carousel-${filename}-optimized"`
+        });
+        
+        // Check if client has cached version
+        if (req.headers['if-none-match'] === `"carousel-${filename}-optimized"`) {
+            console.log(`[CAROUSEL] Serving cached version for: ${filename}`);
+            return res.status(304).end();
+        }
+        
+        // Check if thumbnail already exists and is newer than original
+        if (fs.existsSync(thumbnailPath)) {
+            const originalStats = fs.statSync(originalPath);
+            const thumbnailStats = fs.statSync(thumbnailPath);
+            
+            if (thumbnailStats.mtime > originalStats.mtime) {
+                console.log(`[CAROUSEL] Serving existing thumbnail: ${filename}`);
+                // Serve cached thumbnail
+                return res.sendFile(thumbnailPath);
+            }
+        }
+        
+        console.log(`[CAROUSEL] Generating new thumbnail for: ${filename}`);
+        // Generate new thumbnail with proper aspect ratio preservation
+        // First get image metadata to calculate optimal dimensions
+        const metadata = await sharp(originalPath).metadata();
+        const originalWidth = metadata.width;
+        const originalHeight = metadata.height;
+        const originalAspectRatio = originalWidth / originalHeight;
+        
+        // Calculate target dimensions maintaining aspect ratio
+        // Max dimensions: 800px width or 600px height, whichever is limiting
+        let targetWidth, targetHeight;
+        if (originalAspectRatio > (800 / 600)) {
+            // Image is wider, limit by width
+            targetWidth = Math.min(800, originalWidth);
+            targetHeight = Math.round(targetWidth / originalAspectRatio);
+        } else {
+            // Image is taller, limit by height
+            targetHeight = Math.min(600, originalHeight);
+            targetWidth = Math.round(targetHeight * originalAspectRatio);
+        }
+        
+        const optimizedImage = await sharp(originalPath)
+            .resize(targetWidth, targetHeight, { 
+                fit: 'contain', // Preserve aspect ratio exactly, no cropping
+                withoutEnlargement: true
+            })
+            .jpeg({ 
+                quality: 75,
+                progressive: true,
+                mozjpeg: true
+            })
+            .toBuffer();
+        
+        // Save thumbnail to cache
+        await fs.promises.writeFile(thumbnailPath, optimizedImage);
+        console.log(`[CAROUSEL] Thumbnail saved: ${thumbnailPath}`);
+        
+        res.send(optimizedImage);
+        
+    } catch (error) {
+        console.error('[CAROUSEL] Error optimizing carousel image:', error);
+        res.status(500).send('Error processing image');
+    }
 });
 
 router.get('/api/carousel-images', (req, res) => {

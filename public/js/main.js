@@ -794,17 +794,30 @@ async function setupCarousel() {
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
                 img.style.display = 'block'; // Ensure images are displayed
+                img.classList.add('loading'); // Add loading class initially
                 carouselSlide.appendChild(img);
                 
                 // Create promise for image load
                 const loadPromise = new Promise((resolve) => {
                     if (img.complete && img.naturalWidth > 0) {
+                        img.classList.remove('loading');
+                        img.classList.add('loaded');
                         resolve();
                     } else {
-                        img.onload = () => resolve();
-                        img.onerror = () => resolve(); // Resolve even on error to continue
+                        img.onload = () => {
+                            img.classList.remove('loading');
+                            img.classList.add('loaded');
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            img.classList.remove('loading');
+                            resolve(); // Resolve even on error to continue
+                        };
                         // Timeout fallback in case image doesn't load
-                        setTimeout(() => resolve(), 5000);
+                        setTimeout(() => {
+                            img.classList.remove('loading');
+                            resolve();
+                        }, 5000);
                     }
                 });
                 imageLoadPromises.push(loadPromise);
@@ -816,17 +829,30 @@ async function setupCarousel() {
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
                 img.style.display = 'block'; // Ensure images are displayed
+                img.classList.add('loading'); // Add loading class initially
                 carouselSlide.appendChild(img);
                 
                 // Create promise for image load
                 const loadPromise = new Promise((resolve) => {
                     if (img.complete && img.naturalWidth > 0) {
+                        img.classList.remove('loading');
+                        img.classList.add('loaded');
                         resolve();
                     } else {
-                        img.onload = () => resolve();
-                        img.onerror = () => resolve(); // Resolve even on error to continue
+                        img.onload = () => {
+                            img.classList.remove('loading');
+                            img.classList.add('loaded');
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            img.classList.remove('loading');
+                            resolve(); // Resolve even on error to continue
+                        };
                         // Timeout fallback in case image doesn't load
-                        setTimeout(() => resolve(), 5000);
+                        setTimeout(() => {
+                            img.classList.remove('loading');
+                            resolve();
+                        }, 5000);
                     }
                 });
                 imageLoadPromises.push(loadPromise);
