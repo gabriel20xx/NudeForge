@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const Logger = require("./utils/logger");
 const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR } = require("./config/config");
 const { connectToComfyUIWebSocket } = require("./services/websocket");
 const { router: routes } = require("./routes/routes");
@@ -50,7 +51,7 @@ app.set("views", path.join(__dirname, "../public/views"));
 
 io.on("connection", (socket) => {
     socket.on("joinRoom", (requestId) => {
-        console.log(`[SOCKET] Client joined room: ${requestId}`);
+        Logger.info('SOCKET', `Client joined room: ${requestId}`);
         socket.join(requestId);
     });
 });
@@ -58,7 +59,7 @@ io.on("connection", (socket) => {
 connectToComfyUIWebSocket(io);
 
 server.listen(PORT, async () => {
-    console.log(`✅ Server running at http://localhost:${PORT}`);
+    Logger.success('SERVER', `Server running at http://localhost:${PORT}`);
     
     // Generate carousel thumbnails on startup
     await generateAllCarouselThumbnails();

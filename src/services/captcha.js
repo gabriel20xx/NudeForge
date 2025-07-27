@@ -1,5 +1,6 @@
 const svgCaptcha = require('svg-captcha');
 const crypto = require('crypto');
+const Logger = require('../utils/logger');
 
 // In-memory store for CAPTCHA tokens and solutions
 const captchaStore = {};
@@ -46,7 +47,7 @@ function verifyCaptcha(req, res, next) {
     const { captcha_answer, captcha_token } = req.body;
 
     if (!captcha_answer || !captcha_token || !captchaStore[captcha_token] || captchaStore[captcha_token].toLowerCase() !== captcha_answer.trim().toLowerCase()) {
-        console.error(`CAPTCHA failed or missing. Token: ${captcha_token}, Answer: ${captcha_answer}`);
+        Logger.error('CAPTCHA', `CAPTCHA failed or missing. Token: ${captcha_token}, Answer: ${captcha_answer}`);
         if (captcha_token) {
             delete captchaStore[captcha_token];
         }

@@ -82,8 +82,8 @@ const uploadButton = uploadForm.querySelector('.upload-btn');
 
 // --- Helper functions for show/hide ---
 function debugLog(...args) {
-    // Always enable debug logging for comparison debugging
-    console.debug('[DEBUG]', ...args);
+    // Use the new Logger for debug messages
+    Logger.debug('FRONTEND', ...args);
 }
 function showElement(el) {
     if (el) {
@@ -149,7 +149,7 @@ socket.on('processingProgress', (progress) => {
             percentage = Math.round((progress.value / progress.max) * 100);
         }
     } catch (err) {
-        console.error('Error calculating progress percentage:', err, progress);
+        Logger.error('PROGRESS', 'Error calculating progress percentage:', err, progress);
         return;
     }
     if (isNaN(percentage)) {
@@ -200,7 +200,7 @@ socket.on('processingComplete', (data) => {
         try {
             displayResult(data.outputImage, data.downloadUrl);
         } catch (err) {
-            console.error('Error displaying result image:', err, data);
+            Logger.error('SOCKETIO', 'Error displaying result image:', err, data);
         }
         if (pollingIntervalId) {
             clearInterval(pollingIntervalId);
@@ -390,12 +390,12 @@ function showPreview(file) {
         dropText.style.display = 'none';
     };
     reader.onerror = err => {
-        console.error('Error reading file for preview:', err);
+        Logger.error('PREVIEW', 'Error reading file for preview:', err);
     };
     try {
         reader.readAsDataURL(file);
     } catch (err) {
-        console.error('Error in showPreview:', err);
+        Logger.error('PREVIEW', 'Error in showPreview:', err);
     }
 }
 
@@ -417,7 +417,7 @@ inputImage.addEventListener('change', () => {
         })
         .then(data => debugLog('Image copy uploaded:', data))
         .catch(error => {
-            console.error('Error uploading image copy:', error);
+            Logger.error('UPLOAD-COPY', 'Error uploading image copy:', error);
         });
     }
 });
@@ -774,7 +774,7 @@ async function setupCarousel() {
         return;
     }
     
-    console.log('Setting up carousel...');
+    Logger.info('CAROUSEL', 'Setting up carousel...');
 
     try {
         console.log('Fetching carousel images from API...');
@@ -921,9 +921,9 @@ function initialize() {
     pollingIntervalId = setInterval(fetchQueueStatus, 2000);
 }
 
-console.log('🔧 Main.js loaded, calling initialize...');
+Logger.info('MAIN', '🔧 Main.js loaded, calling initialize...');
 initialize();
-console.log('✅ Initialize called, main.js setup complete');
+Logger.success('MAIN', '✅ Initialize called, main.js setup complete');
 
 function disableUpload() {
     debugLog('Disabling upload button');

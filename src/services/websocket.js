@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const Logger = require('../utils/logger');
 const { COMFYUI_WS_URL } = require('../config/config');
 const { getRequestStatus, getCurrentlyProcessingRequestId } = require('./queue');
 
@@ -14,7 +15,7 @@ function connectToComfyUIWebSocket(io) {
     comfyUiWs = new WebSocket(COMFYUI_WS_URL);
 
     comfyUiWs.onopen = () => {
-        console.log("Connected to ComfyUI WebSocket.");
+        Logger.success('WEBSOCKET', 'Connected to ComfyUI WebSocket.');
     };
 
     comfyUiWs.onmessage = (event) => {
@@ -64,17 +65,17 @@ function connectToComfyUIWebSocket(io) {
                 );
             }
         } catch (parseError) {
-            console.error(`Error parsing message from ComfyUI: ${parseError.message}`, event.data);
+            Logger.error('WEBSOCKET', `Error parsing message from ComfyUI: ${parseError.message}`, event.data);
         }
     };
 
     comfyUiWs.onclose = () => {
-        console.log("Disconnected from ComfyUI WebSocket. Reconnecting in 5 seconds...");
+        Logger.warn('WEBSOCKET', 'Disconnected from ComfyUI WebSocket. Reconnecting in 5 seconds...');
         setTimeout(() => connectToComfyUIWebSocket(io), 5000);
     };
 
     comfyUiWs.onerror = (error) => {
-        console.error("ComfyUI WebSocket error:", error.message);
+        Logger.error('WEBSOCKET', 'ComfyUI WebSocket error:', error.message);
         comfyUiWs.close();
     };
 }
@@ -83,7 +84,7 @@ function connectToComfyUIWebSocket(io) {
 function cleanupStageTracker(requestId) {
     if (requestStageTracker.has(requestId)) {
         requestStageTracker.delete(requestId);
-        console.log(`[WEBSOCKET] Cleaned up stage tracker for requestId=${requestId}`);
+        Logger.debug('WEBSOCKET', `Cleaned up stage tracker for requestId=${requestId}`);
     }
 }
 

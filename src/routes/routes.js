@@ -2,6 +2,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
+const Logger = require("../utils/logger");
 const { generateCaptcha, verifyCaptcha } = require("../services/captcha");
 const { upload, uploadCopy } = require('../services/uploads');
 const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } = require('../services/queue');
@@ -19,7 +20,7 @@ router.get('/img/carousel/:filename', async (req, res) => {
         const filename = req.params.filename;
         const thumbnailPath = getThumbnailPath(filename);
         
-        console.log(`[CAROUSEL] Serving thumbnail for: ${filename}`);
+        Logger.info('CAROUSEL', `Serving thumbnail for: ${filename}`);
         
         // Check if thumbnail exists
         try {
@@ -35,22 +36,22 @@ router.get('/img/carousel/:filename', async (req, res) => {
             return res.sendFile(thumbnailPath);
             
         } catch (err) {
-            console.error(`[CAROUSEL] Thumbnail not found: ${thumbnailPath}`);
+            Logger.error('CAROUSEL', `Thumbnail not found: ${thumbnailPath}`);
             
             // Fallback: try to serve the original file
             const originalPath = getOriginalPath(filename);
             try {
                 await fs.promises.access(originalPath);
-                console.log(`[CAROUSEL] Serving original file as fallback: ${filename}`);
+                Logger.info('CAROUSEL', `Serving original file as fallback: ${filename}`);
                 res.sendFile(originalPath);
             } catch (fallbackError) {
-                console.error('[CAROUSEL] Original file also not found:', fallbackError);
+                Logger.error('CAROUSEL', 'Original file also not found:', fallbackError);
                 res.status(404).send('Image not found');
             }
         }
         
     } catch (error) {
-        console.error('[CAROUSEL] Error serving carousel image:', error);
+        Logger.error('CAROUSEL', 'Error serving carousel image:', error);
         res.status(500).send('Error processing image');
     }
 });
@@ -59,7 +60,7 @@ router.get('/api/carousel-images', (req, res) => {
     const carouselDir = path.join(__dirname, '../../public/img/carousel');
     fs.readdir(carouselDir, (err, files) => {
         if (err) {
-            console.error('Error reading carousel directory:', err);
+            Logger.error('CAROUSEL', 'Error reading carousel directory:', err);
             return res.status(500).json({ error: 'Failed to read carousel images' });
         }
         const carouselImages = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
@@ -107,7 +108,7 @@ router.get('/queue-status', (req, res) => {
 router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) => {
     try {
         if (!req.file) {
-            console.warn('[UPLOAD] No file uploaded');
+            Logger.warn('UPLOAD', 'No file uploaded');
             return res.status(400).send("No file uploaded");
         }
 
@@ -118,7 +119,7 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
 
         const { prompt, steps, outputHeight, ...loraSettings } = req.body;
 
-        console.log(`[UPLOAD] Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
+        Logger.info('UPLOAD', `Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
         getRequestStatus()[requestId] = {
             status: "pending",
             totalNodesInWorkflow: 0,
@@ -133,7 +134,7 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
             uploadedPathForComfyUI,
         });
 
-        console.log(`[QUEUE] Added to queue. Queue size: ${getProcessingQueue().length}`);
+        Logger.info('QUEUE', `Added to queue. Queue size: ${getProcessingQueue().length}`);
         processQueue(req.app.get('io'));
 
         res.status(202).json({
@@ -143,7 +144,7 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
             yourPosition: getProcessingQueue().length,
         });
     } catch (err) {
-        console.error('[UPLOAD] Error handling upload:', err);
+        Logger.error('UPLOAD', 'Error handling upload:', err);
         res.status(500).json({ error: 'Internal server error during upload.' });
     }
 });
@@ -151,13 +152,13 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
 router.post("/upload-copy", uploadCopy.single("image"), (req, res) => {
     try {
         if (!req.file) {
-            console.warn('[UPLOAD-COPY] No file uploaded');
+            Logger.warn('UPLOAD-COPY', 'No file uploaded');
             return res.status(400).json({ error: "No file uploaded" });
         }
-        console.log(`[UPLOAD-COPY] Image copy uploaded: ${req.file.filename}`);
+        Logger.info('UPLOAD-COPY', `Image copy uploaded: ${req.file.filename}`);
         res.json({ message: "Image copy uploaded successfully", filename: req.file.filename });
     } catch (err) {
-        console.error('[UPLOAD-COPY] Error:', err);
+        Logger.error('UPLOAD-COPY', 'Error:', err);
         res.status(500).json({ error: 'Internal server error during upload-copy.' });
     }
 });
@@ -185,7 +186,7 @@ router.get('/download/:requestId', async (req, res) => {
         try {
             await fs.promises.access(outputPath);
         } catch (err) {
-            console.error(`[DOWNLOAD] File not found: ${outputPath}`);
+            Logger.error('DOWNLOAD', `File not found: ${outputPath}`);
             return res.status(404).send('Output file not found');
         }
         
@@ -202,7 +203,7 @@ router.get('/download/:requestId', async (req, res) => {
             downloadFilename = `${originalBaseName}-processed.png`; // Always PNG output
         }
         
-        console.log(`[DOWNLOAD] Serving ${outputFilename} as ${downloadFilename} for request ${requestId}`);
+        Logger.info('DOWNLOAD', `Serving ${outputFilename} as ${downloadFilename} for request ${requestId}`);
         
         // Set headers for download
         res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
@@ -212,7 +213,7 @@ router.get('/download/:requestId', async (req, res) => {
         res.sendFile(outputPath);
         
     } catch (error) {
-        console.error('[DOWNLOAD] Error serving download:', error);
+        Logger.error('DOWNLOAD', 'Error serving download:', error);
         res.status(500).send('Error serving download');
     }
 });

@@ -1,6 +1,7 @@
 const path = require("path");
 const sharp = require("sharp");
 const fs = require("fs");
+const Logger = require("../utils/logger");
 
 /**
  * Carousel image optimization service
@@ -13,7 +14,7 @@ const fs = require("fs");
  */
 async function generateAllCarouselThumbnails() {
     try {
-        console.log('[CAROUSEL STARTUP] Starting thumbnail pre-generation...');
+        Logger.info('CAROUSEL-STARTUP', 'Starting thumbnail pre-generation...');
         
         // Handle both development and production paths
         const baseDir = process.env.NODE_ENV === 'production' ? '/app' : path.join(__dirname, '../..');
@@ -30,7 +31,7 @@ async function generateAllCarouselThumbnails() {
             !file.startsWith('thumb_') // Skip existing thumbnails
         );
         
-        console.log(`[CAROUSEL STARTUP] Found ${imageFiles.length} images to process`);
+        Logger.info('CAROUSEL-STARTUP', `Found ${imageFiles.length} images to process`);
         
         let processed = 0;
         let skipped = 0;
@@ -45,15 +46,15 @@ async function generateAllCarouselThumbnails() {
                     skipped++;
                 }
             } catch (error) {
-                console.error(`[CAROUSEL STARTUP] Error processing ${filename}:`, error);
+                Logger.error('CAROUSEL-STARTUP', `Error processing ${filename}:`, error);
             }
         }
         
-        console.log(`[CAROUSEL STARTUP] Thumbnail generation complete! Processed: ${processed}, Skipped: ${skipped}`);
+        Logger.success('CAROUSEL-STARTUP', `Thumbnail generation complete! Processed: ${processed}, Skipped: ${skipped}`);
         return { processed, skipped };
         
     } catch (error) {
-        console.error('[CAROUSEL STARTUP] Error during thumbnail generation:', error);
+        Logger.error('CAROUSEL-STARTUP', 'Error during thumbnail generation:', error);
         throw error;
     }
 }
@@ -80,14 +81,14 @@ async function generateThumbnail(filename, carouselDir, thumbnailsDir) {
         ]);
         
         if (thumbnailStats.mtime > originalStats.mtime) {
-            console.log(`[CAROUSEL STARTUP] Thumbnail already exists for: ${filename}`);
+            Logger.debug('CAROUSEL-STARTUP', `Thumbnail already exists for: ${filename}`);
             return { generated: false, thumbnailPath };
         }
     } catch (err) {
         // Thumbnail doesn't exist, we'll create it
     }
     
-    console.log(`[CAROUSEL STARTUP] Generating thumbnail for: ${filename}`);
+    Logger.info('CAROUSEL-STARTUP', `Generating thumbnail for: ${filename}`);
     
     // Get image metadata to calculate optimal dimensions
     const metadata = await sharp(originalPath).metadata();
@@ -123,7 +124,7 @@ async function generateThumbnail(filename, carouselDir, thumbnailsDir) {
     
     // Save thumbnail
     await fs.promises.writeFile(thumbnailPath, optimizedImage);
-    console.log(`[CAROUSEL STARTUP] Thumbnail saved: ${thumbnailPath}`);
+    Logger.success('CAROUSEL-STARTUP', `Thumbnail saved: ${thumbnailPath}`);
     
     return { generated: true, thumbnailPath };
 }

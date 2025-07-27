@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
+const Logger = require("../utils/logger");
 const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR } = require("../config/config");
 
 const processingQueue = [];
@@ -38,7 +39,7 @@ async function sendWorkflowWithRetry(workflow, requestId) {
                     timeout: 30000 // 30 second timeout
                 }
             );
-            console.log(`[PROCESS] Successfully sent workflow to ComfyUI for requestId=${requestId}`);
+            Logger.info('PROCESS', `Successfully sent workflow to ComfyUI for requestId=${requestId}`);
             return; // Success, exit the retry loop
         } catch (error) {
             attempt++;
@@ -51,12 +52,12 @@ async function sendWorkflowWithRetry(workflow, requestId) {
             
             if (isConnectionError) {
                 const delay = Math.min(1000 * Math.pow(2, Math.min(attempt - 1, 6)), 30000); // Exponential backoff, max 30s, cap at 2^6
-                console.log(`[PROCESS] ComfyUI connection error for requestId=${requestId}, attempt ${attempt}. Retrying in ${delay}ms...`);
-                console.log(`[PROCESS] Error details: ${error.code} - ${error.message}`);
+                Logger.warn('PROCESS', `ComfyUI connection error for requestId=${requestId}, attempt ${attempt}. Retrying in ${delay}ms...`);
+                Logger.debug('PROCESS', `Error details: ${error.code} - ${error.message}`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
                 // If it's not a connection error, throw the error immediately
-                console.error(`[PROCESS] Non-connection error sending workflow to ComfyUI for requestId=${requestId}: ${error.message}`);
+                Logger.error('PROCESS', `Non-connection error sending workflow to ComfyUI for requestId=${requestId}: ${error.message}`);
                 throw error;
             }
         }
@@ -65,8 +66,8 @@ async function sendWorkflowWithRetry(workflow, requestId) {
 
 async function processQueue(io) {
     if (isProcessing || processingQueue.length === 0) {
-        if (isProcessing) console.log('[QUEUE] Already processing.');
-        if (processingQueue.length === 0) console.log('[QUEUE] No items to process.');
+        if (isProcessing) Logger.debug('QUEUE', 'Already processing.');
+        if (processingQueue.length === 0) Logger.debug('QUEUE', 'No items to process.');
         return;
     }
 
@@ -75,7 +76,7 @@ async function processQueue(io) {
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
-    console.log(`[PROCESS] Starting processing for requestId=${requestId}, file=${uploadedFilename}`);
+    Logger.info('PROCESS', `Starting processing for requestId=${requestId}, file=${uploadedFilename}`);
     io.to(requestId).emit("queueUpdate", {
         queueSize: processingQueue.length,
         yourPosition: 0,
@@ -120,9 +121,7 @@ async function processQueue(io) {
         const imageNode = Object.values(workflow).find((node) => node.class_type === "VHS_LoadImagePath");
         if (imageNode) imageNode.inputs["image"] = uploadedPathForComfyUI;
 
-        console.log(
-            `[PROCESS] Sending workflow to ComfyUI for requestId=${requestId}`
-        );
+        Logger.info('PROCESS', `Sending workflow to ComfyUI for requestId=${requestId}`);
         
         await sendWorkflowWithRetry(workflow, requestId);
 
@@ -162,14 +161,14 @@ async function processQueue(io) {
             downloadUrl: downloadUrl
         };
 
-        console.log(`[PROCESS] Completed for requestId=${requestId}, output=${finalOutputRelativePath}, download=${downloadUrl}`);
+        Logger.success('PROCESS', `Completed for requestId=${requestId}, output=${finalOutputRelativePath}, download=${downloadUrl}`);
         io.to(requestId).emit("processingComplete", {
             outputImage: finalOutputRelativePath,
             downloadUrl: downloadUrl,
             requestId: requestId,
         });
     } catch (err) {
-        console.error(`[PROCESS] Error during processing for requestId ${requestId}:`, err);
+        Logger.error('PROCESS', `Error during processing for requestId ${requestId}:`, err);
         requestStatus[requestId].status = "failed";
         requestStatus[requestId].data = { error: "Processing failed.", errorMessage: err.message };
         io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: err.message });
@@ -180,11 +179,11 @@ async function processQueue(io) {
             const { cleanupStageTracker } = require("../websocket/websocket");
             cleanupStageTracker(requestId);
         } catch (err) {
-            console.log('[QUEUE] Could not cleanup stage tracker:', err.message);
+            Logger.warn('QUEUE', 'Could not cleanup stage tracker:', err.message);
         }
         currentlyProcessingRequestId = null;
         delete requestStatus[requestId];
-        console.log('[QUEUE] Processing finished. Next in queue:', processingQueue.length);
+        Logger.info('QUEUE', `Processing finished. Next in queue: ${processingQueue.length}`);
         processQueue(io);
     }
 }

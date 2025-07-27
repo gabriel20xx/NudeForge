@@ -1,4 +1,5 @@
 const path = require("path");
+const Logger = require("../utils/logger");
 require("dotenv").config({ path: path.resolve(__dirname, '../../.env') });
 
 // Define directories
@@ -18,9 +19,7 @@ const PORT = process.env.PORT || 3000;
 
 // Validate that required environment variables are set
 if (!process.env.COMFYUI_HOST) {
-  console.warn(
-    "WARNING: COMFYUI_HOST is not set in .env file. Using default value '127.0.0.1:8188'."
-  );
+  Logger.warn('CONFIG', "COMFYUI_HOST is not set in .env file. Using default value '127.0.0.1:8188'.");
 }
 
 module.exports = {
