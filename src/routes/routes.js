@@ -188,6 +188,29 @@ router.get('/debug/carousel', (req, res) => {
     }
 });
 
+// Test route to manually trigger carousel images
+router.get('/test/carousel', (req, res) => {
+    const carouselDir = path.join(__dirname, '../../public/img/carousel');
+    fs.readdir(carouselDir, (err, files) => {
+        if (err) {
+            console.error('Error reading carousel directory:', err);
+            return res.status(500).json({ error: 'Failed to read carousel images' });
+        }
+        const carouselImages = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
+        
+        let html = '<h1>Carousel Images Test</h1>';
+        html += '<p>Found ' + carouselImages.length + ' images:</p>';
+        carouselImages.forEach(image => {
+            html += `<div style="margin: 10px 0;">`;
+            html += `<p><strong>${image}</strong></p>`;
+            html += `<img src="/img/carousel/${image}" style="max-width: 300px; height: auto; border: 1px solid #ccc;" onerror="this.style.border='3px solid red'; this.alt='Failed to load';">`;
+            html += `</div>`;
+        });
+        
+        res.send(html);
+    });
+});
+
 router.get('/captcha', generateCaptcha);
 
 router.get('/api/captcha-status', (req, res) => {

@@ -770,16 +770,21 @@ function startCarouselAnimation() {
 async function setupCarousel() {
     const carouselSlide = document.querySelector('.carousel-slide');
     if (!carouselSlide) {
+        console.error('Carousel slide element not found');
         return;
     }
     
+    console.log('Setting up carousel...');
+
     try {
+        console.log('Fetching carousel images from API...');
         const response = await fetch('/api/carousel-images');
         if (!response.ok) {
             throw new Error('Failed to fetch carousel images');
         }
         
         carouselImages = await response.json();
+        console.log('Carousel images loaded:', carouselImages);
         
         if (carouselImages.length > 0) {
             // Clear existing content
@@ -788,14 +793,17 @@ async function setupCarousel() {
             // Create promises for image loading
             const imageLoadPromises = [];
             
+            console.log('Creating carousel image elements...');
             // Add original images
-            carouselImages.forEach(image => {
+            carouselImages.forEach((image, index) => {
                 const img = document.createElement('img');
                 img.src = `/img/carousel/${image}`;
                 img.alt = "Carousel Image";
                 img.style.display = 'block'; // Ensure images are displayed
                 img.classList.add('loading'); // Add loading class initially
                 carouselSlide.appendChild(img);
+                
+                console.log(`Added carousel image ${index + 1}: ${img.src}`);
                 
                 // Create promise for image load
                 const loadPromise = new Promise((resolve) => {
@@ -889,7 +897,9 @@ async function setupCarousel() {
 
 // --- Initial Page Load Logic ---
 function initialize() {
+    console.log('🚀 Initialize function called!');
     debugLog('Initializing page...');
+    console.log('🎠 About to setup carousel...');
     setupCarousel();
 
     const storedRequestId = sessionStorage.getItem('activeRequestId');
@@ -911,7 +921,9 @@ function initialize() {
     pollingIntervalId = setInterval(fetchQueueStatus, 2000);
 }
 
+console.log('🔧 Main.js loaded, calling initialize...');
 initialize();
+console.log('✅ Initialize called, main.js setup complete');
 
 function disableUpload() {
     debugLog('Disabling upload button');

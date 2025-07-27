@@ -32,7 +32,16 @@ app.use(express.json());
 // Routes must come before static middleware to take priority
 app.use('/', routes);
 
-app.use(express.static(path.join(__dirname, "../public")));
+// Custom static middleware that excludes carousel images
+app.use((req, res, next) => {
+    // Skip static serving for carousel images (not thumbnails)
+    if (req.path.startsWith('/img/carousel/') && !req.path.includes('/thumbnails/')) {
+        return next(); // Continue to next middleware (should hit 404 or our route)
+    }
+    
+    // For all other files, serve statically
+    express.static(path.join(__dirname, "../public"))(req, res, next);
+});
 app.use("/input", express.static(INPUT_DIR));
 app.use("/output", express.static(OUTPUT_DIR));
 app.set("view engine", "ejs");
