@@ -132,6 +132,7 @@ h1 {
 h2 {
     color: #ffb84d;
     margin-bottom: 0.7em;
+    margin-top: 0;
     font-size: 1.3em;
     letter-spacing: 0.5px;
 }
@@ -496,7 +497,6 @@ input[type="file"] {
     align-items: stretch;
     padding: 1.5rem;
     box-sizing: border-box;
-    margin-bottom: 1.2em;
     min-width: 0;
 }
 
