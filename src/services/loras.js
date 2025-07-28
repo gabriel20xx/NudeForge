@@ -76,6 +76,8 @@ async function getAvailableLoRAs() {
 async function getAvailableLoRAsWithSubdirs() {
     try {
         Logger.info('LORAS', `Starting detailed LoRA scan with subdirectories. LORAS_DIR: ${LORAS_DIR}`);
+        Logger.info('LORAS', `process.cwd(): ${process.cwd()}`);
+        Logger.info('LORAS', `__dirname: ${__dirname}`);
         
         const result = {
             root: [],
@@ -92,7 +94,10 @@ async function getAvailableLoRAsWithSubdirs() {
         }
 
         async function processDirectory(dirPath, relativePath = '') {
+            Logger.info('LORAS', `Processing directory: ${dirPath}, relativePath: ${relativePath}`);
             const files = await fs.promises.readdir(dirPath, { withFileTypes: true });
+            Logger.info('LORAS', `Found ${files.length} items in ${dirPath}:`, files.map(f => `${f.name} (${f.isFile() ? 'file' : 'directory'})`));
+            
             const loraExtensions = ['.safetensors', '.ckpt', '.pt', '.pth'];
             const loraFiles = [];
 
@@ -137,6 +142,7 @@ async function getAvailableLoRAsWithSubdirs() {
 
         result.root = await processDirectory(LORAS_DIR);
         Logger.info('LORAS', `Found ${result.root.length} root LoRA models and subdirectories in ${LORAS_DIR}`);
+        Logger.info('LORAS', `Final result:`, JSON.stringify(result, null, 2));
         return result;
 
     } catch (error) {
