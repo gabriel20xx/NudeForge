@@ -1692,17 +1692,4 @@ function getSelectedLoRAModels() {
     return selectedModels;
 }
 
-/**
- * Initialize LoRA functionality
- */
-async function initializeLoRAs() {
-    debugLog('Initializing LoRA system...');
-    await fetchAvailableLoRAs();
-    
-    if (availableLoRAs.length > 0) {
-        makeLoRALabelsSelectable();
-        debugLog('LoRA system initialized successfully');
-    } else {
-        debugLog('No LoRA models found or failed to load');
-    }
-}
+// Duplicate function removed - using the complete version above
