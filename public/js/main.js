@@ -1291,7 +1291,8 @@ function enableUpload() {
 let availableLoRAs = [];
 let loraCounter = 0;
 const defaultLoRAs = [
-    { model: 'fluxkontext/change_clothes_to_nothing_000011200.safetensors', strength: 1, enabled: true }
+    { model: 'fluxkontext/change_clothes_to_nothing_000011200.safetensors', strength: 1, enabled: true },
+    { model: 'flux/aidmaRealisticSkin-FLUX-v0.1.safetensors', strength: 0.6, enabled: true }
 ];
 
 /**
