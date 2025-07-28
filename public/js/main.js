@@ -1396,14 +1396,28 @@ function createLoRARow(index, config = {}) {
     const container = row.querySelector('.lora-model-container');
     container.appendChild(dropdown);
     
-    // Add change event listener
+    // Add change event listeners
     dropdown.addEventListener('change', function() {
         const selectedLora = availableLoRAs.find(lora => 
             (lora.relativePath || lora.filename) === this.value
         );
         if (selectedLora) {
-            debugLog(`LoRA ${index} changed to: ${selectedLora.displayName} (${this.value})`);
+            debugLog(`LoRA ${index} model changed to: ${selectedLora.displayName} (${this.value})`);
+        } else if (this.value === '') {
+            debugLog(`LoRA ${index} model cleared`);
         }
+    });
+    
+    // Add strength change listener
+    const strengthInput = row.querySelector(`#lora_${index}_strength`);
+    strengthInput.addEventListener('input', function() {
+        debugLog(`LoRA ${index} strength changed to: ${this.value}`);
+    });
+    
+    // Add checkbox change listener
+    const checkbox = row.querySelector(`#lora_${index}_on`);
+    checkbox.addEventListener('change', function() {
+        debugLog(`LoRA ${index} ${this.checked ? 'enabled' : 'disabled'}`);
     });
     
     return row;
@@ -1416,6 +1430,8 @@ function updateRemoveButtonStates() {
     const allRows = document.querySelectorAll('.lora-row');
     const removeButtons = document.querySelectorAll('.lora-remove-btn');
     
+    debugLog(`Updating remove button states - ${allRows.length} LoRA entries, ${removeButtons.length} remove buttons`);
+    
     // Disable remove buttons if there's only one entry
     removeButtons.forEach(btn => {
         btn.disabled = allRows.length <= 1;
@@ -1425,6 +1441,8 @@ function updateRemoveButtonStates() {
             btn.title = 'Remove this LoRA entry';
         }
     });
+    
+    debugLog(`Remove buttons ${allRows.length <= 1 ? 'disabled' : 'enabled'}`);
 }
 
 /**
@@ -1432,10 +1450,18 @@ function updateRemoveButtonStates() {
  */
 function addLoRARow(config = {}) {
     loraCounter++;
+    const { model = '', strength = 0.7, enabled = false } = config;
+    debugLog(`Adding LoRA row ${loraCounter} with config:`, { 
+        model: model || 'none', 
+        strength, 
+        enabled 
+    });
+    
     const row = createLoRARow(loraCounter, config);
     const grid = document.getElementById('loraGrid');
     grid.appendChild(row);
-    debugLog(`Added LoRA row ${loraCounter}`);
+    
+    debugLog(`Successfully added LoRA row ${loraCounter}`);
     return loraCounter;
 }
 
@@ -1443,18 +1469,31 @@ function addLoRARow(config = {}) {
  * Remove a LoRA row
  */
 function removeLoRARow(index) {
+    debugLog(`Attempting to remove LoRA row ${index}`);
     const row = document.querySelector(`[data-index="${index}"]`);
     if (row) {
         // Check if this is the last LoRA entry
         const allRows = document.querySelectorAll('.lora-row');
         if (allRows.length <= 1) {
             // Don't allow removing the last LoRA entry
-            debugLog('Cannot remove the last LoRA entry');
+            debugLog(`Cannot remove LoRA row ${index} - it's the last entry`);
             return;
         }
         
+        // Get the current LoRA details before removing
+        const checkbox = row.querySelector(`#lora_${index}_on`);
+        const dropdown = row.querySelector(`#lora_${index}_model`);
+        const strength = row.querySelector(`#lora_${index}_strength`);
+        
+        const loraDetails = {
+            index,
+            enabled: checkbox ? checkbox.checked : false,
+            model: dropdown ? dropdown.value : 'none',
+            strength: strength ? strength.value : 'unknown'
+        };
+        
         row.remove();
-        debugLog(`Removed LoRA row ${index}`);
+        debugLog(`Successfully removed LoRA row ${index}:`, loraDetails);
         
         // Update remove button states
         updateRemoveButtonStates();
@@ -1468,8 +1507,10 @@ window.removeLoRARow = removeLoRARow;
  * Get selected LoRA models for form submission
  */
 function getSelectedLoRAModels() {
+    debugLog('Getting current LoRA settings...');
     const selectedModels = {};
     const loraRows = document.querySelectorAll('.lora-row');
+    const activeLoRAs = [];
     
     loraRows.forEach(row => {
         const index = row.dataset.index;
@@ -1478,14 +1519,31 @@ function getSelectedLoRAModels() {
         const strength = document.getElementById(`lora_${index}_strength`);
         
         if (checkbox && dropdown && strength) {
-            selectedModels[`lora_${index}_on`] = checkbox.checked ? 'true' : 'false';
-            selectedModels[`lora_${index}_strength`] = strength.value;
-            if (dropdown.value) {
-                selectedModels[`lora_${index}_model`] = dropdown.value;
+            const isEnabled = checkbox.checked;
+            const model = dropdown.value;
+            const strengthValue = strength.value;
+            
+            selectedModels[`lora_${index}_on`] = isEnabled ? 'true' : 'false';
+            selectedModels[`lora_${index}_strength`] = strengthValue;
+            if (model) {
+                selectedModels[`lora_${index}_model`] = model;
+            }
+            
+            // Track active LoRAs for debug logging
+            if (isEnabled && model) {
+                const selectedLora = availableLoRAs.find(lora => 
+                    (lora.relativePath || lora.filename) === model
+                );
+                activeLoRAs.push({
+                    index,
+                    model: selectedLora ? selectedLora.displayName : model,
+                    strength: strengthValue
+                });
             }
         }
     });
     
+    debugLog(`Found ${activeLoRAs.length} active LoRA(s):`, activeLoRAs);
     return selectedModels;
 }
 
@@ -1493,6 +1551,8 @@ function getSelectedLoRAModels() {
  * Initialize default LoRA entries
  */
 function initializeDefaultLoRAs() {
+    debugLog('Initializing default LoRA entries...');
+    
     // Clear existing entries
     const grid = document.getElementById('loraGrid');
     grid.innerHTML = '';
@@ -1500,16 +1560,20 @@ function initializeDefaultLoRAs() {
     
     // Add default LoRAs, or at least one empty entry if no defaults
     if (defaultLoRAs.length > 0) {
-        defaultLoRAs.forEach(config => {
+        debugLog(`Adding ${defaultLoRAs.length} default LoRA entries:`, defaultLoRAs);
+        defaultLoRAs.forEach((config, index) => {
+            debugLog(`Adding default LoRA ${index + 1}:`, config);
             addLoRARow(config);
         });
     } else {
+        debugLog('No default LoRAs configured, adding empty entry');
         // Ensure at least one LoRA entry exists
         addLoRARow();
     }
     
     // Update remove button states after initialization
     updateRemoveButtonStates();
+    debugLog('Default LoRA initialization complete');
 }
 
 /**
@@ -1526,6 +1590,7 @@ async function initializeLoRAs() {
         const addBtn = document.getElementById('addLoraBtn');
         if (addBtn) {
             addBtn.addEventListener('click', () => {
+                debugLog('Add LoRA button clicked - adding new LoRA entry');
                 addLoRARow();
                 updateRemoveButtonStates();
             });

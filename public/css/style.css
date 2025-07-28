@@ -202,6 +202,7 @@ h2 {
 /* Unified section style for all main sections */
 .main-section {
     width: 100%;
+    max-width: var(--box-max-width);
     min-width: 0;
     display: flex;
     flex-direction: column;
