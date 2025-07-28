@@ -75,11 +75,13 @@ window.addEventListener('DOMContentLoaded', async function() {
     await checkCaptchaStatusAndInit();
     await initializeLoRAs();
     
-    // Show advanced upload options if URL parameter is present
+    // Show header options (advanced features) if URL parameter is present
     const urlParams = new URLSearchParams(window.location.search);
-    const uploadOptions = document.getElementById('uploadOptions');
-    if (urlParams.get('advanced') === 'true' && uploadOptions) {
-        uploadOptions.style.display = 'block';
+    const headerOptions = document.querySelector('.header-options');
+    if (urlParams.get('advanced') === 'true' && headerOptions) {
+        headerOptions.style.display = 'block';
+    } else if (headerOptions) {
+        headerOptions.style.display = 'none';
     }
 });
 // --- DOM Elements (single query, reused everywhere) ---
@@ -707,6 +709,38 @@ uploadForm.addEventListener('submit', function (e) {
         const allowConcurrentUpload = document.getElementById('allowConcurrentUpload')?.checked || false;
         const files = Array.from(inputImage.files);
         
+        // Collect upload settings for debug logging
+        const uploadSettings = {
+            imageCount: files.length,
+            fileNames: files.map(f => f.name),
+            prompt: document.getElementById('prompt').value,
+            steps: document.getElementById('steps').value,
+            outputHeight: document.getElementById('outputHeight').value,
+            concurrentUpload: allowConcurrentUpload,
+            isLocal: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+            loraSettings: getSelectedLoRAModels(),
+            // Add all available form settings
+            allFormData: {
+                prompt: document.getElementById('prompt').value,
+                steps: parseInt(document.getElementById('steps').value),
+                outputHeight: parseInt(document.getElementById('outputHeight').value),
+                stepsDisplay: document.getElementById('stepsValue').textContent
+            }
+        };
+        
+        // Debug log upload details to browser console
+        console.group('🚀 Upload Initiated');
+        console.log('📊 Upload Settings:', uploadSettings);
+        console.log('🖼️ Images to upload:', uploadSettings.imageCount);
+        console.log('📝 File names:', uploadSettings.fileNames);
+        console.log('💭 Prompt:', uploadSettings.prompt || 'No prompt');
+        console.log('🔢 Steps:', uploadSettings.steps + ' (' + uploadSettings.allFormData.stepsDisplay + ')');
+        console.log('📏 Output Height:', uploadSettings.outputHeight + 'px');
+        console.log('⚡ Concurrent Upload:', uploadSettings.concurrentUpload ? 'Enabled' : 'Disabled');
+        console.log('🔧 LoRA Settings:', uploadSettings.loraSettings);
+        console.log('📋 All Form Data:', uploadSettings.allFormData);
+        console.groupEnd();
+        
         // Prevent double submission (only if a request is actively being processed or queued and concurrent uploads are not allowed)
         if (currentRequestId && !allowConcurrentUpload) {
             alert('A request is already being processed or queued. Please wait or enable "Allow uploading while processing".');
@@ -714,7 +748,7 @@ uploadForm.addEventListener('submit', function (e) {
             return;
         }
         
-        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const isLocal = uploadSettings.isLocal;
         
         // Only disable upload UI if concurrent uploads are not allowed
         if (!allowConcurrentUpload) {
@@ -741,11 +775,25 @@ uploadForm.addEventListener('submit', function (e) {
 
 // Function to submit a single file
 function submitSingleFile(file, isLocal) {
+    console.log('📤 Submitting single file:', file.name);
+    
     const formData = new FormData();
     formData.append('image', file);
-    formData.append('prompt', document.getElementById('prompt').value);
-    formData.append('steps', document.getElementById('steps').value);
-    formData.append('outputHeight', document.getElementById('outputHeight').value);
+    
+    // Collect all settings from the settings box
+    const prompt = document.getElementById('prompt').value;
+    const steps = document.getElementById('steps').value;
+    const outputHeight = document.getElementById('outputHeight').value;
+    
+    formData.append('prompt', prompt);
+    formData.append('steps', steps);
+    formData.append('outputHeight', outputHeight);
+    
+    console.log('📋 Single file settings applied:', {
+        prompt: prompt || 'No prompt',
+        steps: steps,
+        outputHeight: outputHeight + 'px'
+    });
     
     // Add dynamic LoRA models
     const selectedLoRAModels = getSelectedLoRAModels();
@@ -763,6 +811,7 @@ function submitSingleFile(file, isLocal) {
         }
     }
     
+    console.log('✅ Single file prepared for upload with all settings applied');
     submitFormData(formData, file.name);
 }
 
@@ -771,17 +820,33 @@ function submitMultipleFiles(files, isLocal) {
     let submittedCount = 0;
     const totalFiles = files.length;
     
+    console.log(`📤 Submitting ${totalFiles} files concurrently:`, files.map(f => f.name));
+    
+    // Collect settings once for all files
+    const prompt = document.getElementById('prompt').value;
+    const steps = document.getElementById('steps').value;
+    const outputHeight = document.getElementById('outputHeight').value;
+    const selectedLoRAModels = getSelectedLoRAModels();
+    
+    console.log('📋 Settings applied to all files:', {
+        prompt: prompt || 'No prompt',
+        steps: steps,
+        outputHeight: outputHeight + 'px',
+        loraCount: Object.keys(selectedLoRAModels).length / 3 // Each LoRA has 3 keys (on, model, strength)
+    });
+    
     setPlaceholderText(`Queuing ${totalFiles} images for processing...`);
     
     files.forEach((file, index) => {
+        console.log(`📤 Preparing file ${index + 1}/${totalFiles}: ${file.name}`);
+        
         const formData = new FormData();
         formData.append('image', file);
-        formData.append('prompt', document.getElementById('prompt').value);
-        formData.append('steps', document.getElementById('steps').value);
-        formData.append('outputHeight', document.getElementById('outputHeight').value);
+        formData.append('prompt', prompt);
+        formData.append('steps', steps);
+        formData.append('outputHeight', outputHeight);
         
         // Add dynamic LoRA models
-        const selectedLoRAModels = getSelectedLoRAModels();
         Object.entries(selectedLoRAModels).forEach(([key, value]) => {
             formData.append(key, value);
             debugLog(`LoRA setting ${key}: ${value}`);
@@ -798,9 +863,12 @@ function submitMultipleFiles(files, isLocal) {
         
         // Submit with a slight delay to avoid overwhelming the server
         setTimeout(() => {
+            console.log(`🚀 Sending file ${index + 1}/${totalFiles}: ${file.name}`);
             submitFormData(formData, file.name, index === 0, () => {
                 submittedCount++;
+                console.log(`✅ File ${index + 1}/${totalFiles} submitted: ${file.name} (${submittedCount}/${totalFiles} complete)`);
                 if (submittedCount === totalFiles) {
+                    console.log(`🎉 All ${totalFiles} files successfully submitted!`);
                     setPlaceholderText(`All ${totalFiles} images queued for processing.`);
                 }
             });

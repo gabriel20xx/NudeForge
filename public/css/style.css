@@ -106,6 +106,29 @@ h1 {
     color: #fff;
 }
 
+.header-options {
+    margin: 0.7em 0 0.2em 0;
+    padding: 0;
+    display: none; /* Hidden by default, shown only with ?advanced=true */
+}
+
+.header-option-label {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    font-size: 0.9em;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+}
+
+.header-option-checkbox {
+    margin-right: 0.5em;
+    cursor: pointer;
+    accent-color: #fff;
+    transform: scale(1.1);
+}
+
 h2 {
     color: #ffb84d;
     margin-bottom: 0.7em;
@@ -410,34 +433,6 @@ input[type="file"] {
     cursor: not-allowed !important;
     opacity: 0.5;
     box-shadow: none !important;
-}
-
-/* Upload Options */
-.upload-options {
-    margin: 0.8em 0;
-    text-align: center;
-}
-
-.upload-option-label {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5em;
-    font-size: 0.9em;
-    color: #ccc;
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.upload-option-label:hover {
-    color: #ffb84d;
-}
-
-.upload-option-checkbox {
-    width: 16px;
-    height: 16px;
-    accent-color: #ffb84d;
-    cursor: pointer;
 }
 
 .settings-btn {

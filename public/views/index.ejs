@@ -15,6 +15,12 @@
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span></p>
         <p id="processingStatusDisplay">Status: <span id="processingStatus">Idle</span><span
                 class="progressPercentage"></span></p>
+        <div class="header-options">
+            <label class="header-option-label">
+                <input type="checkbox" id="allowConcurrentUpload" class="header-option-checkbox">
+                Allow uploading while processing (multiple images)
+            </label>
+        </div>
     </div>
 
     <div class="carousel-container">
@@ -32,12 +38,6 @@
                         <img id="previewImage" />
                         <div id="multiPreviewContainer" class="multi-preview-container" style="display:none;"></div>
                         <input id="inputImage" type="file" name="image" accept="image/*" />
-                    </div>
-                    <div class="upload-options" id="uploadOptions" style="display:none;">
-                        <label class="upload-option-label">
-                            <input type="checkbox" id="allowConcurrentUpload" class="upload-option-checkbox">
-                            Allow uploading while processing
-                        </label>
                     </div>
                     <button class="btn upload-btn" type="submit">Upload</button>
                 </div>
@@ -140,7 +140,6 @@ Preserve the exact same face details, shape and expression. Preserve jewelry, ac
                                 <div id="captchaError" class="captcha-error"></div>
                             </div>
                         </div>
-                        <button type="button" id="apply-settings" class="btn settings-btn">Apply</button>
                     </div>
                 </div>
             </div>
