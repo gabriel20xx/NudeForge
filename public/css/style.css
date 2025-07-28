@@ -294,7 +294,6 @@ input[type="file"] {
     align-items: center;
     padding: 1rem;
     box-sizing: border-box;
-    margin-bottom: 1.2em;
     min-width: 0;
 }
 
@@ -402,6 +401,7 @@ input[type="file"] {
     border: none;
     border-radius: 8px;
     font-size: 1em;
+    margin-top: 1em;
     color: #23272f;
     cursor: pointer;
     font-weight: 500;
