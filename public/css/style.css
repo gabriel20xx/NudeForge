@@ -500,6 +500,7 @@ input[type="file"] {
     background: #181c24;
     color: #fff;
     font-size: 1em;
+    margin-bottom: 0.7em;
     box-sizing: border-box;
     transition: border 0.2s, box-shadow 0.2s;
 }
@@ -548,7 +549,11 @@ input[type="file"] {
 
 .lora-row {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas: 
+        "main controls"
+        "strength controls";
     align-items: start;
     gap: 0.8em;
     background: #2a2e35;
@@ -559,29 +564,31 @@ input[type="file"] {
 }
 
 .lora-main {
+    grid-area: main;
     display: flex;
-    flex-direction: column;
-    gap: 0.5em;
-    align-items: flex-start;
+    flex-direction: row;
+    gap: 0.8em;
+    align-items: center;
 }
 
 .lora-model-container {
-    margin-top: 0.3em;
+    margin-top: 0;
     width: 100%;
+    flex: 1;
 }
 
 .lora-row label {
-    margin: 0 0.2em 0 0.2em;
     font-size: 1em;
     color: #ffb84d;
 }
 
 .lora-strength-group {
+    grid-area: strength;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 0.3em;
-    text-align: center;
+    gap: 0.5em;
+    text-align: left;
 }
 
 .lora-strength {
@@ -592,8 +599,6 @@ input[type="file"] {
     border-radius: 6px;
     padding: 0.2em 0.4em;
     font-size: 1em;
-    margin-left: 0.3em;
-    margin-right: 0.3em;
     transition: border 0.2s, box-shadow 0.2s;
 }
 
@@ -612,7 +617,6 @@ input[type="file"] {
     border-radius: 6px;
     padding: 0.4em 0.6em;
     font-size: 0.95em;
-    margin-top: 0.2em;
     transition: border 0.2s, box-shadow 0.2s;
     cursor: pointer;
 }
@@ -632,6 +636,13 @@ input[type="file"] {
 /* LoRA Controls */
 .lora-controls {
     text-align: center;
+}
+
+.lora-row-controls {
+    grid-area: controls;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
 }
 
 .lora-add-btn {
