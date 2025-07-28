@@ -255,7 +255,6 @@ h2 {
     background: #23272f;
     border: 2.5px dashed #ffb84d;
     border-radius: 12px;
-    margin-bottom: 1.2em;
 }
 
 .drop-area.drag-over {
@@ -479,7 +478,6 @@ input[type="file"] {
     position: relative;
     left: auto;
     transform: none;
-    gap: 1.2em;
 }
 
 .settings-box {
@@ -513,7 +511,6 @@ input[type="file"] {
     border: 1.5px solid #333;
     background: #181c24;
     color: #fff;
-    margin-bottom: 0.7em;
     font-size: 1em;
     box-sizing: border-box;
     transition: border 0.2s, box-shadow 0.2s;
@@ -646,7 +643,6 @@ input[type="file"] {
 
 /* LoRA Controls */
 .lora-controls {
-    margin-top: 1em;
     text-align: center;
 }
 
