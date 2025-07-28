@@ -196,7 +196,6 @@ h2 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 2rem 0;
 }
 
 .comparison-col {
@@ -236,17 +235,6 @@ h2 {
     box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
     padding: 1.5rem;
     box-sizing: border-box;
-}
-
-/* Section styling */
-.comparison-section.main-section {
-    margin: 0 auto;
-    max-width: 600px;
-}
-
-.settings-section {
-    margin: 0 auto;
-    max-width: 600px;
 }
 
 .drop-area {
@@ -774,9 +762,6 @@ input[type="file"] {
         display: flex;
         flex-direction: column;
     }
-    .comparison-container-wrapper {
-        margin: 1.5rem 0;
-    }
     .comparison-section.main-section {
         margin: 0 auto;
         max-width: 600px;
@@ -815,9 +800,6 @@ input[type="file"] {
         min-width: unset;
         max-width: 100%;
         align-items: center;
-    }
-    .comparison-container-wrapper {
-        margin: 1rem 0;
     }
     .comparison-section.main-section {
         max-width: 100%;
