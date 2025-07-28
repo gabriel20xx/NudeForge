@@ -71,7 +71,10 @@ async function checkCaptchaStatusAndInit() {
     hideElement(comparisonContainer);
 }
 
-window.addEventListener('DOMContentLoaded', checkCaptchaStatusAndInit);
+window.addEventListener('DOMContentLoaded', async function() {
+    await checkCaptchaStatusAndInit();
+    await initializeLoRAs();
+});
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
 const previewImage = document.getElementById('previewImage');
@@ -85,11 +88,33 @@ const queueSizeSpan = document.getElementById('queueSize');
 const processingStatusSpan = document.getElementById('processingStatus');
 const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
 const uploadButton = uploadForm.querySelector('.upload-btn');
+const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
+const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 
 // Global variable to store the uploaded copy filename for comparison
 let uploadedCopyFilename = null;
 // Global variable to store the main upload filename for comparison
 let mainUploadFilename = null;
+// Global variable to store selected files for multi-upload
+let selectedFiles = [];
+
+// Add event listener for concurrent upload checkbox to toggle multiple file selection
+if (allowConcurrentUploadCheckbox) {
+    allowConcurrentUploadCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            inputImage.setAttribute('multiple', 'multiple');
+            dropText.textContent = 'Drag & drop or click to upload (multiple files allowed)';
+            uploadButton.textContent = 'Upload All';
+        } else {
+            inputImage.removeAttribute('multiple');
+            dropText.textContent = 'Drag & drop or click to upload';
+            uploadButton.textContent = 'Upload';
+            // Clear multiple selection if switching back to single mode
+            selectedFiles = [];
+            hideMultiPreview();
+        }
+    });
+}
 
 // --- Helper functions for show/hide ---
 function debugLog(...args) {
@@ -123,6 +148,119 @@ function setUploadButtonState({ disabled, text }) {
     }
     if (typeof text === 'string') uploadButton.textContent = text;
     debugLog('Set upload button state:', { disabled, text });
+}
+
+// --- Multi-file preview functions ---
+function showMultiPreview(files) {
+    if (!multiPreviewContainer) return;
+    
+    debugLog('showMultiPreview called with files:', files);
+    
+    multiPreviewContainer.innerHTML = '';
+    multiPreviewContainer.style.display = 'grid';
+    hideElement(previewImage);
+    hideElement(dropText);
+    
+    selectedFiles = Array.from(files);
+    debugLog('selectedFiles array:', selectedFiles);
+    
+    // Update upload button text to show count
+    if (uploadButton) {
+        uploadButton.textContent = `Upload All (${selectedFiles.length})`;
+    }
+    
+    selectedFiles.forEach((file, index) => {
+        debugLog(`Processing file ${index}:`, file.name, file.type);
+        
+        const previewItem = document.createElement('div');
+        previewItem.className = 'multi-preview-item';
+        previewItem.dataset.index = index;
+        
+        const img = document.createElement('img');
+        const fileName = document.createElement('div');
+        fileName.className = 'file-name';
+        fileName.textContent = file.name;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-file';
+        removeBtn.innerHTML = '×';
+        removeBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            removeFileFromSelection(index);
+        };
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            debugLog(`Image loaded for file ${index}:`, file.name);
+            img.src = e.target.result;
+            img.style.display = 'block';
+        };
+        reader.onerror = (e) => {
+            console.error('Error reading file:', file.name, e);
+            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMzMzMyIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm9yPC90ZXh0Pjwvc3ZnPg==';
+            img.style.display = 'block';
+        };
+        
+        // Only read as data URL if it's actually an image file
+        if (file.type && file.type.startsWith('image/')) {
+            debugLog(`Reading image file ${index}:`, file.name, file.type);
+            reader.readAsDataURL(file);
+        } else {
+            debugLog(`Non-image file ${index}:`, file.name, file.type);
+            // For non-image files, show a placeholder
+            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzIzMjcyZiIgc3Ryb2tlPSIjZmZiODRkIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI1MCIgeT0iNDAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iI2ZmYjg0ZCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RklMRTwvdGV4dD48dGV4dCB4PSI1MCIgeT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI4IiBmaWxsPSIjZmZiODRkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4oTm90IGFuIGltYWdlKTwvdGV4dD48L3N2Zz4=';
+            img.style.display = 'block';
+        }
+        
+        previewItem.appendChild(img);
+        previewItem.appendChild(fileName);
+        previewItem.appendChild(removeBtn);
+        multiPreviewContainer.appendChild(previewItem);
+        
+        debugLog(`Added preview item ${index} to container`);
+    });
+    
+    debugLog('Multi-preview setup complete, container children:', multiPreviewContainer.children.length);
+}
+
+function hideMultiPreview() {
+    if (multiPreviewContainer) {
+        multiPreviewContainer.style.display = 'none';
+        multiPreviewContainer.innerHTML = '';
+    }
+    showElement(dropText);
+}
+
+function removeFileFromSelection(index) {
+    selectedFiles.splice(index, 1);
+    
+    if (selectedFiles.length === 0) {
+        hideMultiPreview();
+        inputImage.value = ''; // Clear the input
+        if (uploadButton) {
+            uploadButton.textContent = 'Upload All';
+        }
+    } else {
+        // Recreate the FileList (this is a bit tricky as FileList is read-only)
+        const dt = new DataTransfer();
+        selectedFiles.forEach(file => dt.items.add(file));
+        inputImage.files = dt.files;
+        showMultiPreview(selectedFiles);
+    }
+}
+
+function showSinglePreview(file) {
+    hideElement(multiPreviewContainer);
+    showElement(previewImage);
+    hideElement(dropText);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImage.src = e.target.result;
+        showElement(previewImage);
+    };
+    reader.readAsDataURL(file);
 }
 
 // State Variables
@@ -169,7 +307,7 @@ socket.on('processingProgress', (progress) => {
     }
     updateProgressPercentage(`: ${percentage}%`);
     processingStatusSpan.textContent = progress.stage || "Processing";
-    outputPlaceholder.textContent = `${progress.stage || "Processing your image"}: ${percentage}% Done`;
+    setPlaceholderText(`${progress.stage || "Processing your image"}: ${percentage}% Done`);
 });
 
 // Listen for immediate queue updates
@@ -182,21 +320,21 @@ socket.on('queueUpdate', (data) => {
             yourPositionSpan.textContent = "Processing";
             processingStatusSpan.textContent = data.stage || "Processing";
             updateProgressPercentage("");
-            outputPlaceholder.textContent = data.stage || `Processing your image...`;
+            setPlaceholderText(data.stage || `Processing your image...`);
             outputPlaceholder.style.display = "block";
             outputImage.style.display = "none";
         } else if (data.status === "pending") {
             yourPositionSpan.textContent = `${data.yourPosition}`;
             processingStatusSpan.textContent = "Waiting";
             updateProgressPercentage("");
-            outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
+            setPlaceholderText(`Waiting in queue: Position ${data.yourPosition}`);
             outputPlaceholder.style.display = 'block';
             outputImage.style.display = 'none';
         }
     } else if (!currentRequestId && !data.isProcessing && data.queueSize === 0) {
         processingStatusSpan.textContent = 'Idle';
         updateProgressPercentage('');
-        outputPlaceholder.textContent = 'Your processed image will appear here.';
+        setPlaceholderText('Your processed image will appear here.');
         outputPlaceholder.style.display = 'block';
         outputImage.style.display = 'none';
     }
@@ -248,8 +386,7 @@ function resetUIForNewUpload() {
     hideElement(outputImage);
     outputImage.src = '';
     showElement(outputPlaceholder);
-    outputPlaceholder.style.color = '#fff';
-    outputPlaceholder.textContent = 'Uploading...';
+    setPlaceholderText('Uploading...');
     disableDownload();
     // Do NOT clear currentRequestId here; it is set only after a successful upload response
     processingStatusSpan.textContent = 'Uploading...';
@@ -406,9 +543,18 @@ function initializeSlider() {
 
 function displayError(errorMessage) {
     outputPlaceholder.textContent = `Error: ${errorMessage}`;
-    outputPlaceholder.style.color = 'red';
+    outputPlaceholder.classList.add('error');
     showElement(outputPlaceholder);
     hideElement(outputImage);
+}
+
+function clearErrorState() {
+    outputPlaceholder.classList.remove('error');
+}
+
+function setPlaceholderText(text) {
+    clearErrorState();
+    outputPlaceholder.textContent = text;
 }
 
 // --- Image Preview and Drag/Drop ---
@@ -431,28 +577,58 @@ function showPreview(file) {
 }
 
 inputImage.addEventListener('change', () => {
-    debugLog('inputImage changed:', inputImage.files[0]);
-    if (inputImage.files[0]) showPreview(inputImage.files[0]);
-    if (inputImage.files[0]) {
-        const formData = new FormData();
-        formData.append('image', inputImage.files[0]);
-        fetch('/upload-copy', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to upload image copy');
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Store filename silently for comparison (no console output)
-            uploadedCopyFilename = data.filename;
-        })
-        .catch(error => {
-            // Silent error handling for upload-copy (no console output)
-        });
+    debugLog('inputImage changed:', inputImage.files);
+    debugLog('Number of files selected:', inputImage.files ? inputImage.files.length : 0);
+    
+    if (inputImage.files && inputImage.files.length > 0) {
+        const allowConcurrent = allowConcurrentUploadCheckbox?.checked || false;
+        debugLog('Allow concurrent uploads:', allowConcurrent);
+        
+        if (allowConcurrent && inputImage.files.length > 1) {
+            // Multiple files selected - show multi-preview
+            debugLog('Showing multi-preview for', inputImage.files.length, 'files');
+            showMultiPreview(inputImage.files);
+        } else {
+            // Single file or concurrent not enabled - show single preview
+            debugLog('Showing single preview for file:', inputImage.files[0].name);
+            showSinglePreview(inputImage.files[0]);
+        }
+        
+        // Handle upload copy for all selected files (for comparison functionality)
+        if (inputImage.files && inputImage.files.length > 0) {
+            const fileCount = inputImage.files.length;
+            let copiesCompleted = 0;
+            
+            // Process all files for upload copies
+            Array.from(inputImage.files).forEach((file, index) => {
+                const formData = new FormData();
+                formData.append('image', file);
+                fetch('/upload-copy', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to upload image copy for ${file.name}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    copiesCompleted++;
+                    // Store filename silently for comparison (no console output)
+                    // For multiple files, we'll store the first one as the main comparison file
+                    if (index === 0) {
+                        uploadedCopyFilename = data.filename;
+                    }
+                    debugLog(`Upload copy created for ${file.name} (${copiesCompleted}/${fileCount}):`, data.filename);
+                })
+                .catch(error => {
+                    copiesCompleted++;
+                    // Silent error handling for upload-copy (no console output)
+                    debugLog(`Upload copy failed for ${file.name} (${copiesCompleted}/${fileCount}):`, error);
+                });
+            });
+        }
     }
 });
 
@@ -472,13 +648,28 @@ inputImage.addEventListener('change', () => {
     })
 );
 
-dropArea.addEventListener('click', () => inputImage.click());
+dropArea.addEventListener('click', (e) => {
+    // Don't trigger file selector if clicking on remove buttons or multi-preview items
+    if (e.target.closest('.remove-file') || e.target.closest('.multi-preview-item')) {
+        return;
+    }
+    inputImage.click();
+});
 
 dropArea.addEventListener('drop', e => {
-    const file = e.dataTransfer.files[0];
-    if (file) {
-        inputImage.files = e.dataTransfer.files;
-        showPreview(file);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        inputImage.files = files;
+        
+        const allowConcurrent = allowConcurrentUploadCheckbox?.checked || false;
+        
+        if (allowConcurrent && files.length > 1) {
+            // Multiple files dropped - show multi-preview
+            showMultiPreview(files);
+        } else {
+            // Single file or concurrent not enabled - show single preview
+            showSinglePreview(files[0]);
+        }
     }
 });
 
@@ -492,27 +683,90 @@ uploadForm.addEventListener('submit', function (e) {
             debugLog('No image selected for upload');
             return;
         }
-        // Prevent double submission (only if a request is actively being processed or queued)
-        if (currentRequestId) {
-            alert('A request is already being processed or queued. Please wait.');
-            debugLog('Upload blocked: currentRequestId exists', currentRequestId);
+        
+        const allowConcurrentUpload = document.getElementById('allowConcurrentUpload')?.checked || false;
+        const files = Array.from(inputImage.files);
+        
+        // Prevent double submission (only if a request is actively being processed or queued and concurrent uploads are not allowed)
+        if (currentRequestId && !allowConcurrentUpload) {
+            alert('A request is already being processed or queued. Please wait or enable "Allow uploading while processing".');
+            debugLog('Upload blocked: currentRequestId exists and concurrent uploads disabled', currentRequestId);
             return;
         }
+        
         const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        disableUpload();
+        
+        // Only disable upload UI if concurrent uploads are not allowed
+        if (!allowConcurrentUpload) {
+            disableUpload();
+        }
+        
         resetUIForNewUpload();
+        
+        // If multiple files and concurrent upload is enabled, queue them all
+        if (allowConcurrentUpload && files.length > 1) {
+            submitMultipleFiles(files, isLocal);
+        } else {
+            // Submit single file (original behavior)
+            submitSingleFile(files[0], isLocal);
+        }
+        
+    } catch (err) {
+        debugLog('Error in uploadForm submit handler:', err);
+        console.error('Unexpected error in uploadForm submit:', err);
+        enableUpload();
+        displayError('An unexpected error occurred. Please try again.');
+    }
+});
+
+// Function to submit a single file
+function submitSingleFile(file, isLocal) {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('prompt', document.getElementById('prompt').value);
+    formData.append('steps', document.getElementById('steps').value);
+    formData.append('outputHeight', document.getElementById('outputHeight').value);
+    
+    // Add dynamic LoRA models
+    const selectedLoRAModels = getSelectedLoRAModels();
+    Object.entries(selectedLoRAModels).forEach(([key, value]) => {
+        formData.append(key, value);
+        debugLog(`LoRA setting ${key}: ${value}`);
+    });
+    
+    if (!isLocal && !captchaDisabled) {
+        var captchaAnswer = document.getElementById('captcha_answer');
+        var captchaToken = document.getElementById('captcha_token');
+        if (captchaAnswer && captchaToken) {
+            formData.append('captcha_answer', captchaAnswer.value.trim());
+            formData.append('captcha_token', captchaToken.value);
+        }
+    }
+    
+    submitFormData(formData, file.name);
+}
+
+// Function to submit multiple files
+function submitMultipleFiles(files, isLocal) {
+    let submittedCount = 0;
+    const totalFiles = files.length;
+    
+    setPlaceholderText(`Queuing ${totalFiles} images for processing...`);
+    
+    files.forEach((file, index) => {
         const formData = new FormData();
-        formData.append('image', inputImage.files[0]);
+        formData.append('image', file);
         formData.append('prompt', document.getElementById('prompt').value);
         formData.append('steps', document.getElementById('steps').value);
         formData.append('outputHeight', document.getElementById('outputHeight').value);
-        for (let i = 1; i <= 5; i++) {
-            const isChecked = document.getElementById(`lora_${i}_on`).checked;
-            const strengthValue = document.getElementById(`lora_${i}_strength`).value;
-            debugLog(`LoRA ${i}: checked=${isChecked}, strength=${strengthValue}`);
-            formData.append(`lora_${i}_on`, isChecked ? 'true' : 'false');
-            formData.append(`lora_${i}_strength`, strengthValue);
-        }
+        
+        // Add dynamic LoRA models
+        const selectedLoRAModels = getSelectedLoRAModels();
+        Object.entries(selectedLoRAModels).forEach(([key, value]) => {
+            formData.append(key, value);
+            debugLog(`LoRA setting ${key}: ${value}`);
+        });
+        
         if (!isLocal && !captchaDisabled) {
             var captchaAnswer = document.getElementById('captcha_answer');
             var captchaToken = document.getElementById('captcha_token');
@@ -521,27 +775,46 @@ uploadForm.addEventListener('submit', function (e) {
                 formData.append('captcha_token', captchaToken.value);
             }
         }
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener('progress', e => {
-            if (e.lengthComputable) {
-                const percent = (e.loaded / e.total) * 100;
-                processingStatusSpan.textContent = `Uploading: ${Math.round(percent)}%`;
-                debugLog('Upload progress:', percent);
-            }
-        });
-        xhr.onreadystatechange = () => {
-            if (xhr.readyState === 4) {
-                debugLog('XHR upload complete, status:', xhr.status, xhr.responseText);
-                if (xhr.status === 202) {
-                    let response;
-                    try {
-                        response = JSON.parse(xhr.responseText);
-                    } catch (err) {
-                        enableUpload();
-                        displayError('Invalid server response.');
-                        console.error('Error parsing upload response:', err, xhr.responseText);
-                        return;
-                    }
+        
+        // Submit with a slight delay to avoid overwhelming the server
+        setTimeout(() => {
+            submitFormData(formData, file.name, index === 0, () => {
+                submittedCount++;
+                if (submittedCount === totalFiles) {
+                    setPlaceholderText(`All ${totalFiles} images queued for processing.`);
+                }
+            });
+        }, index * 100); // 100ms delay between submissions
+    });
+}
+
+// Function to handle the actual form submission
+function submitFormData(formData, fileName, isFirstFile = true, onComplete = null) {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            processingStatusSpan.textContent = `Uploading ${fileName}: ${Math.round(percent)}%`;
+            debugLog('Upload progress:', percent);
+        }
+    });
+    xhr.onreadystatechange = () => {
+        if (xhr.readyState === 4) {
+            debugLog('XHR upload complete, status:', xhr.status, xhr.responseText);
+            if (xhr.status === 202) {
+                let response;
+                try {
+                    response = JSON.parse(xhr.responseText);
+                } catch (err) {
+                    enableUpload();
+                    displayError('Invalid server response.');
+                    console.error('Error parsing upload response:', err, xhr.responseText);
+                    if (onComplete) onComplete();
+                    return;
+                }
+                
+                // For multiple files, only set currentRequestId for the first file
+                if (isFirstFile) {
                     currentRequestId = response.requestId;
                     sessionStorage.setItem('activeRequestId', currentRequestId);
                     // Always join the room for this request
@@ -549,7 +822,7 @@ uploadForm.addEventListener('submit', function (e) {
                     queueSizeSpan.textContent = response.queueSize;
                     processingStatusSpan.textContent = response.yourPosition > 0 ? `Waiting (Position ${response.yourPosition})` : 'Processing';
                     updateProgressPercentage('');
-                    outputPlaceholder.textContent = `Image uploaded. Waiting for processing.`;
+                    setPlaceholderText(`Image uploaded. Waiting for processing.`);
                     // Always clear and start polling
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
@@ -557,20 +830,28 @@ uploadForm.addEventListener('submit', function (e) {
                     pollingIntervalId = setInterval(fetchQueueStatus, 2000);
                     fetchQueueStatus();
                 } else {
-                    enableUpload();
-                    let errorMsg = 'Upload failed: ';
-                    if (xhr.status === 0) {
-                        errorMsg += 'Network error or server not reachable.';
-                    } else if (xhr.status === 400 && xhr.responseText && xhr.responseText.includes('CAPTCHA')) {
-                        errorMsg += 'CAPTCHA validation failed. Please try again.';
-                        if (typeof fetchCaptcha === 'function') fetchCaptcha();
-                    } else if (xhr.responseText) {
-                        errorMsg += xhr.responseText;
-                    } else {
-                        errorMsg += 'Unknown error';
-                    }
-                    alert(errorMsg);
-                    displayError(errorMsg);
+                    // For additional files, just join their rooms to monitor progress
+                    socket.emit('joinRoom', response.requestId);
+                    queueSizeSpan.textContent = response.queueSize;
+                }
+                
+                if (onComplete) onComplete();
+            } else {
+                enableUpload();
+                let errorMsg = 'Upload failed: ';
+                if (xhr.status === 0) {
+                    errorMsg += 'Network error or server not reachable.';
+                } else if (xhr.status === 400 && xhr.responseText && xhr.responseText.includes('CAPTCHA')) {
+                    errorMsg += 'CAPTCHA validation failed. Please try again.';
+                    if (typeof fetchCaptcha === 'function') fetchCaptcha();
+                } else if (xhr.responseText) {
+                    errorMsg += xhr.responseText;
+                } else {
+                    errorMsg += 'Unknown error';
+                }
+                alert(errorMsg);
+                displayError(errorMsg);
+                if (isFirstFile) {
                     currentRequestId = null;
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
@@ -578,23 +859,21 @@ uploadForm.addEventListener('submit', function (e) {
                     }
                     processingStatusSpan.textContent = 'Failed';
                     updateProgressPercentage('');
-                    debugLog('Upload error:', errorMsg);
                 }
+                debugLog('Upload error:', errorMsg);
+                if (onComplete) onComplete();
             }
-        };
-        xhr.onerror = err => {
-            enableUpload();
-            displayError('Network error during upload.');
-            console.error('XHR upload error:', err);
-        };
-        xhr.open('POST', '/upload', true);
-        xhr.send(formData);
-    } catch (err) {
+        }
+    };
+    xhr.onerror = err => {
         enableUpload();
-        displayError('Unexpected error during upload.');
-        console.error('Unexpected error in uploadForm submit:', err);
-    }
-});
+        displayError('Network error during upload.');
+        console.error('XHR upload error:', err);
+        if (onComplete) onComplete();
+    };
+    xhr.open('POST', '/upload', true);
+    xhr.send(formData);
+}
 
 // --- Frontend Queue Polling ---
 async function fetchQueueStatus() {
@@ -622,7 +901,7 @@ async function fetchQueueStatus() {
                 case 'pending':
                     processingStatusSpan.textContent = `Waiting (Position ${data.yourPosition})`;
                     updateProgressPercentage('');
-                    outputPlaceholder.textContent = `Waiting in queue: Position ${data.yourPosition}`;
+                    setPlaceholderText(`Waiting in queue: Position ${data.yourPosition}`);
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     break;
@@ -668,7 +947,7 @@ async function fetchQueueStatus() {
         } else if (!data.isProcessing && data.queueSize === 0) {
             processingStatusSpan.textContent = 'Idle';
             updateProgressPercentage('');
-            outputPlaceholder.textContent = 'Your processed image will appear here.';
+            setPlaceholderText('Your processed image will appear here.');
             outputPlaceholder.style.display = 'block';
             outputImage.style.display = 'none';
             if (pollingIntervalId) {
@@ -983,4 +1262,358 @@ function enableUpload() {
     }
     var captchaAnswer = document.getElementById('captcha_answer');
     if (captchaAnswer) captchaAnswer.value = '';
+}
+
+// --- LoRA Management Functions ---
+let availableLoRAs = [];
+let loraCounter = 0;
+const defaultLoRAs = [
+    { model: 'fluxkontext/change_clothes_to_nothing_000011200.safetensors', strength: 1, enabled: true }
+];
+
+/**
+ * Fetch available LoRA models from the server
+ */
+async function fetchAvailableLoRAs() {
+    try {
+        const response = await fetch('/api/loras/detailed');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+            // Flatten the structure - combine root and subdirectory LoRAs
+            availableLoRAs = [...data.loras.root];
+            
+            // Add LoRAs from subdirectories
+            Object.values(data.loras.subdirs).forEach(subdirLoRAs => {
+                if (Array.isArray(subdirLoRAs)) {
+                    availableLoRAs.push(...subdirLoRAs);
+                }
+            });
+            
+            debugLog(`Loaded ${availableLoRAs.length} LoRA models`);
+            return availableLoRAs;
+        } else {
+            throw new Error(data.error || 'Failed to fetch LoRA models');
+        }
+    } catch (error) {
+        console.error('Error fetching LoRA models:', error);
+        debugLog(`Error fetching LoRA models: ${error.message}`);
+        return [];
+    }
+}
+
+/**
+ * Create a LoRA selection dropdown for a specific LoRA slot
+ */
+function createLoRADropdown(loraIndex, currentValue = '') {
+    const select = document.createElement('select');
+    select.id = `lora_${loraIndex}_model`;
+    select.name = `lora_${loraIndex}_model`;
+    select.className = 'lora-model-select';
+    
+    // Add default/empty option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '-- Select LoRA Model --';
+    select.appendChild(defaultOption);
+    
+    // Add LoRA options
+    availableLoRAs.forEach(lora => {
+        const option = document.createElement('option');
+        option.value = lora.relativePath || lora.filename; // Use relativePath for ComfyUI compatibility
+        option.textContent = lora.displayName;
+        
+        // Add subdirectory info if it's in a subdirectory
+        if (lora.relativePath && (lora.relativePath.includes('') || lora.relativePath.includes('/'))) {
+            const subdirName = lora.relativePath.split(/[\/]/)[0];
+            option.textContent += ` (${subdirName})`;
+        }
+        
+        if (option.value === currentValue) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+    
+    return select;
+}
+
+/**
+ * Create a single LoRA row element
+ */
+function createLoRARow(index, config = {}) {
+    const { model = '', strength = 0.7, enabled = false } = config;
+    
+    const row = document.createElement('div');
+    row.className = 'lora-row';
+    row.dataset.index = index;
+    
+    row.innerHTML = `
+        <div class="lora-main">
+            <input type="checkbox" id="lora_${index}_on" name="lora_${index}_on" ${enabled ? 'checked' : ''}>
+            <div class="lora-model-container">
+                <!-- Dropdown will be inserted here -->
+            </div>
+        </div>
+        <div class="lora-strength-group">
+            <input type="number" id="lora_${index}_strength" name="lora_${index}_strength" 
+                   value="${strength}" min="0" max="2" step="0.01" class="lora-strength" />
+            <label for="lora_${index}_strength">Strength</label>
+        </div>
+        <div class="lora-row-controls">
+            <button type="button" class="lora-remove-btn" onclick="removeLoRARow(${index})">×</button>
+        </div>
+    `;
+    
+    // Insert the dropdown
+    const dropdown = createLoRADropdown(index, model);
+    const container = row.querySelector('.lora-model-container');
+    container.appendChild(dropdown);
+    
+    // Add change event listener
+    dropdown.addEventListener('change', function() {
+        const selectedLora = availableLoRAs.find(lora => 
+            (lora.relativePath || lora.filename) === this.value
+        );
+        if (selectedLora) {
+            debugLog(`LoRA ${index} changed to: ${selectedLora.displayName} (${this.value})`);
+        }
+    });
+    
+    return row;
+}
+
+/**
+ * Update remove button states based on number of entries
+ */
+function updateRemoveButtonStates() {
+    const allRows = document.querySelectorAll('.lora-row');
+    const removeButtons = document.querySelectorAll('.lora-remove-btn');
+    
+    // Disable remove buttons if there's only one entry
+    removeButtons.forEach(btn => {
+        btn.disabled = allRows.length <= 1;
+        if (allRows.length <= 1) {
+            btn.title = 'Cannot remove the last LoRA entry';
+        } else {
+            btn.title = 'Remove this LoRA entry';
+        }
+    });
+}
+
+/**
+ * Add a new LoRA row
+ */
+function addLoRARow(config = {}) {
+    loraCounter++;
+    const row = createLoRARow(loraCounter, config);
+    const grid = document.getElementById('loraGrid');
+    grid.appendChild(row);
+    debugLog(`Added LoRA row ${loraCounter}`);
+    return loraCounter;
+}
+
+/**
+ * Remove a LoRA row
+ */
+function removeLoRARow(index) {
+    const row = document.querySelector(`[data-index="${index}"]`);
+    if (row) {
+        // Check if this is the last LoRA entry
+        const allRows = document.querySelectorAll('.lora-row');
+        if (allRows.length <= 1) {
+            // Don't allow removing the last LoRA entry
+            debugLog('Cannot remove the last LoRA entry');
+            return;
+        }
+        
+        row.remove();
+        debugLog(`Removed LoRA row ${index}`);
+        
+        // Update remove button states
+        updateRemoveButtonStates();
+    }
+}
+
+// Make removeLoRARow globally accessible
+window.removeLoRARow = removeLoRARow;
+
+/**
+ * Get selected LoRA models for form submission
+ */
+function getSelectedLoRAModels() {
+    const selectedModels = {};
+    const loraRows = document.querySelectorAll('.lora-row');
+    
+    loraRows.forEach(row => {
+        const index = row.dataset.index;
+        const checkbox = document.getElementById(`lora_${index}_on`);
+        const dropdown = document.getElementById(`lora_${index}_model`);
+        const strength = document.getElementById(`lora_${index}_strength`);
+        
+        if (checkbox && dropdown && strength) {
+            selectedModels[`lora_${index}_on`] = checkbox.checked ? 'true' : 'false';
+            selectedModels[`lora_${index}_strength`] = strength.value;
+            if (dropdown.value) {
+                selectedModels[`lora_${index}_model`] = dropdown.value;
+            }
+        }
+    });
+    
+    return selectedModels;
+}
+
+/**
+ * Initialize default LoRA entries
+ */
+function initializeDefaultLoRAs() {
+    // Clear existing entries
+    const grid = document.getElementById('loraGrid');
+    grid.innerHTML = '';
+    loraCounter = 0;
+    
+    // Add default LoRAs, or at least one empty entry if no defaults
+    if (defaultLoRAs.length > 0) {
+        defaultLoRAs.forEach(config => {
+            addLoRARow(config);
+        });
+    } else {
+        // Ensure at least one LoRA entry exists
+        addLoRARow();
+    }
+    
+    // Update remove button states after initialization
+    updateRemoveButtonStates();
+}
+
+/**
+ * Initialize LoRA functionality
+ */
+async function initializeLoRAs() {
+    debugLog('Initializing LoRA system...');
+    await fetchAvailableLoRAs();
+    
+    if (availableLoRAs.length > 0) {
+        initializeDefaultLoRAs();
+        
+        // Add event listener for add button
+        const addBtn = document.getElementById('addLoraBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                addLoRARow();
+                updateRemoveButtonStates();
+            });
+        }
+        
+        debugLog('LoRA system initialized successfully');
+    } else {
+        debugLog('No LoRA models found or failed to load');
+        // Still initialize with empty dropdowns
+        initializeDefaultLoRAs();
+    }
+}
+
+/**
+ * Create a LoRA selection dropdown for a specific LoRA slot
+ */
+function createLoRADropdown(loraIndex, currentValue = '') {
+    const select = document.createElement('select');
+    select.id = `lora_${loraIndex}_model`;
+    select.name = `lora_${loraIndex}_model`;
+    select.className = 'lora-model-select';
+    
+    // Add default/empty option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '-- Select LoRA Model --';
+    select.appendChild(defaultOption);
+    
+    // Add LoRA options
+    availableLoRAs.forEach(lora => {
+        const option = document.createElement('option');
+        option.value = lora.relativePath || lora.filename; // Use relativePath for ComfyUI compatibility
+        option.textContent = lora.displayName;
+        
+        // Add subdirectory info if it's in a subdirectory
+        if (lora.relativePath && lora.relativePath.includes('\\') || lora.relativePath && lora.relativePath.includes('/')) {
+            option.textContent += ` (${lora.relativePath.split(/[\\\/]/)[0]})`;
+        }
+        
+        if (option.value === currentValue) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+    
+    return select;
+}
+
+/**
+ * Update LoRA labels with dropdown selections
+ */
+function makeLoRALabelsSelectable() {
+    // Get current LoRA mappings from workflow.json (hardcoded for now)
+    const currentLoRAs = {
+        1: 'fluxkontext/change_clothes_to_nothing_000011200.safetensors',
+        2: 'flux/real_textures-000011.safetensors',
+        3: 'flux/Flux_Ultimator.safetensors',
+        4: 'flux/FLUX_FD-Nipple-Detail-R4.safetensors',
+        5: 'flux/aidmaRealisticSkin-FLUX-v0.1.safetensors'
+    };
+    
+    for (let i = 1; i <= 5; i++) {
+        const label = document.querySelector(`label[for="lora_${i}_on"]`);
+        if (label) {
+            // Store original text
+            const originalText = label.textContent;
+            
+            // Create dropdown
+            const dropdown = createLoRADropdown(i, currentLoRAs[i] || '');
+            
+            // Replace label content with dropdown
+            label.innerHTML = '';
+            label.appendChild(dropdown);
+            
+            // Add change event listener to update form data
+            dropdown.addEventListener('change', function() {
+                const selectedLora = availableLoRAs.find(lora => 
+                    (lora.relativePath || lora.filename) === this.value
+                );
+                if (selectedLora) {
+                    debugLog(`LoRA ${i} changed to: ${selectedLora.displayName} (${this.value})`);
+                }
+            });
+        }
+    }
+}
+
+/**
+ * Get selected LoRA models for form submission
+ */
+function getSelectedLoRAModels() {
+    const selectedModels = {};
+    for (let i = 1; i <= 5; i++) {
+        const dropdown = document.getElementById(`lora_${i}_model`);
+        if (dropdown && dropdown.value) {
+            selectedModels[`lora_${i}_model`] = dropdown.value;
+        }
+    }
+    return selectedModels;
+}
+
+/**
+ * Initialize LoRA functionality
+ */
+async function initializeLoRAs() {
+    debugLog('Initializing LoRA system...');
+    await fetchAvailableLoRAs();
+    
+    if (availableLoRAs.length > 0) {
+        makeLoRALabelsSelectable();
+        debugLog('LoRA system initialized successfully');
+    } else {
+        debugLog('No LoRA models found or failed to load');
+    }
 }

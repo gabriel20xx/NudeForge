@@ -7,6 +7,7 @@ const { generateCaptcha, verifyCaptcha } = require("../services/captcha");
 const { upload, uploadCopy } = require('../services/uploads');
 const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } = require('../services/queue');
 const { generateAllCarouselThumbnails, getThumbnailPath, getOriginalPath } = require('../services/carousel');
+const { getAvailableLoRAs, getAvailableLoRAsWithSubdirs } = require('../services/loras');
 
 const router = express.Router();
 
@@ -72,6 +73,40 @@ router.get('/captcha', generateCaptcha);
 
 router.get('/api/captcha-status', (req, res) => {
     res.json({ captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
+});
+
+// API endpoint to get available LoRA models
+router.get('/api/loras', async (req, res) => {
+    try {
+        const loras = await getAvailableLoRAs();
+        res.json({
+            success: true,
+            loras: loras
+        });
+    } catch (error) {
+        Logger.error('LORAS_API', 'Error fetching LoRA models:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch LoRA models'
+        });
+    }
+});
+
+// API endpoint to get available LoRA models with subdirectories
+router.get('/api/loras/detailed', async (req, res) => {
+    try {
+        const loras = await getAvailableLoRAsWithSubdirs();
+        res.json({
+            success: true,
+            loras: loras
+        });
+    } catch (error) {
+        Logger.error('LORAS_API', 'Error fetching detailed LoRA models:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch LoRA models'
+        });
+    }
 });
 
 router.get('/queue-status', (req, res) => {

@@ -29,7 +29,14 @@
                     <div id="dropArea" class="drop-area image-box">
                         <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
                         <img id="previewImage" />
+                        <div id="multiPreviewContainer" class="multi-preview-container" style="display:none;"></div>
                         <input id="inputImage" type="file" name="image" accept="image/*" />
+                    </div>
+                    <div class="upload-options">
+                        <label class="upload-option-label">
+                            <input type="checkbox" id="allowConcurrentUpload" class="upload-option-checkbox">
+                            Allow uploading while processing
+                        </label>
                     </div>
                     <button class="btn upload-btn" type="submit">Upload</button>
                 </div>
@@ -112,62 +119,11 @@ Preserve the exact same face details, shape and expression. " />
                         </div>
                         <fieldset class="lora-fieldset">
                             <legend>LoRA Settings</legend>
-                            <div class="lora-grid">
-                                <div class="lora-row">
-                                    <div class="lora-main">
-                                        <input type="checkbox" id="lora_1_on" name="lora_1_on" checked>
-                                        <label for="lora_1_on">Change clothes to nothing</label>
-                                    </div>
-                                    <div class="lora-strength-group">
-                                        <input type="number" id="lora_1_strength" name="lora_1_strength" value="1"
-                                            min="0" max="2" step="0.01" class="lora-strength" />
-                                        <label for="lora_1_strength">Strength</label>
-                                    </div>
-                                </div>
-                                <div class="lora-row">
-                                    <div class="lora-main">
-                                        <input type="checkbox" id="lora_2_on" name="lora_2_on">
-                                        <label for="lora_2_on">Real textures</label>
-                                    </div>
-                                    <div class="lora-strength-group">
-                                        <input type="number" id="lora_2_strength" name="lora_2_strength" value="0.7"
-                                            min="0" max="2" step="0.01" class="lora-strength" />
-                                        <label for="lora_2_strength">Strength</label>
-                                    </div>
-                                </div>
-                                <div class="lora-row">
-                                    <div class="lora-main">
-                                        <input type="checkbox" id="lora_3_on" name="lora_3_on">
-                                        <label for="lora_3_on">Ultimator</label>
-                                    </div>
-                                    <div class="lora-strength-group">
-                                        <input type="number" id="lora_3_strength" name="lora_3_strength" value="0.5"
-                                            min="0" max="2" step="0.01" class="lora-strength" />
-                                        <label for="lora_3_strength">Strength</label>
-                                    </div>
-                                </div>
-                                <div class="lora-row">
-                                    <div class="lora-main">
-                                        <input type="checkbox" id="lora_4_on" name="lora_4_on">
-                                        <label for="lora_4_on">Nipple Detail</label>
-                                    </div>
-                                    <div class="lora-strength-group">
-                                        <input type="number" id="lora_4_strength" name="lora_4_strength" value="0.8"
-                                            min="0" max="2" step="0.01" class="lora-strength" />
-                                        <label for="lora_4_strength">Strength</label>
-                                    </div>
-                                </div>
-                                <div class="lora-row">
-                                    <div class="lora-main">
-                                        <input type="checkbox" id="lora_5_on" name="lora_5_on" checked>
-                                        <label for="lora_5_on">Realistic Skin</label>
-                                    </div>
-                                    <div class="lora-strength-group">
-                                        <input type="number" id="lora_5_strength" name="lora_5_strength" value="0.6"
-                                            min="0" max="2" step="0.01" class="lora-strength" />
-                                        <label for="lora_5_strength">Strength</label>
-                                    </div>
-                                </div>
+                            <div class="lora-grid" id="loraGrid">
+                                <!-- Dynamic LoRA entries will be inserted here -->
+                            </div>
+                            <div class="lora-controls">
+                                <button type="button" id="addLoraBtn" class="btn lora-add-btn">+ Add LoRA</button>
                             </div>
                         </fieldset>
                         <div class="captcha-container" id="captchaContainer">

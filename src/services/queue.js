@@ -107,12 +107,41 @@ async function processQueue(io) {
 
         const loraNode = Object.values(workflow).find((node) => node.class_type === "Power Lora Loader (rgthree)");
         if (loraNode) {
-            for (let i = 1; i <= 5; i++) {
+            // Clear existing LoRA settings
+            for (let i = 1; i <= 10; i++) {
                 if (loraNode.inputs[`lora_${i}`]) {
-                    loraNode.inputs[`lora_${i}`].on = !!loraSettings[`lora_${i}_on`];
-                    loraNode.inputs[`lora_${i}`].strength = parseFloat(loraSettings[`lora_${i}_strength`]);
+                    loraNode.inputs[`lora_${i}`].on = false;
+                    loraNode.inputs[`lora_${i}`].strength = 0;
+                    loraNode.inputs[`lora_${i}`].lora = "";
                 }
             }
+            
+            // Process dynamic LoRA entries
+            const loraEntries = {};
+            Object.keys(loraSettings).forEach(key => {
+                const match = key.match(/^lora_(\d+)_(.+)$/);
+                if (match) {
+                    const index = match[1];
+                    const property = match[2];
+                    if (!loraEntries[index]) loraEntries[index] = {};
+                    loraEntries[index][property] = loraSettings[key];
+                }
+            });
+            
+            // Apply LoRA settings
+            Object.entries(loraEntries).forEach(([index, settings]) => {
+                if (loraNode.inputs[`lora_${index}`]) {
+                    loraNode.inputs[`lora_${index}`].on = settings.on === 'true';
+                    loraNode.inputs[`lora_${index}`].strength = parseFloat(settings.strength) || 0;
+                    
+                    if (settings.model) {
+                        // Ensure the path uses forward slashes for ComfyUI compatibility
+                        const loraPath = settings.model.replace(/\\/g, '/');
+                        loraNode.inputs[`lora_${index}`].lora = loraPath;
+                        Logger.info('PROCESS', `LoRA ${index}: enabled=${settings.on}, strength=${settings.strength}, model=${loraPath}`);
+                    }
+                }
+            });
         }
 
         const inputNameNode = Object.values(workflow).find((node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name");
