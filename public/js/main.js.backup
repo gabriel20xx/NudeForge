@@ -74,13 +74,6 @@ async function checkCaptchaStatusAndInit() {
 window.addEventListener('DOMContentLoaded', async function() {
     await checkCaptchaStatusAndInit();
     await initializeLoRAs();
-    
-    // Show advanced upload options if URL parameter is present
-    const urlParams = new URLSearchParams(window.location.search);
-    const uploadOptions = document.getElementById('uploadOptions');
-    if (urlParams.get('advanced') === 'true' && uploadOptions) {
-        uploadOptions.style.display = 'block';
-    }
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
@@ -294,7 +287,7 @@ function updateProgressPercentage(text) {
     debugLog('Progress percentage updated:', text);
 }
 
-// Listen for processing progress updates from the server (highest priority)
+// Listen for processing progress updates from the server
 socket.on('processingProgress', (progress) => {
     debugLog('Received processingProgress:', progress);
     let percentage;
@@ -313,13 +306,11 @@ socket.on('processingProgress', (progress) => {
         return;
     }
     updateProgressPercentage(`: ${percentage}%`);
-    // Use detailed status for header: stage name + percentage
-    const stageText = progress.stage || "Processing";
-    processingStatusSpan.textContent = `${stageText}: ${percentage}%`;
-    setPlaceholderText(`${stageText}: ${percentage}% Done`);
+    processingStatusSpan.textContent = progress.stage || "Processing";
+    setPlaceholderText(`${progress.stage || "Processing your image"}: ${percentage}% Done`);
 });
 
-// Listen for immediate queue updates (lower priority than progress)
+// Listen for immediate queue updates
 socket.on('queueUpdate', (data) => {
     debugLog('Received queueUpdate:', data);
     queueSizeSpan.textContent = data.queueSize;
@@ -327,10 +318,7 @@ socket.on('queueUpdate', (data) => {
     if (currentRequestId && data.requestId === currentRequestId) {
         if (data.status === "processing") {
             yourPositionSpan.textContent = "Processing";
-            // Only update status if no detailed progress is showing
-            if (!processingStatusSpan.textContent.includes('%')) {
-                processingStatusSpan.textContent = data.stage || "Processing";
-            }
+            processingStatusSpan.textContent = data.stage || "Processing";
             updateProgressPercentage("");
             setPlaceholderText(data.stage || `Processing your image...`);
             outputPlaceholder.style.display = "block";
@@ -438,18 +426,13 @@ function displayResult(imageUrl, downloadUrl) {
         hideElement(outputPlaceholder);
         enableDownload(downloadUrl || imageUrl);
         
-        // Setup comparison slider only if we have a valid uploaded copy filename
-        if (uploadedCopyFilename) {
-            const beforeImageUrl = `/uploads/${uploadedCopyFilename}`;
-            Logger.info('FRONTEND', 'Setting up comparison with uploaded copy file');
-            setupComparison(beforeImageUrl, imageUrl);
-        } else if (mainUploadFilename) {
-            // Fallback to main upload filename if copy is not available
+        // Setup comparison slider only if we have a valid main upload filename
+        if (mainUploadFilename) {
             const beforeImageUrl = `/input/${mainUploadFilename}`;
             Logger.info('FRONTEND', 'Setting up comparison with main upload file');
             setupComparison(beforeImageUrl, imageUrl);
         } else {
-            Logger.warn('FRONTEND', 'No upload filename available for comparison');
+            Logger.warn('FRONTEND', 'No main upload filename available for comparison');
         }
     };
     
@@ -492,11 +475,8 @@ function setupComparison(beforeImageUrl, afterImageUrl) {
     }
     
     function onImageError(imgType) {
-        Logger.warn('COMPARISON', `Failed to load ${imgType} image for comparison - hiding comparison slider`);
+        Logger.error('COMPARISON', `Failed to load ${imgType} image for comparison`);
         debugLog('Comparison setup failed due to image load error');
-        // Hide comparison section if images fail to load
-        hideElement(comparisonContainer);
-        showElement(comparisonPlaceholder);
     }
     
     beforeImg.onload = onImageLoad;
@@ -926,10 +906,7 @@ async function fetchQueueStatus() {
                     outputImage.style.display = 'none';
                     break;
                 case 'processing':
-                    // Only update if no detailed progress is showing
-                    if (!processingStatusSpan.textContent.includes('%')) {
-                        processingStatusSpan.textContent = 'Processing';
-                    }
+                    processingStatusSpan.textContent = 'Processing';
                     outputPlaceholder.style.display = 'block';
                     outputImage.style.display = 'none';
                     break;
