@@ -2,12 +2,12 @@ const path = require("path");
 const Logger = require("../utils/logger");
 require("dotenv").config({ path: path.resolve(__dirname, '../../.env') });
 
-// Define directories
-const INPUT_DIR = path.join(__dirname, "../../../input");
-const OUTPUT_DIR = path.join(__dirname, "../../../output");
-const UPLOAD_COPY_DIR = path.join(__dirname, "../../../copy");
-const LORAS_DIR = path.join(__dirname, "../../../loras");
-const WORKFLOW_PATH = path.join(__dirname, "../../workflow.json");
+// Define directories with cross-platform path handling
+const INPUT_DIR = path.resolve(__dirname, "../../../input");
+const OUTPUT_DIR = path.resolve(__dirname, "../../../output");
+const UPLOAD_COPY_DIR = path.resolve(__dirname, "../../../copy");
+const LORAS_DIR = path.resolve(__dirname, "../../../loras");
+const WORKFLOW_PATH = path.resolve(__dirname, "../../workflow.json");
 
 // ComfyUI Host
 const COMFYUI_HOST = process.env.COMFYUI_HOST || '127.0.0.1:8188';

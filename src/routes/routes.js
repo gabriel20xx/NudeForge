@@ -109,6 +109,58 @@ router.get('/api/loras/detailed', async (req, res) => {
     }
 });
 
+// Debug endpoint to check LoRA directory configuration
+router.get('/api/loras/debug', async (req, res) => {
+    const { LORAS_DIR } = require('../config/config');
+    
+    try {
+        const debugInfo = {
+            lorasDir: LORAS_DIR,
+            lorasDirExists: false,
+            lorasDirAccessible: false,
+            directoryContents: [],
+            error: null
+        };
+
+        // Check if directory exists
+        try {
+            await fs.promises.access(LORAS_DIR);
+            debugInfo.lorasDirExists = true;
+            debugInfo.lorasDirAccessible = true;
+        } catch (error) {
+            debugInfo.error = `Directory access failed: ${error.message}`;
+            Logger.error('LORAS_DEBUG', 'Directory access failed:', error);
+        }
+
+        // If accessible, get directory contents
+        if (debugInfo.lorasDirAccessible) {
+            try {
+                const files = await fs.promises.readdir(LORAS_DIR, { withFileTypes: true });
+                debugInfo.directoryContents = files.map(file => ({
+                    name: file.name,
+                    isFile: file.isFile(),
+                    isDirectory: file.isDirectory(),
+                    path: require('path').join(LORAS_DIR, file.name)
+                }));
+            } catch (error) {
+                debugInfo.error = `Failed to read directory contents: ${error.message}`;
+                Logger.error('LORAS_DEBUG', 'Failed to read directory contents:', error);
+            }
+        }
+
+        res.json({
+            success: true,
+            debug: debugInfo
+        });
+    } catch (error) {
+        Logger.error('LORAS_DEBUG', 'Debug endpoint error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 router.get('/queue-status', (req, res) => {
     const requestId = req.query.requestId;
     let yourPosition = -1;

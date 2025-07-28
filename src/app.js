@@ -9,6 +9,7 @@ const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR } = require("./c
 const { connectToComfyUIWebSocket } = require("./services/websocket");
 const { router: routes } = require("./routes/routes");
 const { generateAllCarouselThumbnails } = require("./services/carousel");
+const { getAvailableLoRAsWithSubdirs } = require("./services/loras");
 
 const app = express();
 const server = http.createServer(app);
@@ -62,6 +63,63 @@ connectToComfyUIWebSocket(io);
 
 server.listen(PORT, async () => {
     Logger.success('SERVER', `Server running at http://localhost:${PORT}`);
+    Logger.info('STARTUP', `Platform: ${process.platform}`);
+    Logger.info('STARTUP', `Node.js version: ${process.version}`);
+    
+    // Log directory paths for debugging
+    Logger.info('STARTUP', `Input directory: ${INPUT_DIR}`);
+    Logger.info('STARTUP', `Output directory: ${OUTPUT_DIR}`);
+    Logger.info('STARTUP', `Copy directory: ${UPLOAD_COPY_DIR}`);
+    Logger.info('STARTUP', `LoRAs directory: ${LORAS_DIR}`);
+    
+    // Discover and log available LoRAs on startup
+    try {
+        Logger.info('STARTUP', 'Discovering available LoRA models...');
+        const loras = await getAvailableLoRAsWithSubdirs();
+        
+        const rootCount = loras.root ? loras.root.length : 0;
+        const subdirNames = Object.keys(loras.subdirs || {});
+        let totalSubdirCount = 0;
+        
+        subdirNames.forEach(subdirName => {
+            const subdirLoras = loras.subdirs[subdirName];
+            if (Array.isArray(subdirLoras)) {
+                totalSubdirCount += subdirLoras.length;
+            }
+        });
+        
+        Logger.success('STARTUP', `Found ${rootCount} LoRA(s) in root directory`);
+        if (rootCount > 0) {
+            loras.root.forEach(lora => {
+                Logger.info('STARTUP', `  - ${lora.displayName} (${lora.filename})`);
+            });
+        }
+        
+        if (subdirNames.length > 0) {
+            Logger.success('STARTUP', `Found ${subdirNames.length} LoRA subdirectories with ${totalSubdirCount} total LoRA(s)`);
+            subdirNames.forEach(subdirName => {
+                const subdirLoras = loras.subdirs[subdirName];
+                if (Array.isArray(subdirLoras) && subdirLoras.length > 0) {
+                    Logger.info('STARTUP', `  ${subdirName}/: ${subdirLoras.length} LoRA(s)`);
+                    subdirLoras.forEach(lora => {
+                        Logger.info('STARTUP', `    - ${lora.displayName} (${lora.relativePath})`);
+                    });
+                }
+            });
+        } else {
+            Logger.warn('STARTUP', 'No LoRA subdirectories found');
+        }
+        
+        const totalLoras = rootCount + totalSubdirCount;
+        if (totalLoras === 0) {
+            Logger.warn('STARTUP', 'No LoRA models found! Please check your LoRAs directory.');
+        } else {
+            Logger.success('STARTUP', `Total LoRA models available: ${totalLoras}`);
+        }
+        
+    } catch (error) {
+        Logger.error('STARTUP', 'Failed to discover LoRA models:', error);
+    }
     
     // Generate carousel thumbnails on startup
     await generateAllCarouselThumbnails();

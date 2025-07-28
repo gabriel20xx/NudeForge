@@ -28,21 +28,31 @@ function formatDisplayName(filename) {
  */
 async function getAvailableLoRAs() {
     try {
+        Logger.info('LORAS', `Starting LoRA scan. LORAS_DIR: ${LORAS_DIR}`);
+        
         // Check if loras directory exists
         try {
             await fs.promises.access(LORAS_DIR);
+            Logger.info('LORAS', `LoRAs directory exists and is accessible: ${LORAS_DIR}`);
         } catch (error) {
-            Logger.warn('LORAS', `LoRAs directory not found: ${LORAS_DIR}`);
+            Logger.warn('LORAS', `LoRAs directory not found or not accessible: ${LORAS_DIR}`, error);
             return [];
         }
 
         // Read directory contents
         const files = await fs.promises.readdir(LORAS_DIR, { withFileTypes: true });
+        Logger.info('LORAS', `Found ${files.length} items in directory:`, files.map(f => `${f.name} (${f.isFile() ? 'file' : 'directory'})`));
         
         // Filter for common LoRA file extensions and process them
         const loraExtensions = ['.safetensors', '.ckpt', '.pt', '.pth'];
+        Logger.info('LORAS', `Looking for files with extensions: ${loraExtensions.join(', ')}`);
+        
         const loraFiles = files
-            .filter(file => file.isFile() && loraExtensions.some(ext => file.name.toLowerCase().endsWith(ext)))
+            .filter(file => {
+                const isLoraFile = file.isFile() && loraExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+                Logger.debug('LORAS', `File ${file.name}: isFile=${file.isFile()}, hasValidExtension=${loraExtensions.some(ext => file.name.toLowerCase().endsWith(ext))}, included=${isLoraFile}`);
+                return isLoraFile;
+            })
             .map(file => ({
                 filename: file.name,
                 displayName: formatDisplayName(file.name),
@@ -50,7 +60,7 @@ async function getAvailableLoRAs() {
             }))
             .sort((a, b) => a.displayName.localeCompare(b.displayName)); // Sort alphabetically by display name
 
-        Logger.info('LORAS', `Found ${loraFiles.length} LoRA models in ${LORAS_DIR}`);
+        Logger.info('LORAS', `Found ${loraFiles.length} LoRA models in ${LORAS_DIR}:`, loraFiles.map(f => f.filename));
         return loraFiles;
 
     } catch (error) {
@@ -65,6 +75,8 @@ async function getAvailableLoRAs() {
  */
 async function getAvailableLoRAsWithSubdirs() {
     try {
+        Logger.info('LORAS', `Starting detailed LoRA scan with subdirectories. LORAS_DIR: ${LORAS_DIR}`);
+        
         const result = {
             root: [],
             subdirs: {}
@@ -73,8 +85,9 @@ async function getAvailableLoRAsWithSubdirs() {
         // Check if loras directory exists
         try {
             await fs.promises.access(LORAS_DIR);
+            Logger.info('LORAS', `LoRAs directory exists and is accessible for detailed scan: ${LORAS_DIR}`);
         } catch (error) {
-            Logger.warn('LORAS', `LoRAs directory not found: ${LORAS_DIR}`);
+            Logger.warn('LORAS', `LoRAs directory not found for detailed scan: ${LORAS_DIR}`, error);
             return result;
         }
 
@@ -88,8 +101,10 @@ async function getAvailableLoRAsWithSubdirs() {
                 const relativeFilePath = relativePath ? path.join(relativePath, file.name) : file.name;
 
                 if (file.isFile() && loraExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
-                    // Normalize path separators to forward slashes for ComfyUI compatibility
-                    const normalizedRelativePath = relativePath ? relativeFilePath.replace(/\\/g, '/') : file.name;
+                    // Use forward slashes for ComfyUI compatibility (cross-platform)
+                    const normalizedRelativePath = relativePath ? 
+                        path.posix.join(relativePath.replace(/\\/g, '/'), file.name) : 
+                        file.name;
                     
                     loraFiles.push({
                         filename: file.name,
