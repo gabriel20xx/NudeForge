@@ -643,6 +643,7 @@ input[type="file"] {
     display: flex;
     align-items: flex-start;
     justify-content: center;
+    margin-left: 0;
 }
 
 .lora-add-btn {
@@ -668,7 +669,6 @@ input[type="file"] {
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.8em;
-    margin-left: 0.5em;
     transition: background-color 0.2s;
 }
 
@@ -684,12 +684,6 @@ input[type="file"] {
 
 .lora-row {
     position: relative;
-}
-
-.lora-row-controls {
-    display: flex;
-    align-items: center;
-    margin-left: 0.5em;
 }
 
 .captcha-container {
