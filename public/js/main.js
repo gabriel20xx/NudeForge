@@ -313,9 +313,9 @@ socket.on('processingProgress', (progress) => {
         return;
     }
     updateProgressPercentage(`: ${percentage}%`);
-    // Use detailed status for header: stage name + percentage
+    // Use stage name only for header status (percentage is shown in separate span)
     const stageText = progress.stage || "Processing";
-    processingStatusSpan.textContent = `${stageText}: ${percentage}%`;
+    processingStatusSpan.textContent = stageText;
     setPlaceholderText(`${stageText}: ${percentage}% Done`);
 });
 

@@ -5,7 +5,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const Logger = require("./utils/logger");
-const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR } = require("./config/config");
+const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR } = require("./config/config");
 const { connectToComfyUIWebSocket } = require("./services/websocket");
 const { router: routes } = require("./routes/routes");
 const { generateAllCarouselThumbnails } = require("./services/carousel");
@@ -22,7 +22,7 @@ const io = new Server(server, {
 app.set('io', io);
 
 // Ensure required directories exist
-[INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR].forEach((dir) => {
+[INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR].forEach((dir) => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
@@ -47,6 +47,7 @@ app.use((req, res, next) => {
 app.use("/input", express.static(INPUT_DIR));
 app.use("/output", express.static(OUTPUT_DIR));
 app.use("/copy", express.static(UPLOAD_COPY_DIR));
+app.use("/loras", express.static(LORAS_DIR));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "../public/views"));
 
