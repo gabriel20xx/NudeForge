@@ -724,7 +724,8 @@ uploadForm.addEventListener('submit', function (e) {
                 prompt: document.getElementById('prompt').value,
                 steps: parseInt(document.getElementById('steps').value),
                 outputHeight: parseInt(document.getElementById('outputHeight').value),
-                stepsDisplay: document.getElementById('stepsValue').textContent
+                stepsDisplay: document.getElementById('stepsValue').textContent,
+                loraSettings: getSelectedLoRAModels()
             }
         };
         
@@ -784,6 +785,7 @@ function submitSingleFile(file, isLocal) {
     const prompt = document.getElementById('prompt').value;
     const steps = document.getElementById('steps').value;
     const outputHeight = document.getElementById('outputHeight').value;
+    const selectedLoRAModels = getSelectedLoRAModels();
     
     formData.append('prompt', prompt);
     formData.append('steps', steps);
@@ -792,11 +794,11 @@ function submitSingleFile(file, isLocal) {
     console.log('📋 Single file settings applied:', {
         prompt: prompt || 'No prompt',
         steps: steps,
-        outputHeight: outputHeight + 'px'
+        outputHeight: outputHeight + 'px',
+        loraSettings: selectedLoRAModels
     });
     
     // Add dynamic LoRA models
-    const selectedLoRAModels = getSelectedLoRAModels();
     Object.entries(selectedLoRAModels).forEach(([key, value]) => {
         formData.append(key, value);
         debugLog(`LoRA setting ${key}: ${value}`);
@@ -832,7 +834,8 @@ function submitMultipleFiles(files, isLocal) {
         prompt: prompt || 'No prompt',
         steps: steps,
         outputHeight: outputHeight + 'px',
-        loraCount: Object.keys(selectedLoRAModels).length / 3 // Each LoRA has 3 keys (on, model, strength)
+        loraSettings: selectedLoRAModels,
+        loraCount: Object.keys(selectedLoRAModels).filter(key => key.includes('_model')).length
     });
     
     setPlaceholderText(`Queuing ${totalFiles} images for processing...`);
@@ -1744,20 +1747,6 @@ function makeLoRALabelsSelectable() {
             });
         }
     }
-}
-
-/**
- * Get selected LoRA models for form submission
- */
-function getSelectedLoRAModels() {
-    const selectedModels = {};
-    for (let i = 1; i <= 5; i++) {
-        const dropdown = document.getElementById(`lora_${i}_model`);
-        if (dropdown && dropdown.value) {
-            selectedModels[`lora_${i}_model`] = dropdown.value;
-        }
-    }
-    return selectedModels;
 }
 
 // Duplicate function removed - using the complete version above
