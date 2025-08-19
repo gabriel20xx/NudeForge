@@ -162,26 +162,6 @@
         "lora": "fluxkontext/change_clothes_to_nothing_000011200.safetensors",
         "strength": 1
       },
-      "lora_2": {
-        "on": false,
-        "lora": "flux/real_textures-000011.safetensors",
-        "strength": 0.7
-      },
-      "lora_3": {
-        "on": false,
-        "lora": "flux/Flux_Ultimator.safetensors",
-        "strength": 0.5
-      },
-      "lora_4": {
-        "on": false,
-        "lora": "flux/FLUX_FD-Nipple-Detail-R4.safetensors",
-        "strength": 0.8
-      },
-      "lora_5": {
-        "on": true,
-        "lora": "flux/aidmaRealisticSkin-FLUX-v0.1.safetensors",
-        "strength": 0.6
-      },
       "➕ Add Lora": "",
       "model": [
         "37",
