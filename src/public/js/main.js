@@ -324,5 +324,95 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     }
   };
 })();
+
+// Replace LoRA initialization block to support subdirectories
+(function upgradeLoraLoader(){
+  const originalCreateLoraRow = createLoraRow; // preserve if needed
+  function flattenDetailed(result){
+    const out=[];
+    if(result.root){
+      result.root.forEach(r=> out.push({ displayName:r.displayName, relativePath:r.relativePath||r.filename, filename:r.filename }));
+    }
+    function walkSub(obj, prefix=''){
+      Object.keys(obj||{}).forEach(key=>{
+        const val = obj[key];
+        if(Array.isArray(val)){
+          val.forEach(r=> out.push({ displayName: `${key}/${r.displayName}`, relativePath: r.relativePath|| (prefix? `${prefix}/${r.filename}`: r.filename), filename:r.filename }));
+        } else if(typeof val === 'object'){ // nested folder
+          walkSub(val, prefix? `${prefix}/${key}`: key);
+        }
+      });
+    }
+    walkSub(result.subdirs||{}, '');
+    // De-duplicate by relativePath
+    const seen = new Set();
+    return out.filter(m=>{ if(seen.has(m.relativePath)) return false; seen.add(m.relativePath); return true; })
+              .sort((a,b)=> a.displayName.localeCompare(b.displayName));
+  }
+
+  // Override initializeLoRAs
+  const prevInit = initializeLoRAs;
+  initializeLoRAs = async function(){
+    if(lorasLoaded) return; // reuse existing guard
+    const grid = document.getElementById('loraGrid');
+    const addBtn = document.getElementById('addLoraBtn');
+    if(!grid) return;
+    try {
+      // show loading state
+      grid.innerHTML = '<div class="lora-status" style="font-size:.8em;color:var(--color-text-dim);padding:.25rem .4rem;">Loading LoRAs...</div>';
+      const res = await fetch('/api/loras/detailed');
+      if(!res.ok) throw new Error('Failed to fetch detailed LoRAs');
+      const data = await res.json();
+      if(!data.success) throw new Error('Detailed LoRA API returned failure');
+      const models = flattenDetailed(data.loras||{ root:[], subdirs:{} });
+      if(models.length===0){
+        grid.innerHTML = '<div class="lora-status empty" style="font-size:.8em;color:var(--color-danger);padding:.3rem .4rem;">No LoRA models found.</div>';
+        lorasLoaded = true; return; }
+      grid.innerHTML='';
+      populateInitialLoRAEntryDetailed(grid, models);
+      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+      lorasLoaded = true;
+      if(window.ClientLogger) ClientLogger.info('Loaded LoRAs (with subdirs)', { count: models.length });
+    } catch(e){
+      if(window.ClientLogger) ClientLogger.error('Failed to initialize detailed LoRAs', e);
+    }
+  };
+
+  // New row creators using relativePath
+  function createLoraRowDetailed(index, models){
+    const row = document.createElement('div'); row.className='lora-row';
+    const main = document.createElement('div'); main.className='lora-main';
+    const modelContainer = document.createElement('div'); modelContainer.className='lora-model-container';
+    const select = document.createElement('select'); select.name = `lora_${index}_model`; select.className='lora-model-select';
+    const emptyOpt = document.createElement('option'); emptyOpt.value=''; emptyOpt.textContent='-- Select LoRA --'; select.appendChild(emptyOpt);
+    models.forEach(m=>{ const opt=document.createElement('option'); opt.value=m.relativePath||m.filename; opt.textContent=m.displayName; select.appendChild(opt); });
+    modelContainer.appendChild(select);
+    const enableLabel = document.createElement('label'); enableLabel.style.display='flex'; enableLabel.style.alignItems='center'; enableLabel.style.gap='.3em';
+    const enableCheckbox = document.createElement('input'); enableCheckbox.type='checkbox'; enableCheckbox.name=`lora_${index}_on`;
+    enableLabel.appendChild(enableCheckbox); enableLabel.appendChild(document.createTextNode('Enable'));
+    const strengthGroup = document.createElement('div'); strengthGroup.className='lora-strength-group';
+    const strengthLabel = document.createElement('label'); strengthLabel.textContent='Strength:'; strengthLabel.style.fontSize='.8em';
+    const strengthInput = document.createElement('input'); strengthInput.type='number'; strengthInput.step='0.05'; strengthInput.min='0'; strengthInput.max='2'; strengthInput.value='1.0'; strengthInput.name=`lora_${index}_strength`; strengthInput.className='lora-strength';
+    strengthGroup.appendChild(strengthLabel); strengthGroup.appendChild(strengthInput);
+    main.appendChild(modelContainer); main.appendChild(enableLabel); main.appendChild(strengthGroup);
+    const controls = document.createElement('div'); controls.className='lora-row-controls';
+    const removeBtn = document.createElement('button'); removeBtn.type='button'; removeBtn.textContent='×'; removeBtn.className='lora-remove-btn';
+    removeBtn.addEventListener('click', ()=> row.remove());
+    controls.appendChild(removeBtn);
+    row.appendChild(main); row.appendChild(controls);
+    return { row, select, enableCheckbox };
+  }
+  function populateInitialLoRAEntryDetailed(grid, models){
+    const { row, select, enableCheckbox } = createLoraRowDetailed(1, models);
+    grid.appendChild(row);
+    const target = models.find(m => /change\s*clothes\s*to\s*nothing/i.test(m.displayName));
+    if(target){ select.value = target.relativePath||target.filename; enableCheckbox.checked = true; }
+  }
+  function addLoRAEntryDetailed(grid, models){
+    const existing = grid.querySelectorAll('.lora-row').length; const idx = existing + 1; const { row } = createLoraRowDetailed(idx, models); grid.appendChild(row); }
+
+  // Expose debug
+  window.__nudeForge = Object.assign(window.__nudeForge||{}, { flattenDetailedLoras: flattenDetailed });
+})();
 // ...existing code...
 // --- END ORIGINAL CONTENT ---
