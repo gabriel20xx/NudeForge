@@ -76,7 +76,7 @@ async function checkCaptchaStatusAndInit() {
 window.addEventListener('DOMContentLoaded', async function() {
 	await checkCaptchaStatusAndInit();
 	await initializeLoRAs();
-    
+	initializeCarousel();
 	// Show header options (advanced features) if URL parameter is present
 	const urlParams = new URLSearchParams(window.location.search);
 	const headerOptions = document.querySelector('.header-options');
@@ -126,6 +126,106 @@ if (allowConcurrentUploadCheckbox) {
 	});
 }
 
-// Additional functions & logic truncated for brevity in this patch display.
-// (The full original script content should be here; ensure no functionality lost.)
+// --- Utilities & Helpers ---
+function showElement(el){ if(el) el.style.display=''; }
+function hideElement(el){ if(el) el.style.display='none'; }
+function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
+
+// --- Carousel Logic ---
+let carouselInitialized = false;
+async function initializeCarousel(){
+  if(carouselInitialized) return;
+  const slideContainer = document.querySelector('.carousel-slide');
+  if(!slideContainer) return;
+  try {
+    const res = await fetch('/api/carousel-images');
+    if(!res.ok) throw new Error('Failed to fetch carousel images');
+    const images = await res.json();
+    if(!Array.isArray(images) || images.length===0){
+      if(window.ClientLogger) ClientLogger.warn('No carousel images returned');
+      return;
+    }
+    slideContainer.innerHTML='';
+    images.forEach(name => {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = `/images/carousel/${encodeURIComponent(name)}`;
+      img.alt = name;
+      img.className='loading';
+      img.addEventListener('load', ()=>{ img.classList.remove('loading'); img.classList.add('loaded'); });
+      slideContainer.appendChild(img);
+    });
+    let scrollPos = 0;
+    function tick(){
+      const totalWidth = Array.from(slideContainer.children).reduce((acc,el)=>acc+el.getBoundingClientRect().width,0);
+      if(totalWidth <= 0) return requestAnimationFrame(tick);
+      scrollPos += 0.3;
+      if(scrollPos >= totalWidth) scrollPos = 0;
+      slideContainer.style.transform = `translateX(${-scrollPos}px)`;
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    carouselInitialized = true;
+  } catch(err){
+    if(window.ClientLogger) ClientLogger.error('Carousel init failed', err);
+  }
+}
+
+// --- LoRA Initialization ---
+let lorasLoaded = false;
+async function initializeLoRAs(){
+  if(lorasLoaded) return;
+  const grid = document.getElementById('loraGrid');
+  const addBtn = document.getElementById('addLoraBtn');
+  if(!grid) return;
+  try {
+    const res = await fetch('/api/loras');
+    if(!res.ok) throw new Error('Failed to fetch LoRAs');
+    const data = await res.json();
+    if(!data.success) throw new Error('LoRA API returned failure');
+    const models = data.loras || [];
+    populateInitialLoRAEntry(grid, models);
+    if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntry(grid, models)); }
+    lorasLoaded = true;
+  } catch(e){
+    if(window.ClientLogger) ClientLogger.error('Failed to initialize LoRAs', e);
+  }
+}
+function createLoraRow(index, models){
+  const row = createEl('div');
+  row.className='lora-row';
+  const main = createEl('div'); main.className='lora-main';
+  const modelContainer = createEl('div'); modelContainer.className='lora-model-container';
+  const select = createEl('select'); select.name = `lora_${index}_model`; select.className='lora-model-select';
+  const emptyOpt = createEl('option'); emptyOpt.value=''; emptyOpt.textContent='-- Select LoRA --'; select.appendChild(emptyOpt);
+  models.forEach(m=>{ const opt=createEl('option'); opt.value=m.filename; opt.textContent=m.displayName; select.appendChild(opt); });
+  modelContainer.appendChild(select);
+  const enableLabel = createEl('label'); enableLabel.style.display='flex'; enableLabel.style.alignItems='center'; enableLabel.style.gap='.3em';
+  const enableCheckbox = createEl('input',{ type:'checkbox', name:`lora_${index}_on` });
+  enableLabel.appendChild(enableCheckbox); enableLabel.appendChild(document.createTextNode('Enable'));
+  const strengthGroup = createEl('div'); strengthGroup.className='lora-strength-group';
+  const strengthLabel = createEl('label'); strengthLabel.textContent='Strength:'; strengthLabel.style.fontSize='.8em';
+  const strengthInput = createEl('input',{ type:'number', step:'0.05', min:'0', max:'2', value:'1.0', name:`lora_${index}_strength`, className:'lora-strength' });
+  strengthGroup.appendChild(strengthLabel); strengthGroup.appendChild(strengthInput);
+  main.appendChild(modelContainer); main.appendChild(enableLabel); main.appendChild(strengthGroup);
+  const controls = createEl('div'); controls.className='lora-row-controls';
+  const removeBtn = createEl('button',{ type:'button', textContent:'×' }); removeBtn.className='lora-remove-btn';
+  removeBtn.addEventListener('click', ()=>{ row.remove(); });
+  controls.appendChild(removeBtn);
+  row.appendChild(main); row.appendChild(controls);
+  return { row, select, enableCheckbox };
+}
+function populateInitialLoRAEntry(grid, models){
+  const { row, select, enableCheckbox } = createLoraRow(1, models);
+  grid.appendChild(row);
+  const target = models.find(m => /change\s*clothes\s*to\s*nothing/i.test(m.displayName));
+  if(target){ select.value = target.filename; enableCheckbox.checked = true; }
+}
+function addLoRAEntry(grid, models){
+  const existing = grid.querySelectorAll('.lora-row').length;
+  const idx = existing + 1;
+  const { row } = createLoraRow(idx, models); grid.appendChild(row);
+}
+window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel, initializeLoRAs });
+// ...existing code...
 // --- END ORIGINAL CONTENT ---
