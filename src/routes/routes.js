@@ -22,8 +22,9 @@ router.get('/health', (req, res) => {
     });
 });
 
+// Default route: generator (moved former index content into generator view)
 router.get('/', (req, res) => {
-    res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
+    res.render('generator', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true', title:'Generator' });
 });
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)

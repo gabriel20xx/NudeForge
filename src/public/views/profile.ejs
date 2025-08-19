@@ -1,10 +1,96 @@
 <%- include('partials/header', { title: 'Profile' }) %>
-<div class="main-container" style="padding-top:var(--topbar-height);">
-  <div class="main-col">
-    <div class="main-section">
-      <h2>Profile</h2>
-      <p style="font-size:var(--font-size-base);color:var(--color-text-dim);">Profile settings coming soon.</p>
+<main id="profile-container" class="profile-page" aria-label="User profile" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);">
+  <section class="profile-card">
+    <div class="profile-header">
+      <div class="avatar-wrapper">
+        <img id="profilePicture" class="profile-avatar" src="/images/default-avatar.png" alt="User avatar" />
+      </div>
+      <div class="identity">
+        <h1 class="profile-title">Profile</h1>
+        <p class="profile-username" id="username">Loading...</p>
+        <p class="profile-email" id="email">Loading...</p>
+      </div>
+      <div class="profile-actions">
+        <button id="editProfileButton" type="button" class="btn btn-info" style="margin:0;">Edit</button>
+      </div>
     </div>
-  </div>
-</div>
+    <div class="profile-body">
+      <div class="bio-block">
+        <h2 class="section-label">Bio</h2>
+        <p id="bio" class="bio-text">Loading...</p>
+      </div>
+      <form id="editProfileForm" class="profile-edit" style="display:none;" novalidate>
+        <h2 class="section-label" style="margin-top:0;">Edit Profile</h2>
+        <label for="usernameInput" class="field-label">Username</label>
+        <input type="text" id="usernameInput" class="field-input" autocomplete="username" />
+        <label for="emailInput" class="field-label">Email</label>
+        <input type="email" id="emailInput" class="field-input" autocomplete="email" />
+        <label for="bioInput" class="field-label">Bio</label>
+        <textarea id="bioInput" class="field-input" rows="3"></textarea>
+        <div class="edit-actions">
+          <button type="button" class="btn btn-success-solid" onclick="saveProfileChanges()">Save</button>
+          <button type="button" class="btn btn-danger-solid" onclick="cancelEdit()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+<script>
+async function fetchUserProfile(){
+  try {
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    if(data.success && data.data){
+      const u=data.data;
+      document.getElementById('username').textContent = u.username || 'Anonymous';
+      document.getElementById('email').textContent = u.email || 'Not set';
+      document.getElementById('bio').textContent = u.bio || 'No bio yet.';
+      document.getElementById('profilePicture').src = u.profilePicture || '/images/default-avatar.png';
+    } else {
+      toast?.error('Failed to load profile');
+    }
+  } catch(e){
+    console.error(e); toast?.error('Profile load error');
+  }
+}
+function editProfile(){
+  document.getElementById('editProfileForm').style.display='block';
+  document.getElementById('usernameInput').value=document.getElementById('username').textContent;
+  document.getElementById('emailInput').value=document.getElementById('email').textContent;
+  document.getElementById('bioInput').value=document.getElementById('bio').textContent;
+}
+function cancelEdit(){ document.getElementById('editProfileForm').style.display='none'; }
+async function saveProfileChanges(){
+  const payload={ username:usernameInput.value, email:emailInput.value, bio:bioInput.value };
+  try {
+    const r= await fetch('/api/profile',{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if(r.ok){ toast?.success('Profile updated'); fetchUserProfile(); cancelEdit(); }
+    else { toast?.error('Save failed'); }
+  } catch(e){ toast?.error('Network error'); }
+}
+document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('editProfileButton').addEventListener('click', editProfile); fetchUserProfile(); });
+</script>
+<style>
+/* Shared profile styles (keep lightweight; could be moved to stylesheet later) */
+.profile-page { max-width:960px; margin:0 auto; padding:1.25rem 1.25rem 0; box-sizing:border-box; }
+.profile-card { background:var(--color-panel-bg); border:1px solid var(--color-border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); padding:1.4rem 1.5rem 1.75rem; display:flex; flex-direction:column; gap:1.4rem; }
+.profile-header { display:flex; align-items:center; gap:1.4rem; flex-wrap:wrap; }
+.avatar-wrapper { width:92px; height:92px; border-radius:50%; overflow:hidden; background:var(--color-surface); border:2px solid var(--color-border-strong, var(--color-border)); box-shadow:var(--shadow-sm); flex-shrink:0; }
+.profile-avatar { width:100%; height:100%; object-fit:cover; display:block; }
+.identity { display:flex; flex-direction:column; gap:.35rem; min-width:200px; }
+.profile-title { margin:0; font-size:1.35rem; line-height:1.1; background:var(--gradient-accent); -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:600; }
+.profile-username { margin:0; font-size:.95rem; font-weight:500; color:var(--color-text); }
+.profile-email { margin:0; font-size:.7rem; letter-spacing:.3px; text-transform:uppercase; font-weight:600; color:var(--color-text-dim); }
+.profile-actions { margin-left:auto; display:flex; gap:.6rem; }
+.profile-body { display:flex; flex-direction:column; gap:1.5rem; }
+.bio-block { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1rem 1.1rem; line-height:1.45; font-size:.9rem; position:relative; }
+.section-label { margin:0 0 .65rem; font-size:.75rem; letter-spacing:.4px; font-weight:600; text-transform:uppercase; color:var(--color-text-dim); }
+.bio-text { margin:0; white-space:pre-line; }
+.profile-edit { display:flex; flex-direction:column; gap:.65rem; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1rem 1.1rem 1.2rem; }
+.field-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.4px; font-weight:600; color:var(--color-text-dim); }
+.field-input, .profile-edit textarea { background:var(--color-input-bg,#181c24); border:1px solid var(--color-input-border,#333); border-radius: var(--radius-sm); padding:.55rem .65rem; font-size:.85rem; color:var(--color-text); font-family:inherit; resize:vertical; }
+.field-input:focus, .profile-edit textarea:focus { outline:none; border-color:var(--color-accent); box-shadow:0 0 0 2px #ffb84d33; }
+.edit-actions { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.4rem; }
+@media (max-width:640px){ .profile-card { padding:1.1rem 1.1rem 1.35rem; } .profile-header { gap:1rem; } .avatar-wrapper { width:78px; height:78px; } .profile-title { font-size:1.2rem; } }
+</style>
 <%- include('partials/navbar', { active: 'profile' }) %>
