@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= title %></title>
+  <title><%= (typeof siteTitle !== 'undefined' ? siteTitle : 'NudeForge') %> - <%= title %></title>
   <!-- Load core theme tokens first to avoid flash, then component styles -->
   <link rel="stylesheet" href="/css/theme.css" />
   <link rel="stylesheet" href="/css/style.css" />
@@ -32,7 +32,7 @@
   <!-- Toast / notification stack (shared) -->
   <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
     <header class="app-topbar" role="banner">
-      <a href="/" class="app-logo" aria-label="Go to home">NudeForge</a>
+  <a href="/" class="app-logo" aria-label="Go to home"><%= (typeof siteTitle !== 'undefined' ? siteTitle : 'NudeForge') %></a>
       <div class="app-topbar-center">
         <div class="processing-stats">
           <span id="queueStatusDisplay" class="stat-line">Queue: <span id="queueSize">0</span></span>

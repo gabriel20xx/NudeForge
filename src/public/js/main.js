@@ -77,14 +77,8 @@ window.addEventListener('DOMContentLoaded', async function() {
   await checkCaptchaStatusAndInit();
   await initializeLoRAs();
   initializeCarousel();
-  // Show header options (advanced features) if URL parameter is present
-  const urlParams = new URLSearchParams(window.location.search);
   const headerOptions = document.querySelector('.header-options');
-  if (urlParams.get('advanced') === 'true' && headerOptions) {
-    headerOptions.style.display = 'block';
-  } else if (headerOptions) {
-    headerOptions.style.display = 'none';
-  }
+  if(headerOptions) headerOptions.style.display='block';
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
@@ -353,9 +347,10 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         selectedFiles.forEach(f=> formData.append('image', f));
       }
       gatherAndNormalizeSettings(formData);
-      const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
-      uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
-      if(singleMode){ uploadButton.classList.add('disabled'); }
+  const isAdvanced = document.getElementById('advancedToggleBtn')?.textContent.includes('Hide Advanced');
+  const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
+  uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
+  if(singleMode && !isAdvanced){ uploadButton.classList.add('disabled'); }
       try {
         const res = await fetch('/upload', { method:'POST', body: formData });
         if(!res.ok){
@@ -377,7 +372,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         window.toast?.error('Upload error');
       } finally {
         uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-        if(singleMode){ uploadButton.classList.remove('disabled'); }
+  if(singleMode && !isAdvanced){ uploadButton.classList.remove('disabled'); }
       }
     });
   }

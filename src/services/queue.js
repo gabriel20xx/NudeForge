@@ -96,9 +96,19 @@ async function processQueue(io) {
         requestStatus[requestId].totalNodesInWorkflow = actualNodes.length;
 
         const { prompt, steps, outputHeight, ...loraSettings } = requestStatus[requestId].settings || {};
+        // Sanitize prompt: remove literal \n sequences and real newline characters
+        const sanitizedPrompt = (prompt || '')
+            .replace(/\\n|\r?\n/g, ' ') // replace escaped and actual newlines with space
+            .replace(/\s+/g, ' ')         // collapse multiple whitespace
+            .trim();
 
         const clipTextNode = Object.values(workflow).find((node) => node.class_type === "CLIPTextEncode");
-        if (clipTextNode && prompt) clipTextNode.inputs.text = prompt;
+        if (clipTextNode && prompt !== undefined) {
+            clipTextNode.inputs.text = sanitizedPrompt;
+            if (prompt !== sanitizedPrompt) {
+                Logger.debug('PROCESS_PROMPT_SANITIZE', 'Prompt sanitized before send. Original length=' + prompt.length + ' sanitized length=' + sanitizedPrompt.length);
+            }
+        }
 
         const ksamplerNode = Object.values(workflow).find((node) => node.class_type === "KSamplerAdvanced");
         if (ksamplerNode && steps) ksamplerNode.inputs.steps = Number(steps);

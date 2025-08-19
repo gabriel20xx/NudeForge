@@ -5,7 +5,7 @@
 <form id="uploadForm" enctype="multipart/form-data">
   <div class="main-container">
     <div class="main-col">
-      <div class="main-section upload-section">
+        <div class="main-section upload-section">
         <h2>Image Input</h2>
         <div id="dropArea" class="drop-area image-box">
           <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
@@ -14,6 +14,7 @@
           <input id="inputImage" type="file" name="image" accept="image/*" />
         </div>
         <button class="btn upload-btn" type="submit">Upload</button>
+          <button type="button" id="advancedToggleBtn" class="btn" style="margin-top:.75rem;">Show Advanced ▾</button>
       </div>
     </div>
     <div class="main-col">
@@ -111,11 +112,25 @@
 </form>
 <script>
  document.addEventListener('DOMContentLoaded', function(){
-   const urlParams = new URLSearchParams(window.location.search);
-   const isAdvanced = urlParams.get('advanced') === 'true';
    const settingsSection = document.getElementById('settingsSection');
    const comparisonSection = document.getElementById('comparisonSection');
-   if (isAdvanced) { if (settingsSection) settingsSection.style.display = 'block'; if (comparisonSection) comparisonSection.style.display = 'block'; }
+   const toggleBtn = document.getElementById('advancedToggleBtn');
+   let advancedVisible = false;
+   function applyState(){
+     if(advancedVisible){
+       if(settingsSection) settingsSection.style.display='block';
+       if(comparisonSection) comparisonSection.style.display='block';
+       toggleBtn.textContent = 'Hide Advanced ▴';
+     } else {
+       if(settingsSection) settingsSection.style.display='none';
+       if(comparisonSection) comparisonSection.style.display='none';
+       toggleBtn.textContent = 'Show Advanced ▾';
+     }
+   }
+   if(toggleBtn){
+     toggleBtn.addEventListener('click', ()=>{ advancedVisible = !advancedVisible; applyState(); });
+   }
+   applyState();
  });
 </script>
 <%- include('partials/navbar', { active: 'generator' }) %>

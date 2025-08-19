@@ -15,6 +15,8 @@ const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(PARENT_OF_PROJECT, 'outpu
 const UPLOAD_COPY_DIR = process.env.UPLOAD_COPY_DIR || path.join(PARENT_OF_PROJECT, 'copy');
 const LORAS_DIR = process.env.LORAS_DIR || path.join(PARENT_OF_PROJECT, 'loras');
 const WORKFLOW_PATH = process.env.WORKFLOW_PATH || path.resolve(__dirname, "../../workflow.json");
+// Site branding
+const SITE_TITLE = process.env.SITE_TITLE || 'NudeForge';
 
 // ComfyUI Host
 const COMFYUI_HOST = process.env.COMFYUI_HOST || '127.0.0.1:8188';
@@ -67,5 +69,6 @@ module.exports = {
     COMFYUI_URL,
     COMFYUI_WS_URL,
     PORT,
-    isDocker
+  isDocker,
+  SITE_TITLE
 };

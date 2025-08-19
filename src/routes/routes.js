@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const Logger = require("../utils/logger");
 const { generateCaptcha, verifyCaptcha } = require("../services/captcha");
+const { SITE_TITLE } = require('../config/config');
 const { upload, uploadCopy } = require('../services/uploads');
 const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } = require('../services/queue');
 const { generateAllCarouselThumbnails, getThumbnailPath, getOriginalPath } = require('../services/carousel');
@@ -24,16 +25,16 @@ router.get('/health', (req, res) => {
 
 // Default route: generator (moved former index content into generator view)
 router.get('/', (req, res) => {
-    res.render('generator', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true', title:'Generator' });
+    res.render('generator', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true', title: 'Generator', siteTitle: SITE_TITLE });
 });
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
 router.get('/library', (req, res) => {
-    res.render('library', { title: 'Library' });
+    res.render('library', { title: 'Library', siteTitle: SITE_TITLE });
 });
 
 router.get('/profile', (req, res) => {
-    res.render('profile', { title: 'Profile' });
+    res.render('profile', { title: 'Profile', siteTitle: SITE_TITLE });
 });
 
 // Optimized carousel images route - serves pre-generated thumbnails (updated path /images)
