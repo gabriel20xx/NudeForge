@@ -1,18 +1,53 @@
 const express = require("express");
 const http = require("http");
+const https = require("https");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const Logger = require("./utils/logger");
-const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR } = require("./config/config");
+const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } = require("./config/config");
 const { connectToComfyUIWebSocket } = require("./services/websocket");
 const { router: routes } = require("./routes/routes");
 const { generateAllCarouselThumbnails } = require("./services/carousel");
 const { getAvailableLoRAsWithSubdirs } = require("./services/loras");
 
 const app = express();
-const server = http.createServer(app);
+let server; // will initialize after potential cert generation
+function buildServer() {
+    if (!ENABLE_HTTPS) {
+        return http.createServer(app);
+    }
+    // Attempt to load existing certs, else generate self-signed
+    let key; let cert;
+    const useProvided = SSL_KEY_PATH && SSL_CERT_PATH && fs.existsSync(SSL_KEY_PATH) && fs.existsSync(SSL_CERT_PATH);
+    if (useProvided) {
+        try {
+            key = fs.readFileSync(SSL_KEY_PATH);
+            cert = fs.readFileSync(SSL_CERT_PATH);
+            Logger.success('HTTPS', `Loaded provided certificate and key (key=${SSL_KEY_PATH}, cert=${SSL_CERT_PATH})`);
+        } catch (e) {
+            Logger.error('HTTPS', 'Failed reading provided key/cert, falling back to self-signed generation', e);
+        }
+    }
+    if (!key || !cert) {
+        try {
+            // Lazy-require selfsigned to avoid dependency if HTTPS disabled
+            // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+            const selfsigned = require('selfsigned');
+            const attrs = [{ name: 'commonName', value: 'localhost' }];
+            const pems = selfsigned.generate(attrs, { days: 365, keySize: 2048, algorithm: 'sha256' });
+            key = pems.private;
+            cert = pems.cert;
+            Logger.warn('HTTPS', 'Using generated self-signed certificate (valid 365 days)');
+        } catch (e) {
+            Logger.error('HTTPS', 'Failed to generate self-signed certificate. Falling back to HTTP.', e);
+            return http.createServer(app);
+        }
+    }
+    return https.createServer({ key, cert }, app);
+}
+server = buildServer();
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -94,7 +129,8 @@ async function startServer(port = PORT) {
     attachTerminalMiddleware();
     return new Promise(async (resolve) => {
         const listener = server.listen(port, async () => {
-            Logger.success('SERVER', `Server running at http://localhost:${port}`);
+            const protocol = ENABLE_HTTPS ? 'https' : 'http';
+            Logger.success('SERVER', `Server running at ${protocol}://localhost:${port}`);
             Logger.info('STARTUP', `Platform: ${process.platform}`);
             Logger.info('STARTUP', `Node.js version: ${process.version}`);
             Logger.info('STARTUP', `Input directory: ${INPUT_DIR}`);

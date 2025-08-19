@@ -18,6 +18,13 @@ const WORKFLOW_PATH = process.env.WORKFLOW_PATH || path.resolve(__dirname, "../.
 // Site branding
 const SITE_TITLE = process.env.SITE_TITLE || 'NudeForge';
 
+// Optional HTTPS Support
+// Enable by setting HTTPS=true or ENABLE_HTTPS=true
+const ENABLE_HTTPS = (process.env.HTTPS === 'true' || process.env.ENABLE_HTTPS === 'true');
+// Optional paths to existing key/cert. If both provided and readable they are used; else a self-signed pair is generated at runtime.
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '';
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '';
+
 // ComfyUI Host
 const COMFYUI_HOST = process.env.COMFYUI_HOST || '127.0.0.1:8188';
 
@@ -41,6 +48,15 @@ Logger.info('CONFIG', `OUTPUT_DIR: ${OUTPUT_DIR}`);
 Logger.info('CONFIG', `UPLOAD_COPY_DIR: ${UPLOAD_COPY_DIR}`);
 Logger.info('CONFIG', `LORAS_DIR: ${LORAS_DIR}`);
 Logger.info('CONFIG', `WORKFLOW_PATH: ${WORKFLOW_PATH}`);
+Logger.info('CONFIG', `HTTPS Enabled: ${ENABLE_HTTPS}`);
+if (ENABLE_HTTPS) {
+  if (SSL_KEY_PATH && !fs.existsSync(SSL_KEY_PATH)) {
+    Logger.warn('CONFIG', `Specified SSL_KEY_PATH not found: ${SSL_KEY_PATH}`);
+  }
+  if (SSL_CERT_PATH && !fs.existsSync(SSL_CERT_PATH)) {
+    Logger.warn('CONFIG', `Specified SSL_CERT_PATH not found: ${SSL_CERT_PATH}`);
+  }
+}
 
 // Validate external directories (warn only, do not create here to leave creation to runtime app.js logic)
 const REQUIRED_EXTERNAL = [INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR];
@@ -71,4 +87,7 @@ module.exports = {
     PORT,
   isDocker,
   SITE_TITLE
+  ,ENABLE_HTTPS
+  ,SSL_KEY_PATH
+  ,SSL_CERT_PATH
 };
