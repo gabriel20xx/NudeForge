@@ -85,6 +85,35 @@ window.addEventListener('DOMContentLoaded', async function() {
 	} else if (headerOptions) {
 		headerOptions.style.display = 'none';
 	}
+
+  // Intercept upload form submit to use fetch (prevent query params exposure / page navigation)
+  if(uploadForm){
+    uploadForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if(!uploadButton || uploadButton.disabled) return;
+      const formData = new FormData(uploadForm);
+      // Append selected multi files explicitly if multi-upload enabled
+      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>0){
+        formData.delete('image'); // remove potential single
+        selectedFiles.forEach(f=> formData.append('image', f));
+      }
+      uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
+      try {
+        const res = await fetch('/upload', { method:'POST', body: formData });
+        if(!res.ok){
+          const txt = await res.text();
+          window.toast?.error('Upload failed: '+(txt||res.status));
+        } else {
+          const data = await res.json().catch(()=>({}));
+          window.toast?.success('Added to queue. Position '+ (data.yourPosition||'?'));
+        }
+      } catch(err){
+        window.toast?.error('Upload error');
+      } finally {
+        uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+      }
+    });
+  }
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
@@ -284,6 +313,32 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         }
       }
       updateUploadButtonState();
+    });
+  }
+
+  // Drag & Drop + click to select support (restored)
+  if(dropArea && inputImage){
+    // Click proxy
+    dropArea.addEventListener('click', (e)=>{
+      // Ignore clicks on inner interactive elements if any appear later
+      if(e.target && (e.target.tagName === 'INPUT' || e.target.closest('button,select'))) return;
+      inputImage.click();
+    });
+    ;['dragenter','dragover'].forEach(evt=> dropArea.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropArea.classList.add('drag-over'); }));
+    ;['dragleave','dragend'].forEach(evt=> dropArea.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over'); }));
+    dropArea.addEventListener('drop', e=>{
+      e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over');
+      const files = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
+      if(files.length===0) return;
+      const dt = new DataTransfer();
+      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
+        files.forEach(f=> dt.items.add(f));
+      } else {
+        dt.items.add(files[0]);
+      }
+      inputImage.files = dt.files; // triggers change event programmatically below
+      const changeEvt = new Event('change');
+      inputImage.dispatchEvent(changeEvt);
     });
   }
 })();
