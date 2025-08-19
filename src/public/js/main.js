@@ -185,30 +185,37 @@ async function initializeCarousel(){
       img.addEventListener('load', ()=>{ img.classList.remove('loading'); img.classList.add('loaded'); });
       slideContainer.appendChild(img);
     });
-    // Wait a frame for DOM to paint then measure & clone for seamless loop
-    requestAnimationFrame(()=>{
-      const originals = Array.from(slideContainer.children);
-      const measureWidth = () => originals.reduce((acc,el)=> acc + el.getBoundingClientRect().width,0);
-      let originalWidth = measureWidth();
-      // If width 0 (images not loaded yet) retry a few times
-      let attempts = 0;
-      const ensureMeasured = () => {
-        originalWidth = measureWidth();
-        if(originalWidth === 0 && attempts < 10){ attempts++; return setTimeout(ensureMeasured, 100); }
-        // Duplicate images until we have at least 2 * container visible width for smooth wrap
+    // Seamless loop: perform after images load (or timeout) with safety guards
+    const originals = Array.from(slideContainer.children);
+    let loadedCount = 0; let settled = false; const maxWaitMs = 3000; const startTs = Date.now();
+    function finalizeCarousel(){
+      if(settled) return; settled = true;
+      // Measure original total width
+      const originalWidth = originals.reduce((acc,el)=> acc + el.getBoundingClientRect().width,0) || slideContainer.scrollWidth || slideContainer.getBoundingClientRect().width;
+      slideContainer.dataset.originalWidth = String(originalWidth);
+      // Only clone if we have a positive width and more than one image
+      if(originalWidth > 0 && originals.length > 1){
         const containerVisibleWidth = slideContainer.parentElement ? slideContainer.parentElement.getBoundingClientRect().width : originalWidth;
-        while(slideContainer.getBoundingClientRect().width < containerVisibleWidth * 2){
-          originals.forEach(orig => {
+        // Cap total clones to avoid runaway growth
+        const maxTotalImages = originals.length * 3; // at most 2x clones
+        while(slideContainer.children.length < maxTotalImages && slideContainer.getBoundingClientRect().width < containerVisibleWidth * 2){
+          for(const orig of originals){
+            if(slideContainer.children.length >= maxTotalImages) break;
             const clone = orig.cloneNode(true);
             clone.classList.add('clone');
             slideContainer.appendChild(clone);
-          });
+          }
         }
-        slideContainer.dataset.originalWidth = String(originalWidth);
-        startScroll();
-      };
-      ensureMeasured();
+      }
+      startScroll();
+    }
+    originals.forEach(imgEl => {
+      if(imgEl.complete){ loadedCount++; }
+      else { imgEl.addEventListener('load', ()=>{ loadedCount++; if(loadedCount === originals.length) finalizeCarousel(); }); imgEl.addEventListener('error', ()=>{ loadedCount++; if(loadedCount === originals.length) finalizeCarousel(); }); }
     });
+    // Timeout fallback
+    const checkTimeout = () => { if(!settled && (loadedCount === originals.length || Date.now()-startTs > maxWaitMs)){ finalizeCarousel(); } else if(!settled) { setTimeout(checkTimeout, 100); } };
+    checkTimeout();
     let scrollPos = 0;
     function startScroll(){
       function tick(){
