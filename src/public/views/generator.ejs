@@ -13,8 +13,7 @@
           <div id="multiPreviewContainer" class="multi-preview-container" style="display:none;"></div>
           <input id="inputImage" type="file" name="image" accept="image/*" />
         </div>
-        <button class="btn upload-btn" type="submit">Upload</button>
-          <button type="button" id="advancedToggleBtn" class="btn" style="margin-top:.75rem;">Show Advanced ▾</button>
+  <button class="btn upload-btn" type="submit">Upload</button>
       </div>
     </div>
     <div class="main-col">
@@ -110,27 +109,5 @@
     </div>
   </div>
 </form>
-<script>
- document.addEventListener('DOMContentLoaded', function(){
-   const settingsSection = document.getElementById('settingsSection');
-   const comparisonSection = document.getElementById('comparisonSection');
-   const toggleBtn = document.getElementById('advancedToggleBtn');
-   let advancedVisible = false;
-   function applyState(){
-     if(advancedVisible){
-       if(settingsSection) settingsSection.style.display='block';
-       if(comparisonSection) comparisonSection.style.display='block';
-       toggleBtn.textContent = 'Hide Advanced ▴';
-     } else {
-       if(settingsSection) settingsSection.style.display='none';
-       if(comparisonSection) comparisonSection.style.display='none';
-       toggleBtn.textContent = 'Show Advanced ▾';
-     }
-   }
-   if(toggleBtn){
-     toggleBtn.addEventListener('click', ()=>{ advancedVisible = !advancedVisible; applyState(); });
-   }
-   applyState();
- });
-</script>
+<!-- Advanced mode visibility now controlled via header checkbox -->
 <%- include('partials/navbar', { active: 'generator' }) %>

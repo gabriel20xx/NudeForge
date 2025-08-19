@@ -94,6 +94,7 @@ const processingStatusSpan = document.getElementById('processingStatus');
 const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
 const uploadButton = uploadForm.querySelector('.upload-btn');
 const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
+const advancedModeToggle = document.getElementById('advancedModeToggle');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
@@ -347,7 +348,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         selectedFiles.forEach(f=> formData.append('image', f));
       }
       gatherAndNormalizeSettings(formData);
-  const isAdvanced = document.getElementById('advancedToggleBtn')?.textContent.includes('Hide Advanced');
+  const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
   const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
   uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
   if(singleMode && !isAdvanced){ uploadButton.classList.add('disabled'); }
@@ -410,6 +411,33 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     });
   }
 })();
+
+// === Advanced Mode Toggle Handling ===
+document.addEventListener('DOMContentLoaded', ()=>{
+  const settingsSection = document.getElementById('settingsSection');
+  const comparisonSection = document.getElementById('comparisonSection');
+  function applyAdvancedVisibility(){
+    const enabled = advancedModeToggle && advancedModeToggle.checked;
+    if(settingsSection) settingsSection.style.display = enabled ? 'block':'none';
+    if(comparisonSection){
+      // Only show comparison section proactively if enabled; it will still be forced visible when a comparison is shown
+      if(enabled) {
+        // keep hidden until content appears unless already has image
+        if(!comparisonSection.querySelector('#comparisonContainer')?.style.display || comparisonSection.querySelector('#comparisonContainer')?.style.display==='none'){
+          comparisonSection.style.display='none';
+        } else {
+          comparisonSection.style.display='block';
+        }
+      } else {
+        comparisonSection.style.display='none';
+      }
+    }
+  }
+  if(advancedModeToggle){
+    advancedModeToggle.addEventListener('change', applyAdvancedVisibility);
+    applyAdvancedVisibility();
+  }
+});
 
 // === Real-time / Polling Status Handling ===
 let socketInstance = null;
