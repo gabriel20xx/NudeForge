@@ -231,7 +231,8 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
 
         const { prompt, steps, outputHeight, ...loraSettings } = req.body;
 
-        Logger.info('UPLOAD', `Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
+    Logger.info('UPLOAD', `Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
+    Logger.debug('UPLOAD_SETTINGS', 'Raw body settings: ' + JSON.stringify({ prompt, steps, outputHeight, ...loraSettings }));
         getRequestStatus()[requestId] = {
             status: "pending",
             totalNodesInWorkflow: 0,

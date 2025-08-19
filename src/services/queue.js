@@ -163,6 +163,9 @@ async function processQueue(io) {
         if (imageNode) imageNode.inputs["image"] = uploadedPathForComfyUI;
 
         Logger.info('PROCESS', `Sending workflow to ComfyUI for requestId=${requestId}`);
+        try {
+            Logger.debug('PROCESS_SETTINGS', 'Final workflow settings: ' + JSON.stringify(requestStatus[requestId]?.settings || {}));
+        } catch(_e) { /* ignore */ }
         
         await sendWorkflowWithRetry(workflow, requestId);
 
