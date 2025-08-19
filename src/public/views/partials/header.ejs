@@ -4,7 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><%= title %></title>
+  <!-- Load core theme tokens first to avoid flash, then component styles -->
+  <link rel="stylesheet" href="/css/theme.css" />
   <link rel="stylesheet" href="/css/style.css" />
+  <script>
+    // Early theme set (runs before paint). Keeps in sync with storage key used below.
+    (function(){
+      try {
+        var key='app-theme-preference';
+        var stored = localStorage.getItem(key);
+        var root = document.documentElement;
+        if(stored){
+          root.setAttribute('data-theme', stored);
+        } else {
+          // Respect system preference on first load
+          var prefersLight = matchMedia('(prefers-color-scheme: light)').matches;
+          root.setAttribute('data-theme', prefersLight ? 'light' : 'dark');
+        }
+      } catch(e) { /* no-op */ }
+    })();
+  </script>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>

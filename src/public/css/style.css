@@ -1,5 +1,4 @@
-/* NudeForge main stylesheet (migrated in full from former /public/css/style.css) */
-@import url('./theme.css');
+/* NudeForge main stylesheet (migrated). theme.css now linked explicitly in header to avoid FOUC */
 
 /* Override / extend */
 :root { --box-max-width: var(--box-max-width, 720px); }

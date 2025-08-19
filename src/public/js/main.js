@@ -140,10 +140,11 @@ async function initializeCarousel(){
   try {
     const res = await fetch('/api/carousel-images');
     if(!res.ok) throw new Error('Failed to fetch carousel images');
-    const images = await res.json();
+    let images = await res.json();
     if(!Array.isArray(images) || images.length===0){
-      if(window.ClientLogger) ClientLogger.warn('No carousel images returned');
-      return;
+      // Fallback: attempt to probe a known original folder (first few static examples) if available in markup
+      if(window.ClientLogger) ClientLogger.warn('No carousel images returned from API');
+      return; // keep retry logic outside
     }
     slideContainer.innerHTML='';
     images.forEach(name => {
@@ -167,7 +168,7 @@ async function initializeCarousel(){
     requestAnimationFrame(tick);
     carouselInitialized = true;
   } catch(err){
-    if(window.ClientLogger) ClientLogger.error('Carousel init failed', err);
+  if(window.ClientLogger) ClientLogger.error('Carousel init failed', err);
   }
 }
 
@@ -230,10 +231,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
 // Insert helpers and enhancements below utilities
 // --- Enhancements Injected ---
 (function enhanceClient(){
-  // Ensure theme applied early if stored
-  (function ensureThemeApplied(){
-    try { const key='app-theme-preference'; const stored=localStorage.getItem(key); if(stored){ document.documentElement.setAttribute('data-theme', stored);} } catch(_e){}
-  })();
+  // Theme applied early in header; no duplicate logic here.
 
   // File selection helpers
   function clearSelectedFiles(){
