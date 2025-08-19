@@ -64,103 +64,93 @@ io.on("connection", (socket) => {
 
 connectToComfyUIWebSocket(io);
 
-// 404 handler (must be after all routes & static middleware but before error handler)
-app.use((req, res, next) => {
-    if (req.accepts('html')) {
-        return res.status(404).render('404', { title: 'Page Not Found' });
-    }
-    if (req.accepts('json')) {
-        return res.status(404).json({ error: 'Not Found' });
-    }
-    return res.status(404).type('txt').send('Not Found');
-});
-
-// Global error handler
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-    Logger.error('SERVER', 'Unhandled error', err);
-    if (res.headersSent) return; // Let Express default handler finish if headers already sent
-    const wantsJson = req.accepts('json') && !req.accepts('html');
-    if (wantsJson) {
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-    return res.status(500).render('error', { title: 'Server Error', message: 'Something went wrong' });
-});
-
-server.listen(PORT, async () => {
-    Logger.success('SERVER', `Server running at http://localhost:${PORT}`);
-    Logger.info('STARTUP', `Platform: ${process.platform}`);
-    Logger.info('STARTUP', `Node.js version: ${process.version}`);
-    
-    // Log directory paths for debugging
-    Logger.info('STARTUP', `Input directory: ${INPUT_DIR}`);
-    Logger.info('STARTUP', `Output directory: ${OUTPUT_DIR}`);
-    Logger.info('STARTUP', `Copy directory: ${UPLOAD_COPY_DIR}`);
-    Logger.info('STARTUP', `LoRAs directory: ${LORAS_DIR}`);
-    
-    // Discover and log available LoRAs on startup
-    try {
-        Logger.info('STARTUP', 'Discovering available LoRA models...');
-        const loras = await getAvailableLoRAsWithSubdirs();
-        
-        const rootCount = loras.root ? loras.root.length : 0;
-        const subdirNames = Object.keys(loras.subdirs || {});
-        let totalSubdirCount = 0;
-        
-        subdirNames.forEach(subdirName => {
-            const subdirLoras = loras.subdirs[subdirName];
-            if (Array.isArray(subdirLoras)) {
-                totalSubdirCount += subdirLoras.length;
-            }
-        });
-        
-        Logger.success('STARTUP', `Found ${rootCount} LoRA(s) in root directory`);
-        if (rootCount > 0) {
-            loras.root.forEach(lora => {
-                Logger.info('STARTUP', `  - ${lora.displayName} (${lora.filename})`);
-            });
+// Attach 404 & error handlers (exported for test harness registration consistency)
+function attachTerminalMiddleware() {
+    // 404 handler
+    app.use((req, res, next) => {
+        if (req.accepts('html')) {
+            return res.status(404).render('404', { title: 'Page Not Found' });
         }
-        
-        if (subdirNames.length > 0) {
-            Logger.success('STARTUP', `Found ${subdirNames.length} LoRA subdirectories with ${totalSubdirCount} total LoRA(s)`);
-            subdirNames.forEach(subdirName => {
-                const subdirLoras = loras.subdirs[subdirName];
-                if (Array.isArray(subdirLoras) && subdirLoras.length > 0) {
-                    Logger.info('STARTUP', `  ${subdirName}/: ${subdirLoras.length} LoRA(s)`);
-                    subdirLoras.forEach(lora => {
-                        Logger.info('STARTUP', `    - ${lora.displayName} (${lora.relativePath})`);
-                    });
+        if (req.accepts('json')) {
+            return res.status(404).json({ error: 'Not Found' });
+        }
+        return res.status(404).type('txt').send('Not Found');
+    });
+    // Global error handler
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, next) => {
+        Logger.error('SERVER', 'Unhandled error', err);
+        if (res.headersSent) return; 
+        const wantsJson = req.accepts('json') && !req.accepts('html');
+        if (wantsJson) {
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+        return res.status(500).render('error', { title: 'Server Error', message: 'Something went wrong' });
+    });
+}
+
+// Startup logic separated for parity with NudeFlow
+async function startServer(port = PORT) {
+    attachTerminalMiddleware();
+    return new Promise(async (resolve) => {
+        const listener = server.listen(port, async () => {
+            Logger.success('SERVER', `Server running at http://localhost:${port}`);
+            Logger.info('STARTUP', `Platform: ${process.platform}`);
+            Logger.info('STARTUP', `Node.js version: ${process.version}`);
+            Logger.info('STARTUP', `Input directory: ${INPUT_DIR}`);
+            Logger.info('STARTUP', `Output directory: ${OUTPUT_DIR}`);
+            Logger.info('STARTUP', `Copy directory: ${UPLOAD_COPY_DIR}`);
+            Logger.info('STARTUP', `LoRAs directory: ${LORAS_DIR}`);
+            try {
+                Logger.info('STARTUP', 'Discovering available LoRA models...');
+                const loras = await getAvailableLoRAsWithSubdirs();
+                const rootCount = loras.root ? loras.root.length : 0;
+                const subdirNames = Object.keys(loras.subdirs || {});
+                let totalSubdirCount = 0;
+                subdirNames.forEach(subdirName => {
+                    const subdirLoras = loras.subdirs[subdirName];
+                    if (Array.isArray(subdirLoras)) totalSubdirCount += subdirLoras.length;
+                });
+                Logger.success('STARTUP', `Found ${rootCount} LoRA(s) in root directory`);
+                if (rootCount > 0) {
+                    loras.root.forEach(lora => Logger.info('STARTUP', `  - ${lora.displayName} (${lora.filename})`));
                 }
-            });
-        } else {
-            Logger.warn('STARTUP', 'No LoRA subdirectories found');
-        }
-        
-        const totalLoras = rootCount + totalSubdirCount;
-        if (totalLoras === 0) {
-            Logger.warn('STARTUP', 'No LoRA models found! Please check your LoRAs directory.');
-        } else {
-            Logger.success('STARTUP', `Total LoRA models available: ${totalLoras}`);
-        }
-        
-    } catch (error) {
-        Logger.error('STARTUP', 'Failed to discover LoRA models:', error);
-    }
-    
-    // Generate carousel thumbnails on startup
-    const thumbStats = await generateAllCarouselThumbnails();
-    try {
-        const carouselDir = process.env.NODE_ENV === 'production'
-            ? '/app/public/images/carousel'
-            : path.join(__dirname, 'public/images/carousel');
-        const existing = await fs.promises.readdir(carouselDir);
-        const imgs = existing.filter(f=>/\.(jpg|jpeg|png|gif)$/i.test(f));
-        if(imgs.length===0){
-            Logger.warn('CAROUSEL', `No images found in ${carouselDir}. Add .jpg/.png files to enable carousel.`);
-        } else {
-            Logger.info('CAROUSEL', `Carousel ready with ${imgs.length} image(s). Thumbnails processed=${thumbStats.processed}, skipped=${thumbStats.skipped}`);
-        }
-    } catch(e){ Logger.error('CAROUSEL','Post-startup check failed:', e); }
-});
+                if (subdirNames.length > 0) {
+                    Logger.success('STARTUP', `Found ${subdirNames.length} LoRA subdirectories with ${totalSubdirCount} total LoRA(s)`);
+                } else {
+                    Logger.warn('STARTUP', 'No LoRA subdirectories found');
+                }
+                const totalLoras = rootCount + totalSubdirCount;
+                if (totalLoras === 0) {
+                    Logger.warn('STARTUP', 'No LoRA models found!');
+                } else {
+                    Logger.success('STARTUP', `Total LoRA models available: ${totalLoras}`);
+                }
+            } catch (error) {
+                Logger.error('STARTUP', 'Failed to discover LoRA models:', error);
+            }
+            const thumbStats = await generateAllCarouselThumbnails();
+            try {
+                const carouselDir = process.env.NODE_ENV === 'production'
+                    ? '/app/public/images/carousel'
+                    : path.join(__dirname, 'public/images/carousel');
+                const existing = await fs.promises.readdir(carouselDir);
+                const imgs = existing.filter(f=>/\.(jpg|jpeg|png|gif)$/i.test(f));
+                if(imgs.length===0){
+                    Logger.warn('CAROUSEL', `No images found in ${carouselDir}.`);
+                } else {
+                    Logger.info('CAROUSEL', `Carousel ready with ${imgs.length} image(s). Thumbnails processed=${thumbStats.processed}, skipped=${thumbStats.skipped}`);
+                }
+            } catch(e){ Logger.error('CAROUSEL','Post-startup check failed:', e); }
+            resolve(listener);
+        });
+    });
+}
 
-module.exports = { app, server };
+if (require.main === module) {
+    // Allow overriding port when running multiple modules simultaneously
+    const desiredPort = process.env.PORT || PORT;
+    startServer(desiredPort);
+}
+
+module.exports = { app, server, startServer };
