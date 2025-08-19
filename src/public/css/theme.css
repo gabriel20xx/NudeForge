@@ -114,6 +114,9 @@
 		--color-border-strong: #b8c2ce;
 		--color-text: #1b232b;
 		--color-text-dim: #5a6675;
+		/* Light theme accent tweaks for improved contrast */
+		--color-accent: #cc6a00; /* Darker orange for WCAG contrast */
+		--color-accent-glow: #ff9e2b; /* Slightly deeper than original #ffb84d */
 		--color-panel-bg: #ffffff;
 		--color-dropzone-bg: #f2f5f8;
 		--color-input-bg: #f2f5f8;
@@ -121,7 +124,8 @@
 		--shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
 		--shadow-md: 0 4px 12px -2px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.08);
 		--shadow-lg: 0 8px 28px -4px rgba(0,0,0,0.12);
-		--shadow-accent-glow: 0 4px 16px 0 rgba(255,152,0,0.25);
+		--shadow-accent-glow: 0 4px 16px 0 rgba(255,158,43,0.25);
+		--color-focus-ring: 0 0 0 3px rgba(204,106,0,0.35);
 	}
 }
 .btn-info { background: var(--gradient-info); color: #fff; }
@@ -166,6 +170,9 @@
 	--color-border-strong: #b8c2ce;
 	--color-text: #1b232b;
 	--color-text-dim: #5a6675;
+	/* Light theme accent tweaks for improved contrast (explicit user selection) */
+	--color-accent: #cc6a00;
+	--color-accent-glow: #ff9e2b;
 	--color-panel-bg: #ffffff;
 	--color-dropzone-bg: #f2f5f8;
 	--color-input-bg: #f2f5f8;
@@ -173,7 +180,8 @@
 	--shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
 	--shadow-md: 0 4px 12px -2px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.08);
 	--shadow-lg: 0 8px 28px -4px rgba(0,0,0,0.12);
-	--shadow-accent-glow: 0 4px 16px 0 rgba(255,152,0,0.25);
+	--shadow-accent-glow: 0 4px 16px 0 rgba(255,158,43,0.25);
+	--color-focus-ring: 0 0 0 3px rgba(204,106,0,0.35);
 }
 
 /* Re-assert dark values when user explicitly picks dark while system prefers light */

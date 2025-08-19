@@ -130,3 +130,21 @@ input[type=file]{ display:none; }
 :root[data-theme='light'] .bottom-nav { background:#ffffff; backdrop-filter:none; -webkit-backdrop-filter:none; }
 /* Light theme solid white header (match NudeFlow) */
 :root[data-theme='light'] .app-topbar { background:#ffffff; backdrop-filter:none; -webkit-backdrop-filter:none; }
+/* Light theme overrides for settings & panels (ensure white backgrounds) */
+:root[data-theme='light'] .main-section.settings-section { background:#ffffff; }
+:root[data-theme='light'] .main-section.upload-section { background:#ffffff; }
+:root[data-theme='light'] .main-section.output-section { background:#ffffff; }
+:root[data-theme='light'] .settings-box { background:#f7f9fb; border:2.5px dashed var(--color-accent-glow); }
+:root[data-theme='light'] .drop-area, 
+:root[data-theme='light'] .image-box { background: var(--color-dropzone-bg,#f2f5f8); border-color: var(--color-accent-glow); }
+:root[data-theme='light'] .image-box img { background:#ffffff; }
+:root[data-theme='light'] .lora-fieldset { background:#ffffff; border-color:#c7d0db; color: var(--color-accent-glow); }
+:root[data-theme='light'] .lora-row { background:#f2f5f8; color:#1b232b; }
+:root[data-theme='light'] .captcha-container { background:#ffffff; border-color:#c7d0db; }
+:root[data-theme='light'] .captcha-input { background:#f2f5f8; border-color:#c7d0db; color:#1b232b; }
+:root[data-theme='light'] .refresh-captcha-btn { background:#ffffff; color:var(--color-accent); }
+:root[data-theme='light'] .refresh-captcha-btn:hover { background:var(--color-accent); color:#23272f; }
+:root[data-theme='light'] .settings-input,
+:root[data-theme='light'] .lora-strength,
+:root[data-theme='light'] .lora-model-select { background:#f2f5f8; border-color:#c7d0db; color:#1b232b; }
+:root[data-theme='light'] .lora-model-select option { background:#ffffff; color:#1b232b; }
