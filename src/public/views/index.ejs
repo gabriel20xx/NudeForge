@@ -1,0 +1,176 @@
+<%- include('partials/header', { title: 'NudeForge' }) %>
+
+	<div class="carousel-container">
+		<div class="carousel-slide"></div>
+	</div>
+
+	<form id="uploadForm" enctype="multipart/form-data">
+
+		<div class="main-container">
+			<div class="main-col">
+				<div class="main-section upload-section">
+					<h2>Image Input</h2>
+					<div id="dropArea" class="drop-area image-box">
+						<p id="dropText" class="placeholder">Drag & drop or click to upload</p>
+						<img id="previewImage" />
+						<div id="multiPreviewContainer" class="multi-preview-container" style="display:none;"></div>
+						<input id="inputImage" type="file" name="image" accept="image/*" />
+					</div>
+					<button class="btn upload-btn" type="submit">Upload</button>
+				</div>
+			</div>
+			<div class="main-col">
+				<div class="main-section output-section">
+					<h2>Image Output</h2>
+					<div id="outputArea" class="image-box">
+						<p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
+						<img id="outputImage" src="" alt="Processed Image" style="display:none;" />
+					</div>
+					<a id="downloadLink" href="#" download class="disabled">
+						<button class="btn download-btn" type="button" disabled>Download</button>
+					</a>
+				</div>
+			</div>
+		</div>
+		<div class="main-container">
+			<div class="comparison-container-wrapper" id="comparisonSection" style="display:none;">
+				<div class="main-col">
+					<div class="main-section comparison-section">
+						<h2>Comparison</h2>
+						<div class="image-box">
+							<p id="comparisonPlaceholder" class="placeholder">Comparison will appear here.</p>
+							<div id="comparisonContainer" class="comparison-container" style="display:none;">
+								<div class="comparison-before">
+									<img id="comparisonBeforeImg" src="" alt="Before" />
+								</div>
+								<div class="comparison-after">
+									<img id="comparisonAfterImg" src="" alt="After" />
+								</div>
+								<div class="comparison-slider"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="settings-container" id="settingsSection" style="display:none;">
+				<div class="main-col">
+					<div class="main-section settings-section">
+						<h2>Settings</h2>
+						<div class="settings-box">
+							<label for="prompt" class="settings-label">Prompt</label>
+							<input type="text" id="prompt" name="prompt" class="settings-input"
+								value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. 
+Preserve the person in the exact same position, scale, and pose. Preserve skin color and body type. 
+Preserve the exact same face details, shape and expression. Preserve jewelry, accessories and tattoos. If hair, hands, arms, feet or legs block the view to the breasts or vagina, move them out of the way." />
+							<div class="settings-row">
+								<div class="settings-item">
+									<label for="steps" class="settings-label">Steps</label>
+									<input type="range" id="steps" name="steps" class="settings-input" value="20"
+										min="1" max="100" step="1"
+										oninput="document.getElementById('stepsValue').textContent = this.value" />
+									<span id="stepsValue">20</span>
+								</div>
+								<div class="settings-item">
+									<label for="outputHeight" class="settings-label">Output Height</label>
+									<select id="outputHeight" name="outputHeight" class="settings-input">
+										<option value="480">480p (SD)</option>
+										<option value="720">720p (HD)</option>
+										<option value="1080" selected>1080p (Full HD)</option>
+										<option value="1440">1440p (2K)</option>
+										<option value="2160">2160p (4K)</option>
+										<option value="512">512px (Square)</option>
+										<option value="768">768px (Square)</option>
+										<option value="1024">1024px (Square)</option>
+										<option value="1536">1536px (Square)</option>
+										<option value="2048">2048px (Square)</option>
+										<option value="854">854px (Portrait SD)</option>
+										<option value="1280">1280px (Portrait HD)</option>
+										<option value="1920">1920px (Portrait FHD)</option>
+										<option value="2560">2560px (Portrait 2K)</option>
+										<option value="3840">3840px (Portrait 4K)</option>
+										<option value="896">896px (9:16 Portrait)</option>
+										<option value="1152">1152px (9:16 HD)</option>
+										<option value="1344">1344px (Tall Portrait)</option>
+										<option value="1600">1600px (Portrait XL)</option>
+									</select>
+								</div>
+							</div>
+							<fieldset class="lora-fieldset">
+								<legend>LoRA Settings</legend>
+								<div class="lora-grid" id="loraGrid">
+									<!-- Dynamic LoRA entries will be inserted here -->
+								</div>
+								<div class="lora-controls">
+									<button type="button" id="addLoraBtn" class="btn lora-add-btn">+ Add LoRA</button>
+								</div>
+							</fieldset>
+							<div class="captcha-container" id="captchaContainer">
+								<div class="captcha-row">
+									<span id="captchaImage"></span>
+									<button type="button" class="refresh-captcha-btn" onclick="fetchCaptcha()"
+										title="Refresh CAPTCHA">&#x21bb;</button>
+								</div>
+								<input type="text" id="captcha_answer" name="captcha_answer" placeholder="Enter CAPTCHA"
+									required autocomplete="off" class="captcha-input" />
+								<input type="hidden" id="captcha_token" name="captcha_token" />
+								<div id="captchaError" class="captcha-error"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<script>
+		// Check for advanced parameter in URL and show/hide sections accordingly
+		document.addEventListener('DOMContentLoaded', function () {
+			const urlParams = new URLSearchParams(window.location.search);
+			const isAdvanced = urlParams.get('advanced') === 'true';
+
+			const settingsSection = document.getElementById('settingsSection');
+			const comparisonSection = document.getElementById('comparisonSection');
+
+			if (isAdvanced) {
+				if (settingsSection) settingsSection.style.display = 'block';
+				if (comparisonSection) comparisonSection.style.display = 'block';
+				console.log('Advanced mode enabled - showing settings and comparison sections');
+			} else {
+				console.log('Basic mode - settings and comparison sections hidden');
+			}
+			// Theme preference logic
+			const root = document.documentElement;
+			const storageKey = 'app-theme-preference';
+			const themeToggleBtn = document.getElementById('themeToggleBtn');
+			const getStored = () => localStorage.getItem(storageKey);
+			const applyTheme = (t) => {
+				if (!t) return; // ignore null
+				root.setAttribute('data-theme', t);
+				themeToggleBtn.textContent = t === 'dark' ? '🌙' : '☀️';
+			};
+			const cycleTheme = () => {
+				const current = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+				const next = current === 'dark' ? 'light' : 'dark';
+				localStorage.setItem(storageKey, next);
+				applyTheme(next);
+			};
+			const stored = getStored();
+			if (stored) {
+				applyTheme(stored);
+			} else {
+				// initialize attribute to system preference so subsequent toggles are consistent
+				applyTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+			}
+			themeToggleBtn.addEventListener('click', cycleTheme);
+			// Keep in sync if system theme changes and user hasn't explicitly chosen afterwards
+			window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+				const explicit = getStored();
+				if (!explicit) {
+					applyTheme(e.matches ? 'dark' : 'light');
+				}
+			});
+		});
+	</script>
+
+<%- include('partials/footer') %>

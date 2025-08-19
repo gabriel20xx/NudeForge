@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="body-container">
+    <header class="app-topbar" role="banner" style="justify-content:space-between;">
+      <a href="/" class="app-logo" aria-label="Go to home">NudeForge</a>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <div class="processing-stats" style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;">
+          <span id="queueStatusDisplay" style="font-size:.75rem;">Queue: <span id="queueSize">0</span></span>
+          <span id="processingStatusDisplay" style="font-size:.75rem;">Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span></span>
+        </div>
+        <div class="header-options" style="display:none;">
+          <label class="header-option-label" style="font-size:.65rem;color:var(--color-text-dim);">
+            <input type="checkbox" id="allowConcurrentUpload" class="header-option-checkbox" />
+            Multi-upload
+          </label>
+        </div>
+        <div class="theme-toggle">
+          <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark / light theme">🌙</button>
+        </div>
+      </div>
+    </header>
+    <div style="height:var(--topbar-height);"></div>

@@ -11,12 +11,23 @@ const { getAvailableLoRAs, getAvailableLoRAsWithSubdirs } = require('../services
 
 const router = express.Router();
 
+// Lightweight health endpoint (placed early to avoid 404 handling issues)
+router.get('/health', (req, res) => {
+    return res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        queueSize: getProcessingQueue().length,
+        processing: getIsProcessing(),
+        timestamp: new Date().toISOString()
+    });
+});
+
 router.get('/', (req, res) => {
     res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
 });
 
-// Optimized carousel images route - serves pre-generated thumbnails
-router.get('/img/carousel/:filename', async (req, res) => {
+// Optimized carousel images route - serves pre-generated thumbnails (updated path /images)
+router.get('/images/carousel/:filename', async (req, res) => {
     try {
         const filename = req.params.filename;
         const thumbnailPath = getThumbnailPath(filename);
@@ -58,7 +69,7 @@ router.get('/img/carousel/:filename', async (req, res) => {
 });
 
 router.get('/api/carousel-images', (req, res) => {
-    const carouselDir = path.join(__dirname, '../../public/img/carousel');
+    const carouselDir = path.join(__dirname, '../../public/images/carousel');
     fs.readdir(carouselDir, (err, files) => {
         if (err) {
             Logger.error('CAROUSEL', 'Error reading carousel directory:', err);

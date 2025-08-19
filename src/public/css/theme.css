@@ -1,0 +1,198 @@
+/* NudeForge Theme (migrated copy from former /public/css/theme.css for module independence) */
+/* Shared Design Tokens (Theme) */
+:root {
+	/* Palette */
+	--color-bg: #0d0f11;
+	--color-bg-alt: #161b22;
+	--color-bg-soft: #1f252d; /* Used for soft containers */
+	--color-surface: #222b35; /* Elevated surface */
+	--color-surface-alt: #23272f; /* Legacy alias */
+	--color-border: #2d3742;
+	--color-border-strong: #3a4754;
+	--color-text: #f5f7fa;
+	--color-text-dim: #96a2b3;
+	--color-accent: #ff9800;
+	--color-accent-glow: #ffb84d;
+	--color-success: #2ecc71;
+	--color-danger: #ff3b30;
+	--color-warning: #ffcc00;
+	--color-info: #007bff;
+	--color-info-alt: #00a8ff;
+	--color-success-strong: #28a745;
+	--color-success-hover: #218838;
+	--color-danger-strong: #dc3545;
+	--color-danger-hover: #c82333;
+	--color-danger-soft: #ff4757;
+	--color-surface-inset: #181c24;
+	--color-surface-muted: #2a2e35;
+
+	/* Legacy neutrals */
+	--color-mid-disabled: #555;
+	--color-text-disabled: #888;
+
+	/* Gradients */
+	--gradient-accent: linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-glow) 100%);
+	--gradient-accent-rev: linear-gradient(90deg, var(--color-accent-glow) 0%, var(--color-accent) 100%);
+	--gradient-surface: linear-gradient(145deg,#1c232b,#14191f);
+	--gradient-info: linear-gradient(90deg, var(--color-info) 0%, var(--color-info-alt) 100%);
+	--gradient-info-rev: linear-gradient(90deg, var(--color-info-alt) 0%, var(--color-info) 100%);
+	--gradient-download: linear-gradient(90deg,#43e97b 0%, #38f9d7 100%);
+	--gradient-download-rev: linear-gradient(90deg,#38f9d7 0%, #43e97b 100%);
+	--gradient-success: linear-gradient(90deg,#2ecc71 0%, #43e97b 100%);
+
+	/* Radii */
+	--radius-xs: 4px;
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 18px;
+	--radius-pill: 999px;
+
+	/* Shadows */
+	--shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.4);
+	--shadow-md: 0 4px 10px -2px rgba(0,0,0,0.45), 0 2px 4px -1px rgba(0,0,0,0.4);
+	--shadow-lg: 0 8px 28px -4px rgba(0,0,0,0.55);
+	--shadow-accent-glow: 0 4px 16px 0 rgba(255,184,77,0.35);
+	--shadow-focus-soft: 0 0 0 2px #ffb84d33;
+
+	/* Focus */
+	--color-focus-ring: 0 0 0 3px rgba(255,152,0,0.4);
+
+	/* Typography */
+	--font-stack: system-ui,-apple-system,'Segoe UI',Roboto,Ubuntu,Cantarell,'Noto Sans','Helvetica Neue',Arial,sans-serif;
+
+	/* Layout */
+	--layout-max-width: 960px;
+	--nav-height: 62px;
+	--topbar-height: 56px;
+	--box-max-width: 720px; /* For NudeForge panels */
+
+	/* Component Aliases (legacy to new) */
+	--color-panel-bg: rgba(30,32,38,0.97);
+	--color-panel-border-dashed: var(--color-accent-glow);
+	--color-dropzone-bg: var(--color-surface-alt);
+	--color-input-bg: #181c24;
+	--color-input-border: #333;
+	--border-width-dashed: 2.5px;
+	--border-dashed-accent: var(--border-width-dashed) dashed var(--color-accent-glow);
+}
+
+/* Utility classes shared */
+.text-accent { color: var(--color-accent-glow) !important; }
+.bg-surface { background: var(--color-surface); }
+.bg-panel { background: var(--color-panel-bg); }
+.btn-accent { background: var(--gradient-accent); color: #23272f; }
+.btn-accent:hover { background: var(--gradient-accent-rev); color: #fff; }
+.text-dim { color: var(--color-text-dim) !important; }
+.text-danger { color: var(--color-danger) !important; }
+.text-success { color: var(--color-success) !important; }
+.text-warning { color: var(--color-warning) !important; }
+.text-info { color: var(--color-info) !important; }
+
+/* Spacing utilities (small set) */
+.m-0 { margin:0 !important; }
+.mt-1 { margin-top:.25rem !important; } .mt-2 { margin-top:.5rem !important; } .mt-3 { margin-top:1rem !important; } .mt-4 { margin-top:1.5rem !important; }
+.mb-1 { margin-bottom:.25rem !important; } .mb-2 { margin-bottom:.5rem !important; } .mb-3 { margin-bottom:1rem !important; } .mb-4 { margin-bottom:1.5rem !important; }
+.mx-auto { margin-left:auto !important; margin-right:auto !important; }
+
+/* Flex helpers */
+.flex-center { display:flex !important; align-items:center !important; justify-content:center !important; }
+
+/* Shadow utilities */
+.shadow-sm { box-shadow: var(--shadow-sm) !important; }
+.shadow-md { box-shadow: var(--shadow-md) !important; }
+.shadow-lg { box-shadow: var(--shadow-lg) !important; }
+
+/* Light theme (auto switches if user prefers light) */
+@media (prefers-color-scheme: light) {
+	:root {
+		--color-bg: #f7f9fb;
+		--color-bg-alt: #eef1f5;
+		--color-bg-soft: #e4e9ef;
+		--color-surface: #ffffff;
+		--color-surface-alt: #ffffff;
+		--color-border: #d5dbe3;
+		--color-border-strong: #b8c2ce;
+		--color-text: #1b232b;
+		--color-text-dim: #5a6675;
+		--color-panel-bg: #ffffff;
+		--color-dropzone-bg: #f2f5f8;
+		--color-input-bg: #f2f5f8;
+		--color-input-border: #c7d0db;
+		--shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+		--shadow-md: 0 4px 12px -2px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.08);
+		--shadow-lg: 0 8px 28px -4px rgba(0,0,0,0.12);
+		--shadow-accent-glow: 0 4px 16px 0 rgba(255,152,0,0.25);
+	}
+}
+.btn-info { background: var(--gradient-info); color: #fff; }
+.btn-info:hover { background: var(--gradient-info-rev); }
+.btn-download { background: var(--gradient-download); color: #23272f; }
+.btn-download:hover { background: var(--gradient-download-rev); color: #fff; }
+.btn-success-solid { background: var(--color-success-strong); color: #fff; }
+.btn-success-solid:hover { background: var(--color-success-hover); }
+.btn-danger-solid { background: var(--color-danger-strong); color: #fff; }
+.btn-danger-solid:hover { background: var(--color-danger-hover); }
+
+/* Border / shadow utilities */
+.border-dashed-accent { border: var(--border-dashed-accent); }
+.shadow-accent-glow { box-shadow: var(--shadow-accent-glow); }
+
+/* Theme toggle styles (shared) */
+.theme-toggle { display:inline-flex; align-items:center; gap:.5rem; }
+.theme-toggle-btn {
+	background: var(--gradient-accent);
+	border: none;
+	color: #23272f;
+	width: 40px; height: 40px;
+	border-radius: var(--radius-pill);
+	display: inline-flex; align-items:center; justify-content:center;
+	cursor: pointer;
+	font-size: 1.05rem;
+	box-shadow: var(--shadow-sm);
+	transition: background .25s, transform .25s;
+}
+.theme-toggle-btn:hover { background: var(--gradient-accent-rev); }
+.theme-toggle-btn:active { transform: scale(.9); }
+.theme-toggle-btn:focus { outline: none; box-shadow: var(--color-focus-ring); }
+
+/* Explicit attribute-based theme overrides to allow manual user choice overriding system preference */
+:root[data-theme='light'] {
+	--color-bg: #f7f9fb;
+	--color-bg-alt: #eef1f5;
+	--color-bg-soft: #e4e9ef;
+	--color-surface: #ffffff;
+	--color-surface-alt: #ffffff;
+	--color-border: #d5dbe3;
+	--color-border-strong: #b8c2ce;
+	--color-text: #1b232b;
+	--color-text-dim: #5a6675;
+	--color-panel-bg: #ffffff;
+	--color-dropzone-bg: #f2f5f8;
+	--color-input-bg: #f2f5f8;
+	--color-input-border: #c7d0db;
+	--shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+	--shadow-md: 0 4px 12px -2px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.08);
+	--shadow-lg: 0 8px 28px -4px rgba(0,0,0,0.12);
+	--shadow-accent-glow: 0 4px 16px 0 rgba(255,152,0,0.25);
+}
+
+/* Re-assert dark values when user explicitly picks dark while system prefers light */
+:root[data-theme='dark'] {
+	--color-bg: #0d0f11;
+	--color-bg-alt: #161b22;
+	--color-bg-soft: #1f252d;
+	--color-surface: #222b35;
+	--color-surface-alt: #23272f;
+	--color-border: #2d3742;
+	--color-border-strong: #3a4754;
+	--color-text: #f5f7fa;
+	--color-text-dim: #96a2b3;
+	--color-panel-bg: rgba(30,32,38,0.97);
+	--color-dropzone-bg: var(--color-surface-alt);
+	--color-input-bg: #181c24;
+	--color-input-border: #333;
+	--shadow-sm: 0 2px 4px -1px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.4);
+	--shadow-md: 0 4px 10px -2px rgba(0,0,0,0.45), 0 2px 4px -1px rgba(0,0,0,0.4);
+	--shadow-lg: 0 8px 28px -4px rgba(0,0,0,0.55);
+	--shadow-accent-glow: 0 4px 16px 0 rgba(255,184,77,0.35);
+}

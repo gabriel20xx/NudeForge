@@ -128,20 +128,31 @@ async function processQueue(io) {
                 }
             });
             
-            // Apply LoRA settings
-            Object.entries(loraEntries).forEach(([index, settings]) => {
-                if (loraNode.inputs[`lora_${index}`]) {
-                    loraNode.inputs[`lora_${index}`].on = settings.on === 'true';
+            // Apply LoRA settings – only first enabled LoRA is honored per new default rule
+            let firstApplied = false;
+            Object.keys(loraEntries).sort((a,b)=>Number(a)-Number(b)).forEach(index => {
+                const settings = loraEntries[index];
+                if (!loraNode.inputs[`lora_${index}`]) return;
+                const requestedOn = settings.on === 'true';
+                if (requestedOn && !firstApplied) {
+                    firstApplied = true;
+                    loraNode.inputs[`lora_${index}`].on = true;
                     loraNode.inputs[`lora_${index}`].strength = parseFloat(settings.strength) || 0;
-                    
                     if (settings.model) {
-                        // Ensure the path uses forward slashes for ComfyUI compatibility
                         const loraPath = settings.model.replace(/\\/g, '/');
                         loraNode.inputs[`lora_${index}`].lora = loraPath;
-                        Logger.info('PROCESS', `LoRA ${index}: enabled=${settings.on}, strength=${settings.strength}, model=${loraPath}`);
+                        Logger.info('PROCESS', `LoRA ${index} (selected primary): strength=${settings.strength}, model=${loraPath}`);
                     }
+                } else {
+                    // Force off all subsequent LoRAs (even if client tried to enable)
+                    loraNode.inputs[`lora_${index}`].on = false;
+                    loraNode.inputs[`lora_${index}`].strength = 0;
+                    loraNode.inputs[`lora_${index}`].lora = '';
                 }
             });
+            if (!firstApplied) {
+                Logger.warn('PROCESS', 'No enabled LoRA received; proceeding with base model only.');
+            }
         }
 
         const inputNameNode = Object.values(workflow).find((node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name");

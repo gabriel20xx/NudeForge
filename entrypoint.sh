@@ -16,8 +16,8 @@ npm rebuild sharp
 
 # Create necessary directories for carousel
 echo "Setting up carousel directories..."
-mkdir -p public/img/carousel/thumbnails
-chmod 755 public/img/carousel/thumbnails 2>/dev/null || true
+mkdir -p public/images/carousel/thumbnails
+chmod 755 public/images/carousel/thumbnails 2>/dev/null || true
 
 echo "Starting the app..."
 exec npm start

@@ -34,23 +34,26 @@ app.use(express.json());
 
 // Routes must come before static middleware to take priority
 app.use('/', routes);
-
-// Custom static middleware that excludes carousel images
-app.use((req, res, next) => {
-    // Skip static serving for carousel images (not thumbnails)
-    if (req.path.startsWith('/img/carousel/') && !req.path.includes('/thumbnails/')) {
-        return next(); // Continue to next middleware (should hit 404 or our route)
-    }
-    
-    // For all other files, serve statically
-    express.static(path.join(__dirname, "../public"))(req, res, next);
+// Lightweight health route (before static to ensure quick response)
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
-app.use("/input", express.static(INPUT_DIR));
-app.use("/output", express.static(OUTPUT_DIR));
-app.use("/copy", express.static(UPLOAD_COPY_DIR));
-app.use("/loras", express.static(LORAS_DIR));
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "../public/views"));
+
+// Serve static assets from src/public (standard layout)
+const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
+app.use((req, res, next) => {
+    // Allow carousel images route to be handled by dedicated route to apply caching/processing logic
+    if (req.path.startsWith('/images/carousel/') && !req.path.includes('/thumbnails/')) {
+        return next();
+    }
+    express.static(staticDir)(req, res, next);
+});
+app.use('/input', express.static(INPUT_DIR));
+app.use('/output', express.static(OUTPUT_DIR));
+app.use('/copy', express.static(UPLOAD_COPY_DIR));
+app.use('/loras', express.static(LORAS_DIR));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'public', 'views'));
 
 io.on("connection", (socket) => {
     socket.on("joinRoom", (requestId) => {

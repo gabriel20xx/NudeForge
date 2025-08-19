@@ -18,4 +18,4 @@ package-lock.json
 processed/*
 uploads/*
 input/*
-public/img/carousel/thumbnails/*
+public/images/carousel/thumbnails/*
