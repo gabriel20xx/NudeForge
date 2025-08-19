@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Image Nudifier</title>
+    <title>NudeForge</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/style.css">
     <script src="/socket.io/socket.io.js"></script>
@@ -11,7 +11,7 @@
 
 <body>
     <div class="header-container">
-        <h1>Image Nudifier</h1>
+    <h1>NudeForge</h1>
         <p id="queueStatusDisplay">Queue: <span id="queueSize">0</span></p>
         <p id="processingStatusDisplay">Status: <span id="processingStatus">Idle</span><span
                 class="progressPercentage"></span></p>
@@ -20,6 +20,9 @@
                 <input type="checkbox" id="allowConcurrentUpload" class="header-option-checkbox">
                 Allow uploading while processing (multiple images)
             </label>
+        </div>
+        <div class="theme-toggle" style="margin-top:.5rem;">
+            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark / light theme">🌙</button>
         </div>
     </div>
 
@@ -162,6 +165,37 @@ Preserve the exact same face details, shape and expression. Preserve jewelry, ac
             } else {
                 console.log('Basic mode - settings and comparison sections hidden');
             }
+            // Theme preference logic
+            const root = document.documentElement;
+            const storageKey = 'app-theme-preference';
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const getStored = () => localStorage.getItem(storageKey);
+            const applyTheme = (t) => {
+                if (!t) return; // ignore null
+                root.setAttribute('data-theme', t);
+                themeToggleBtn.textContent = t === 'dark' ? '🌙' : '☀️';
+            };
+            const cycleTheme = () => {
+                const current = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                const next = current === 'dark' ? 'light' : 'dark';
+                localStorage.setItem(storageKey, next);
+                applyTheme(next);
+            };
+            const stored = getStored();
+            if (stored) {
+                applyTheme(stored);
+            } else {
+                // initialize attribute to system preference so subsequent toggles are consistent
+                applyTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            }
+            themeToggleBtn.addEventListener('click', cycleTheme);
+            // Keep in sync if system theme changes and user hasn't explicitly chosen afterwards
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                const explicit = getStored();
+                if (!explicit) {
+                    applyTheme(e.matches ? 'dark' : 'light');
+                }
+            });
         });
     </script>
 
