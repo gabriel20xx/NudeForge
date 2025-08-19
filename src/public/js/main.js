@@ -227,5 +227,102 @@ function addLoRAEntry(grid, models){
   const { row } = createLoraRow(idx, models); grid.appendChild(row);
 }
 window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel, initializeLoRAs });
+// Insert helpers and enhancements below utilities
+// --- Enhancements Injected ---
+(function enhanceClient(){
+  // Ensure theme applied early if stored
+  (function ensureThemeApplied(){
+    try { const key='app-theme-preference'; const stored=localStorage.getItem(key); if(stored){ document.documentElement.setAttribute('data-theme', stored);} } catch(_e){}
+  })();
+
+  // File selection helpers
+  function clearSelectedFiles(){
+    selectedFiles = [];
+    if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
+    if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
+  }
+  function updateUploadButtonState(){
+    if(!uploadButton) return;
+    if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
+      uploadButton.disabled = selectedFiles.length === 0;
+      uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+    } else {
+      const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
+      uploadButton.disabled = !hasFile;
+      uploadButton.textContent = 'Upload';
+    }
+  }
+  // Expose for earlier references
+  window.clearSelectedFiles = clearSelectedFiles;
+  window.updateUploadButtonState = updateUploadButtonState;
+
+  // Input file change logic
+  if(inputImage){
+    inputImage.addEventListener('change', ()=>{
+      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
+        selectedFiles = Array.from(inputImage.files||[]);
+        if(selectedFiles.length>0 && multiPreviewContainer){
+          multiPreviewContainer.style.display='flex';
+          multiPreviewContainer.innerHTML='';
+          selectedFiles.forEach(file=>{
+            const reader = new FileReader();
+            reader.onload = ev => {
+              const img = document.createElement('img');
+              img.src = ev.target.result; img.alt=file.name; img.style.maxWidth='90px'; img.style.objectFit='cover'; img.style.borderRadius='6px'; img.style.margin='4px';
+              multiPreviewContainer.appendChild(img);
+            }; reader.readAsDataURL(file);
+          });
+        }
+      } else {
+        // Single preview
+        const file = inputImage.files && inputImage.files[0];
+        if(file && previewImage){
+          const reader = new FileReader();
+            reader.onload = ev => { previewImage.src = ev.target.result; previewImage.style.display='block'; };
+            reader.readAsDataURL(file);
+        }
+      }
+      updateUploadButtonState();
+    });
+  }
+})();
+
+// Patch carousel retry logic
+(function patchCarousel(){
+  const originalInit = initializeCarousel;
+  initializeCarousel = async function(){
+    let attempts = 0; const maxAttempts = 5; const delay = ms=> new Promise(r=>setTimeout(r,ms));
+    while(attempts < maxAttempts){
+      attempts++;
+      const before = Date.now();
+      await originalInit();
+      const slideContainer = document.querySelector('.carousel-slide');
+      if(slideContainer && slideContainer.children.length>0){
+        if(window.ClientLogger) ClientLogger.info('Carousel initialized with images', { attempts, duration: Date.now()-before });
+        return;
+      }
+      if(window.ClientLogger) ClientLogger.warn('Carousel empty, retrying...', { attempt: attempts });
+      await delay(500 * attempts); // backoff
+    }
+    if(window.ClientLogger) ClientLogger.error('Carousel failed to load images after retries');
+  };
+})();
+
+// Enhance LoRA initialization with loading / empty states
+(function patchLoras(){
+  const originalInit = initializeLoRAs;
+  initializeLoRAs = async function(){
+    const grid = document.getElementById('loraGrid');
+    if(grid && !grid.querySelector('.lora-status')){
+      grid.innerHTML = '<div class="lora-status" style="font-size:.8em;color:var(--color-text-dim);padding:.25rem .4rem;">Loading LoRAs...</div>';
+    }
+    await originalInit();
+    // After init
+    const modelsPresent = grid && grid.querySelectorAll('.lora-row').length>0;
+    if(grid && !modelsPresent){
+      grid.innerHTML = '<div class="lora-status empty" style="font-size:.8em;color:var(--color-danger);padding:.3rem .4rem;">No LoRA models found.</div>';
+    }
+  };
+})();
 // ...existing code...
 // --- END ORIGINAL CONTENT ---
