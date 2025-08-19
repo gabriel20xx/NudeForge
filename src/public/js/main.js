@@ -119,6 +119,24 @@ if (inputImage) {
         reader.readAsDataURL(file);
       }
     }
+    // Background: send copy/copies immediately to /upload-copy (non-blocking) so server stores original in /copy
+    // Do NOT await to avoid delaying UI preview.
+    (async () => {
+      try {
+        const filesToSend = multi ? selectedFiles : (inputImage.files ? [inputImage.files[0]] : []);
+        if (!filesToSend || filesToSend.length === 0) return;
+        // Endpoint currently expects single 'image', so send sequentially.
+        for (const f of filesToSend) {
+          if (!f) continue;
+          const fd = new FormData();
+            fd.append('image', f, f.name);
+          fetch('/upload-copy', { method: 'POST', body: fd })
+            .then(r => { if(!r.ok) throw new Error('copy upload failed'); return r.json().catch(()=>({})); })
+            .then(data => { /* optional success handling; keep silent to reduce noise */ })
+            .catch(err => { if(window.ClientLogger) ClientLogger.warn('Copy upload failed', { name: f.name, err }); });
+        }
+      } catch(e){ if(window.ClientLogger) ClientLogger.error('Copy upload dispatch error', e); }
+    })();
     // Basic button enable if later helper not yet defined
     if (uploadButton && (!window.updateUploadButtonState)) {
       const hasFile = inputImage.files && inputImage.files.length > 0;
