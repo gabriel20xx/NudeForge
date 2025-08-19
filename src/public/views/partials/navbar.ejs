@@ -10,7 +10,7 @@
 (function(){
   const storageKey='app-theme-preference';
   const root=document.documentElement; const mqDark=matchMedia('(prefers-color-scheme: dark)');
-  function apply(t){ if(!t) return; root.setAttribute('data-theme', t); const btn=document.getElementById('themeToggleBtn'); if(btn) btn.textContent = t==='dark'?'🌙':'☀️'; }
+  function apply(t){ if(!t) return; root.classList.add('theme-switching'); root.setAttribute('data-theme', t); const btn=document.getElementById('themeToggleBtn'); if(btn) btn.textContent = t==='dark'?'🌙':'☀️'; requestAnimationFrame(()=>{ root.classList.remove('theme-switching'); }); }
   function toggle(){ const cur=root.getAttribute('data-theme')||'dark'; const next=cur==='dark'?'light':'dark'; try{localStorage.setItem(storageKey,next);}catch(e){} apply(next);}  
   document.addEventListener('DOMContentLoaded',()=>{ apply(root.getAttribute('data-theme')); const btn=document.getElementById('themeToggleBtn'); if(btn) btn.addEventListener('click',toggle); });
   mqDark.addEventListener('change',e=>{ if(!localStorage.getItem(storageKey)) apply(e.matches?'dark':'light'); });

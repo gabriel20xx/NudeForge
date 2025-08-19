@@ -138,6 +138,9 @@ input[type=file]{ display:none; }
 :root[data-theme='light'] .drop-area, 
 :root[data-theme='light'] .image-box { background: var(--color-dropzone-bg,#f2f5f8); border-color: var(--color-accent-glow); }
 :root[data-theme='light'] .image-box img { background:#ffffff; }
+:root { color-scheme: light dark; }
+/* Suppress costly transitions during theme flip to avoid perceptible delay in image box repaint */
+:root.theme-switching *, :root.theme-switching *::before, :root.theme-switching *::after { transition: none !important; }
 :root[data-theme='light'] .lora-fieldset { background:#ffffff; border-color:#c7d0db; color: var(--color-accent-glow); }
 :root[data-theme='light'] .lora-row { background:#f2f5f8; color:#1b232b; }
 :root[data-theme='light'] .captcha-container { background:#ffffff; border-color:#c7d0db; }

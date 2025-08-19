@@ -134,6 +134,7 @@ const uploadButton = uploadForm.querySelector('.upload-btn');
 const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
+let selectedFiles = []; // ensure declared (used in multi-upload logic)
 
 // Multi-upload mode toggle listener (guard for element existing)
 if(allowConcurrentUploadCheckbox){
@@ -392,6 +393,15 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       inputImage.files = dt.files; // triggers change event programmatically below
       const changeEvt = new Event('change');
       inputImage.dispatchEvent(changeEvt);
+      if(!allowConcurrentUploadCheckbox || !allowConcurrentUploadCheckbox.checked){
+        // show immediate preview using FileReader (in case change async)
+        const first = dt.files[0];
+        if(first && previewImage){
+          const reader = new FileReader();
+          reader.onload = ev => { previewImage.src = ev.target.result; previewImage.style.display='block'; if(dropText) dropText.style.display='none'; };
+          reader.readAsDataURL(first);
+        }
+      }
     });
   }
 })();
