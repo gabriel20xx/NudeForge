@@ -17,16 +17,20 @@ async function generateAllCarouselThumbnails() {
         Logger.info('CAROUSEL-STARTUP', 'Starting thumbnail pre-generation...');
         
         // Handle both development and production paths
-        const baseDir = process.env.NODE_ENV === 'production' ? '/app' : path.join(__dirname, '../..');
-    // Updated path to reflect actual public directory structure (public/images)
-    const carouselDir = path.join(baseDir, 'public/images/carousel');
-    const thumbnailsDir = path.join(baseDir, 'public/images/carousel/thumbnails');
+        // In dev, __dirname = .../src/services; public assets live at src/public
+        const publicRoot = process.env.NODE_ENV === 'production'
+            ? '/app/public'
+            : path.join(__dirname, '../public');
+        const carouselDir = path.join(publicRoot, 'images/carousel');
+        const thumbnailsDir = path.join(publicRoot, 'images/carousel/thumbnails');
         
         // Ensure thumbnails directory exists
         await fs.promises.mkdir(thumbnailsDir, { recursive: true });
         
-        // Get all image files
-        const files = await fs.promises.readdir(carouselDir);
+    // Ensure base carousel directory exists (may be empty on first run)
+    await fs.promises.mkdir(carouselDir, { recursive: true });
+    // Get all image files (may be empty)
+    const files = await fs.promises.readdir(carouselDir);
         const imageFiles = files.filter(file => 
             /\.(jpg|jpeg|png|gif)$/i.test(file) && 
             !file.startsWith('thumb_') // Skip existing thumbnails
@@ -136,8 +140,9 @@ async function generateThumbnail(filename, carouselDir, thumbnailsDir) {
  * @returns {string} Path to the thumbnail
  */
 function getThumbnailPath(filename) {
-    const baseDir = process.env.NODE_ENV === 'production' ? '/app' : path.join(__dirname, '../..');
-    const thumbnailsDir = path.join(baseDir, 'public/images/carousel/thumbnails');
+    const thumbnailsDir = process.env.NODE_ENV === 'production'
+        ? path.join('/app/public/images/carousel/thumbnails')
+        : path.join(__dirname, '../public/images/carousel/thumbnails');
     
     const ext = path.extname(filename);
     const nameWithoutExt = path.basename(filename, ext);
@@ -152,8 +157,9 @@ function getThumbnailPath(filename) {
  * @returns {string} Path to the original image
  */
 function getOriginalPath(filename) {
-    const baseDir = process.env.NODE_ENV === 'production' ? '/app' : path.join(__dirname, '../..');
-    return path.join(baseDir, 'public/images/carousel', filename);
+    return process.env.NODE_ENV === 'production'
+        ? path.join('/app/public/images/carousel', filename)
+        : path.join(__dirname, '../public/images/carousel', filename);
 }
 
 module.exports = {

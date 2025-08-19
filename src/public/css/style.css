@@ -1,7 +1,7 @@
 /* NudeForge main stylesheet (migrated). theme.css now linked explicitly in header to avoid FOUC */
 
 /* Override / extend */
-:root { --box-max-width: var(--box-max-width, 720px); }
+:root { --box-max-width: var(--box-max-width, 720px); --font-size-xs:.65rem; --font-size-sm:.75rem; --font-size-base:.9rem; --font-size-md:1rem; --gap-xs:.25rem; --gap-sm:.4rem; --gap-md:.65rem; --gap-lg:1rem; --bar-height:56px; --topbar-height: var(--bar-height); --bottom-nav-height: var(--bar-height); }
 
 /* === Original Styles Start === */
 /* Clean Image Comparison Slider Styles */
@@ -14,14 +14,34 @@
 .comparison-slider::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 20px; background: #fff; }
 .comparison-slider::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 100%; background: var(--color-accent); z-index: -1; }
 body { font-family: var(--font-stack); margin:0; padding:0; background: var(--color-bg); color: var(--color-text); text-align:center; min-height:100vh; }
+body { padding-bottom: var(--bottom-nav-height); }
+/* Toast / notification system */
+.toast-root { position:fixed; top:calc(var(--topbar-height) + .75rem); right:.85rem; display:flex; flex-direction:column; gap:.65rem; z-index:120; width: min(340px, calc(100vw - 1.5rem)); pointer-events:none; }
+.toast { --_bg: var(--color-surface); --_border: var(--color-border); --_accent: var(--color-accent); display:flex; align-items:flex-start; gap:.75rem; background:var(--_bg); color:var(--color-text); border:1px solid var(--_border); border-left:4px solid var(--_accent); padding:.85rem .95rem .85rem .95rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-size: var(--font-size-sm); line-height:1.3; position:relative; overflow:hidden; isolation:isolate; pointer-events:auto; animation: toast-in .45s cubic-bezier(.4,0,.2,1); }
+.toast.toast-info { --_accent: var(--color-info); }
+.toast.toast-success { --_accent: var(--color-success); }
+.toast.toast-warn { --_accent: var(--color-warning); }
+.toast.toast-error { --_accent: var(--color-danger); }
+.toast h4 { margin:0 0 .2rem 0; font-size: var(--font-size-sm); font-weight:600; letter-spacing:.3px; }
+.toast .toast-body { flex:1; text-align:left; }
+.toast button.toast-close { position:absolute; top:.35rem; right:.35rem; background:none; border:none; color:var(--color-text-dim); cursor:pointer; padding:.35rem; line-height:1; font-size:.85rem; border-radius: var(--radius-sm); }
+.toast button.toast-close:hover { color:var(--color-text); background: var(--color-surface-alt); }
+.toast-progress { position:absolute; left:0; bottom:0; height:3px; background:var(--_accent); width:100%; transform-origin:left; animation: toast-progress linear forwards; }
+@keyframes toast-in { from { opacity:0; transform:translateY(-6px) scale(.97);} to { opacity:1; transform:translateY(0) scale(1);} }
+@keyframes toast-out { to { opacity:0; transform:translateY(-6px) scale(.97);} }
+@keyframes toast-progress { from { transform:scaleX(1);} to { transform:scaleX(0);} }
+@media (max-width:600px){ .toast-root { top:auto; bottom: calc(var(--bottom-nav-height) + .75rem); right:.75rem; left:.75rem; width:auto; } }
 /* Unified top bar (align with NudeFlow .app-topbar) */
 .app-topbar { position:fixed; top:0; left:0; right:0; height: var(--topbar-height,56px); display:flex; align-items:center; gap:1rem; padding:0 .85rem; background: rgba(13,15,17,0.72); backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); border-bottom:1px solid var(--color-border); z-index:50; }
+.app-topbar-center { flex:1; display:flex; justify-content:center; }
+.app-topbar-right { display:flex; align-items:center; gap: var(--gap-md); }
 .app-logo { font-size:1.05rem; font-weight:600; background:var(--gradient-accent); -webkit-background-clip:text; background-clip:text; color:transparent; text-decoration:none; display:inline-flex; align-items:center; }
 h1 { margin:0; font-size:2.2em; letter-spacing:1px; }
-#queueStatusDisplay,#processingStatusDisplay { font-size:1em; font-weight:400; margin:.5em 0; color:#fff; }
-.header-options { margin:.7em 0 .2em; padding:0; display:none; }
-.header-option-label { display:inline-flex; align-items:center; color:#fff; font-size:.9em; font-weight:400; cursor:pointer; user-select:none; }
-.header-option-checkbox { margin-right:.5em; cursor:pointer; accent-color:#fff; transform:scale(1.1); }
+.processing-stats { display:flex; flex-direction:column; align-items:flex-start; line-height:1.1; gap: var(--gap-xs); }
+.stat-line { font-size: var(--font-size-sm); font-weight:500; color: var(--color-text); }
+.header-options { display:none; }
+.header-option-label { display:inline-flex; align-items:center; gap:.4rem; color: var(--color-text-dim); font-size: var(--font-size-xs); font-weight:500; cursor:pointer; user-select:none; letter-spacing:.3px; padding:.35rem .55rem; background: var(--color-surface); border:1px solid var(--color-border); border-radius: var(--radius-pill); }
+.header-option-checkbox { cursor:pointer; accent-color: var(--color-accent); transform:scale(1.05); }
 h2 { color:var(--color-accent-glow); margin:0 0 .7em; font-size:1.3em; letter-spacing:.5px; }
 .carousel-container { width:100%; height:200px; overflow:hidden; }
 .carousel-slide { display:flex; height:100%; }
@@ -98,3 +118,13 @@ input[type=file]{ display:none; }
 @media (max-width:1100px){ .main-container{ gap:1.5rem; padding:2rem 1rem;} .comparison-section.main-section{margin:0 auto; max-width:600px;} .settings-section{margin:0 auto; width:100%; max-width:600px;} .main-section{width:100%; min-width:0; margin-bottom:0;} .image-box{max-width:100%;}}
 @media (max-width:600px){ :root{ --box-max-width:calc(100vw - 2rem);} .main-container{flex-direction:column; gap:1.5rem; padding:1rem;} .main-col{width:100%;} .comparison-section.main-section{max-width:100%; margin:0 auto;} .main-section{width:100%; margin-bottom:0;} .settings-section{margin:0 auto; max-width:100%; width:100%; padding:1.5rem;} .settings-box{max-width:100%; padding:1.5rem;} .image-box{max-width:100%;}}
 /* === Original Styles End === */
+
+/* Bottom navigation tabs (aligned with NudeFlow) */
+.bottom-nav { position:fixed; bottom:0; left:0; right:0; height: var(--bottom-nav-height); background: rgba(13,15,17,0.82); backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); border-top:1px solid var(--color-border); z-index:60; display:flex; }
+.bottom-nav ul { list-style:none; margin:0; padding:0; display:flex; width:100%; justify-content:space-around; align-items:center; }
+.bottom-nav a { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.25rem; font-size: var(--font-size-xs); color: var(--color-text-dim); text-decoration:none; position:relative; height:100%; padding:.2rem .4rem; letter-spacing:.3px; transition: color .25s; }
+.bottom-nav a i { font-size:1.05rem; }
+.bottom-nav a.active, .bottom-nav a:hover { color: var(--color-accent); }
+.bottom-nav a.active::after { content:""; position:absolute; bottom:.15rem; left:50%; transform:translateX(-50%); width:18px; height:3px; background: var(--gradient-accent); border-radius:2px; }
+
+:root[data-theme='light'] .bottom-nav { background:#ffffff; backdrop-filter:none; -webkit-backdrop-filter:none; }

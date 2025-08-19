@@ -26,6 +26,15 @@ router.get('/', (req, res) => {
     res.render('index', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
 });
 
+// Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
+router.get('/library', (req, res) => {
+    res.render('library', { title: 'Library' });
+});
+
+router.get('/profile', (req, res) => {
+    res.render('profile', { title: 'Profile' });
+});
+
 // Optimized carousel images route - serves pre-generated thumbnails (updated path /images)
 router.get('/images/carousel/:filename', async (req, res) => {
     try {
@@ -69,13 +78,16 @@ router.get('/images/carousel/:filename', async (req, res) => {
 });
 
 router.get('/api/carousel-images', (req, res) => {
-    const carouselDir = path.join(__dirname, '../../public/images/carousel');
+    const carouselDir = process.env.NODE_ENV === 'production'
+        ? '/app/public/images/carousel'
+        : path.join(__dirname, '../public/images/carousel');
     fs.readdir(carouselDir, (err, files) => {
         if (err) {
             Logger.error('CAROUSEL', 'Error reading carousel directory:', err);
             return res.status(500).json({ error: 'Failed to read carousel images' });
         }
         const carouselImages = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
+        Logger.info('CAROUSEL', `Listing ${carouselImages.length} carousel image(s) from ${carouselDir}`);
         res.json(carouselImages);
     });
 });

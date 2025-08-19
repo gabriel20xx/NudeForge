@@ -144,6 +144,9 @@ async function initializeCarousel(){
     if(!Array.isArray(images) || images.length===0){
       // Fallback: attempt to probe a known original folder (first few static examples) if available in markup
       if(window.ClientLogger) ClientLogger.warn('No carousel images returned from API');
+      if(slideContainer && !slideContainer.querySelector('.carousel-empty')){
+        slideContainer.innerHTML = '<div class="carousel-empty" style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--color-text-dim);font-size:.75rem;">No carousel images available</div>';
+      }
       return; // keep retry logic outside
     }
     slideContainer.innerHTML='';

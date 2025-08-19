@@ -7,6 +7,7 @@
   <!-- Load core theme tokens first to avoid flash, then component styles -->
   <link rel="stylesheet" href="/css/theme.css" />
   <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <script>
     // Early theme set (runs before paint). Keeps in sync with storage key used below.
     (function(){
@@ -28,15 +29,19 @@
 </head>
 <body>
   <div class="body-container">
-    <header class="app-topbar" role="banner" style="justify-content:space-between;">
+  <!-- Toast / notification stack (shared) -->
+  <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
+    <header class="app-topbar" role="banner">
       <a href="/" class="app-logo" aria-label="Go to home">NudeForge</a>
-      <div style="display:flex;align-items:center;gap:1rem;">
-        <div class="processing-stats" style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;">
-          <span id="queueStatusDisplay" style="font-size:.75rem;">Queue: <span id="queueSize">0</span></span>
-          <span id="processingStatusDisplay" style="font-size:.75rem;">Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span></span>
+      <div class="app-topbar-center">
+        <div class="processing-stats">
+          <span id="queueStatusDisplay" class="stat-line">Queue: <span id="queueSize">0</span></span>
+          <span id="processingStatusDisplay" class="stat-line">Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span></span>
         </div>
-        <div class="header-options" style="display:none;">
-          <label class="header-option-label" style="font-size:.65rem;color:var(--color-text-dim);">
+      </div>
+      <div class="app-topbar-right">
+        <div class="header-options">
+          <label class="header-option-label">
             <input type="checkbox" id="allowConcurrentUpload" class="header-option-checkbox" />
             Multi-upload
           </label>
@@ -46,4 +51,3 @@
         </div>
       </div>
     </header>
-    <div style="height:var(--topbar-height);"></div>

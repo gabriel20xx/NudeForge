@@ -123,6 +123,8 @@ Preserve the exact same face details, shape and expression. Preserve jewelry, ac
 		</div>
 	</form>
 
+	<%- include('partials/bottomnav', { active: 'generator' }) %>
+
 	<script>
 		// Check for advanced parameter in URL and show/hide sections accordingly
 		document.addEventListener('DOMContentLoaded', function () {
@@ -173,4 +175,4 @@ Preserve the exact same face details, shape and expression. Preserve jewelry, ac
 		});
 	</script>
 
-<%- include('partials/footer') %>
+<%- include('partials/navbar', { active: 'generator' }) %>
