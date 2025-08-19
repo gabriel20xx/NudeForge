@@ -3,7 +3,8 @@ const path = require("path");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const Logger = require("../utils/logger");
-const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR } = require("../config/config");
+const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR, INPUT_DIR } = require("../config/config");
+const crypto = require('crypto');
 
 const processingQueue = [];
 let isProcessing = false;
@@ -194,6 +195,23 @@ async function processQueue(io) {
         // Add a short delay to further ensure file is ready
         await new Promise((resolve) => setTimeout(resolve, 300));
         const finalOutputRelativePath = `/output/${foundOutputFilename}`;
+        // --- Integrity / Non-copy validation ---
+        try {
+            const inputPath = path.join(INPUT_DIR, uploadedFilename);
+            const outputPathAbs = path.join(OUTPUT_DIR, foundOutputFilename);
+            if (fs.existsSync(inputPath) && fs.existsSync(outputPathAbs)) {
+                const hashFile = (p)=> crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+                const inHash = hashFile(inputPath);
+                const outHash = hashFile(outputPathAbs);
+                if (inHash === outHash) {
+                    Logger.warn('PROCESS', `Output appears identical to input (hash=${inHash}). This may indicate the workflow returned the original image.`);
+                } else {
+                    Logger.info('PROCESS', `Output hash differs from input as expected (in=${inHash.substring(0,8)} out=${outHash.substring(0,8)})`);
+                }
+            }
+        } catch (hashErr) {
+            Logger.warn('PROCESS', `Hash comparison failed: ${hashErr.message}`);
+        }
         const downloadUrl = `/download/${requestId}`;
         requestStatus[requestId].status = "completed";
         requestStatus[requestId].data = { 

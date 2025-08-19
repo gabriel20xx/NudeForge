@@ -97,7 +97,9 @@ window.addEventListener('DOMContentLoaded', async function() {
         formData.delete('image'); // remove potential single
         selectedFiles.forEach(f=> formData.append('image', f));
       }
+      const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
       uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
+      if(singleMode){ uploadButton.classList.add('disabled'); }
       try {
         const res = await fetch('/upload', { method:'POST', body: formData });
         if(!res.ok){
@@ -111,6 +113,7 @@ window.addEventListener('DOMContentLoaded', async function() {
         window.toast?.error('Upload error');
       } finally {
         uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+        if(singleMode){ uploadButton.classList.remove('disabled'); }
       }
     });
   }
@@ -130,29 +133,23 @@ const progressPercentageSpans = document.querySelectorAll('.progressPercentage')
 const uploadButton = uploadForm.querySelector('.upload-btn');
 const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
+let activeRequestId = null; // track current processing request
 
-// Global variable to store the uploaded copy filename for comparison
-let uploadedCopyFilename = null;
-// Global variable to store the main upload filename for comparison
-let mainUploadFilename = null;
-// Global variable to store selected files for multi-upload
-let selectedFiles = [];
-
-// Add event listener for concurrent upload checkbox to toggle multiple file selection
-if (allowConcurrentUploadCheckbox) {
-	allowConcurrentUploadCheckbox.addEventListener('change', function() {
-		if (this.checked) {
-			inputImage.setAttribute('multiple', 'multiple');
-			dropText.textContent = 'Drag & drop or click to upload (multiple files allowed)';
-			uploadButton.textContent = 'Upload All';
-		} else {
-			inputImage.removeAttribute('multiple');
-			dropText.textContent = 'Drag & drop or click to upload';
-			uploadButton.textContent = 'Upload';
-		}
-		clearSelectedFiles();
-		updateUploadButtonState();
-	});
+// Multi-upload mode toggle listener (guard for element existing)
+if(allowConcurrentUploadCheckbox){
+  allowConcurrentUploadCheckbox.addEventListener('change', function() {
+    if (this.checked) {
+      inputImage.setAttribute('multiple', 'multiple');
+      dropText.textContent = 'Drag & drop or click to upload (multiple files allowed)';
+      uploadButton.textContent = 'Upload All';
+    } else {
+      inputImage.removeAttribute('multiple');
+      dropText.textContent = 'Drag & drop or click to upload';
+      uploadButton.textContent = 'Upload';
+    }
+    clearSelectedFiles();
+    updateUploadButtonState();
+  });
 }
 
 // --- Utilities & Helpers ---
@@ -188,16 +185,56 @@ async function initializeCarousel(){
       img.addEventListener('load', ()=>{ img.classList.remove('loading'); img.classList.add('loaded'); });
       slideContainer.appendChild(img);
     });
+    // Wait a frame for DOM to paint then measure & clone for seamless loop
+    requestAnimationFrame(()=>{
+      const originals = Array.from(slideContainer.children);
+      const measureWidth = () => originals.reduce((acc,el)=> acc + el.getBoundingClientRect().width,0);
+      let originalWidth = measureWidth();
+      // If width 0 (images not loaded yet) retry a few times
+      let attempts = 0;
+      const ensureMeasured = () => {
+        originalWidth = measureWidth();
+        if(originalWidth === 0 && attempts < 10){ attempts++; return setTimeout(ensureMeasured, 100); }
+        // Duplicate images until we have at least 2 * container visible width for smooth wrap
+        const containerVisibleWidth = slideContainer.parentElement ? slideContainer.parentElement.getBoundingClientRect().width : originalWidth;
+        while(slideContainer.getBoundingClientRect().width < containerVisibleWidth * 2){
+          originals.forEach(orig => {
+            const clone = orig.cloneNode(true);
+            clone.classList.add('clone');
+            slideContainer.appendChild(clone);
+          });
+        }
+        slideContainer.dataset.originalWidth = String(originalWidth);
+        startScroll();
+      };
+      ensureMeasured();
+    });
     let scrollPos = 0;
-    function tick(){
-      const totalWidth = Array.from(slideContainer.children).reduce((acc,el)=>acc+el.getBoundingClientRect().width,0);
-      if(totalWidth <= 0) return requestAnimationFrame(tick);
-      scrollPos += 0.3;
-      if(scrollPos >= totalWidth) scrollPos = 0;
-      slideContainer.style.transform = `translateX(${-scrollPos}px)`;
+    function startScroll(){
+      function tick(){
+        const origWidth = parseFloat(slideContainer.dataset.originalWidth)||0;
+        const totalWidth = slideContainer.getBoundingClientRect().width; // includes clones
+        if(origWidth === 0){ return requestAnimationFrame(tick); }
+        scrollPos += 0.3;
+        if(scrollPos >= origWidth){ // wrap seamlessly (clones ensure continuity)
+          scrollPos -= origWidth;
+        }
+        slideContainer.style.transform = `translateX(${-scrollPos}px)`;
+        requestAnimationFrame(tick);
+      }
       requestAnimationFrame(tick);
     }
-    requestAnimationFrame(tick);
+    function tick(){ /* replaced by startScroll */ }
+    function updateDropPlaceholder(){
+      if(!dropText) return;
+      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
+        if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
+      } else {
+        const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
+        dropText.style.display = hasFile ? 'none' : '';
+      }
+    }
+    // previous tick logic replaced with seamless clone-based scrolling
     carouselInitialized = true;
   } catch(err){
   if(window.ClientLogger) ClientLogger.error('Carousel init failed', err);
@@ -219,6 +256,7 @@ async function initializeLoRAs(){
     const models = data.loras || [];
     populateInitialLoRAEntry(grid, models);
     if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntry(grid, models)); }
+        updateDropPlaceholder();
     lorasLoaded = true;
   } catch(e){
     if(window.ClientLogger) ClientLogger.error('Failed to initialize LoRAs', e);
@@ -287,36 +325,44 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   window.updateUploadButtonState = updateUploadButtonState;
 
   // Input file change logic
-  if(inputImage){
-    inputImage.addEventListener('change', ()=>{
-      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-        selectedFiles = Array.from(inputImage.files||[]);
-        if(selectedFiles.length>0 && multiPreviewContainer){
-          multiPreviewContainer.style.display='flex';
-          multiPreviewContainer.innerHTML='';
-          selectedFiles.forEach(file=>{
-            const reader = new FileReader();
-            reader.onload = ev => {
-              const img = document.createElement('img');
-              img.src = ev.target.result; img.alt=file.name; img.style.maxWidth='90px'; img.style.objectFit='cover'; img.style.borderRadius='6px'; img.style.margin='4px';
-              multiPreviewContainer.appendChild(img);
-            }; reader.readAsDataURL(file);
-          });
-        }
-      } else {
-        // Single preview
-        const file = inputImage.files && inputImage.files[0];
-        if(file && previewImage){
-          const reader = new FileReader();
-            reader.onload = ev => { previewImage.src = ev.target.result; previewImage.style.display='block'; };
-            reader.readAsDataURL(file);
-        }
+  if(uploadForm){
+    uploadForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if(!uploadButton || uploadButton.disabled) return;
+      const formData = new FormData(uploadForm);
+      // Append selected multi files explicitly if multi-upload enabled
+      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>0){
+        formData.delete('image'); // remove potential single
+        selectedFiles.forEach(f=> formData.append('image', f));
       }
-      updateUploadButtonState();
+      const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
+      uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
+      if(singleMode){ uploadButton.classList.add('disabled'); }
+      try {
+        const res = await fetch('/upload', { method:'POST', body: formData });
+        if(!res.ok){
+          const txt = await res.text();
+          window.toast?.error('Upload failed: '+(txt||res.status));
+        } else {
+          const data = await res.json().catch(()=>({}));
+          if(data.requestId){
+            activeRequestId = data.requestId;
+            joinStatusChannel(activeRequestId);
+            updateStatusUI({ status:'queued', yourPosition: data.yourPosition });
+            pollStatus();
+            window.toast?.success('Queued (position '+(data.yourPosition||'?')+')');
+          } else {
+            window.toast?.success('Added to queue. Position '+ (data.yourPosition||'?'));
+          }
+        }
+      } catch(err){
+        window.toast?.error('Upload error');
+      } finally {
+        uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+        if(singleMode){ uploadButton.classList.remove('disabled'); }
+      }
     });
   }
-
-  // Drag & Drop + click to select support (restored)
   if(dropArea && inputImage){
     // Click proxy
     dropArea.addEventListener('click', (e)=>{
@@ -342,6 +388,85 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     });
   }
 })();
+
+// === Real-time / Polling Status Handling ===
+let socketInstance = null;
+function ensureSocket(){ if(socketInstance) return socketInstance; if(window.io){ socketInstance = window.io(); } return socketInstance; }
+function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; s.emit('joinRoom', requestId); if(!s._listenersAdded){
+  s.on('queueUpdate', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; updateStatusUI(payload); });
+  s.on('processingComplete', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; handleProcessingComplete(payload); });
+  s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
+  s._listenersAdded = true; }
+}
+function setStatus(text){ const statusEl = document.getElementById('processingStatus'); if(statusEl) statusEl.textContent = text; }
+function updateStatusUI(payload){ if(payload.status) setStatus(payload.status); if(typeof payload.yourPosition==='number'){ const q=document.getElementById('queueSize'); if(q) q.textContent = payload.yourPosition; } if(payload.progress && progressPercentageSpans){ progressPercentageSpans.forEach(sp=>{ sp.textContent = payload.progress.value?` ${payload.progress.value}/${payload.progress.max}`:''; }); } }
+async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch(e){} if(activeRequestId){ setTimeout(pollStatus, 1500); } }
+function handleProcessingComplete(payload){
+  setStatus('completed');
+  if(payload.outputImage){
+    const img=document.getElementById('outputImage');
+    const ph=document.getElementById('outputPlaceholder');
+    if(img){ img.src = payload.outputImage + `?t=${Date.now()}`; img.style.display='block'; }
+    if(ph){ ph.style.display='none'; }
+    enableDownload(payload.downloadUrl || payload.outputImage);
+    // Show comparison (single mode only or if preview available)
+    if(previewImage && previewImage.src){
+      showComparison(previewImage.src, payload.outputImage);
+    }
+    window.toast?.success('Processing complete');
+  }
+  activeRequestId=null;
+}
+
+// === Comparison Slider Logic ===
+let comparisonSliderInitialized = false;
+function initComparisonSlider(){
+  if(comparisonSliderInitialized) return;
+  const container = document.getElementById('comparisonContainer');
+  const slider = container && container.querySelector('.comparison-slider');
+  const after = container && container.querySelector('.comparison-after');
+  if(!container || !slider || !after) return;
+  let dragging = false;
+  function setFromClientX(clientX){
+    const rect = container.getBoundingClientRect();
+    let pct = (clientX - rect.left) / rect.width; pct = Math.min(1, Math.max(0, pct));
+    after.style.width = (pct*100)+'%';
+    slider.style.left = (pct*100)+'%';
+  }
+  function start(e){ dragging=true; slider.classList.add('active'); setFromClientX(e.touches? e.touches[0].clientX : e.clientX); e.preventDefault(); }
+  function move(e){ if(!dragging) return; setFromClientX(e.touches? e.touches[0].clientX : e.clientX); }
+  function end(){ dragging=false; slider.classList.remove('active'); }
+  slider.addEventListener('mousedown', start);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  slider.addEventListener('touchstart', start, { passive:false });
+  window.addEventListener('touchmove', move, { passive:false });
+  window.addEventListener('touchend', end);
+  // Allow clicking container to reposition
+  container.addEventListener('click', (e)=>{ if(e.target === slider) return; setFromClientX(e.clientX); });
+  comparisonSliderInitialized = true;
+}
+function showComparison(beforeSrc, afterSrc){
+  const placeholder = document.getElementById('comparisonPlaceholder');
+  const container = document.getElementById('comparisonContainer');
+  const beforeImg = document.getElementById('comparisonBeforeImg');
+  const afterImg = document.getElementById('comparisonAfterImg');
+  if(beforeImg && beforeSrc){ beforeImg.src = beforeSrc; beforeImg.style.display='block'; }
+  if(afterImg && afterSrc){ afterImg.src = afterSrc + `?t=${Date.now()}`; afterImg.style.display='block'; }
+  if(placeholder) placeholder.style.display='none';
+  if(container) container.style.display='block';
+  // Ensure section visible (in case advanced mode not toggled)
+  const section = document.getElementById('comparisonSection');
+  if(section && section.style.display==='none') section.style.display='block';
+  // Reset baseline positions
+  const after = container && container.querySelector('.comparison-after');
+  const slider = container && container.querySelector('.comparison-slider');
+  if(after){ after.style.width='50%'; }
+  if(slider){ slider.style.left='50%'; }
+  initComparisonSlider();
+}
+// Expose for debugging
+window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
 
 // Patch carousel retry logic
 (function patchCarousel(){
