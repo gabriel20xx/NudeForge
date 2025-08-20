@@ -87,7 +87,7 @@ const dropArea = document.getElementById('dropArea');
 const dropText = document.getElementById('dropText');
 const uploadForm = document.getElementById('uploadForm');
 const downloadLink = document.getElementById('downloadLink');
-const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
+// Removed unused NodeList assignment (was triggering eslint no-unused-vars)
 const uploadButton = uploadForm.querySelector('.upload-btn');
 const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
 const advancedModeToggle = document.getElementById('advancedModeToggle');

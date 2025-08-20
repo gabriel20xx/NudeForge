@@ -30,9 +30,7 @@ async function loadSharedLogger() {
 				if (mod && mod.default) return mod.default;
 				return mod; // fallback if module exports directly
 			}
-		} catch (e) {
-			// continue trying other candidates
-		}
+		} catch { /* ignore - expected when probing candidate paths */ }
 	}
 	// Fallback minimal logger
 	return {
