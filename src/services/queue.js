@@ -170,16 +170,6 @@ async function processQueue(io) {
         const imageNode = Object.values(workflow).find((node) => node.class_type === "VHS_LoadImagePath");
         if (imageNode) imageNode.inputs["image"] = uploadedPathForComfyUI;
 
-        // Persist the exact workflow being sent to ComfyUI for traceability/debugging
-        try {
-            const workflowOutputFilename = `${path.parse(uploadedFilename).name}-workflow.json`;
-            const workflowOutputPath = path.join(OUTPUT_DIR, workflowOutputFilename);
-            await fs.promises.writeFile(workflowOutputPath, JSON.stringify(workflow, null, 2), 'utf-8');
-            Logger.info('PROCESS', `Saved workflow JSON for requestId=${requestId} to ${workflowOutputPath}`);
-        } catch (saveErr) {
-            Logger.warn('PROCESS', `Failed to save workflow JSON for requestId=${requestId}: ${saveErr.message}`);
-        }
-
         Logger.info('PROCESS', `Sending workflow to ComfyUI for requestId=${requestId}`);
         try {
             Logger.debug('PROCESS_SETTINGS', 'Final workflow settings: ' + JSON.stringify(requestStatus[requestId]?.settings || {}));
