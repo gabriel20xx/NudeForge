@@ -4,13 +4,6 @@ set -e
 # Ensure we are in the repo directory
 cd /app
 
-# Load environment variables from .env if present
-#!/bin/bash
-set -e
-
-# Ensure we are in the repo directory
-cd /app
-
 # Load env file if exists
 if [ -f .env ]; then
 	set -a; . ./.env; set +a
