@@ -1,9 +1,10 @@
 // NudeForge main.js (migrated from legacy /public/js/main.js). Full functionality retained.
 // NOTE: This file replaces the previous bridge import and is now the canonical frontend script.
+/* eslint-disable no-func-assign */
 // --- BEGIN ORIGINAL CONTENT ---
 // main.js: Handles upload button state for UX
 // --- Download Button Helpers ---
-function disableDownload() {
+function _disableDownload() { // renamed to avoid unused warning; keep implementation
 	if (downloadLink) {
 		downloadLink.classList.add('disabled');
 		const btn = downloadLink.querySelector('button');
@@ -23,7 +24,6 @@ function enableDownload(url) {
 // --- CAPTCHA Logic (moved from index.ejs) ---
 // Fetch and display advanced SVG CAPTCHA
 async function fetchCaptcha() {
-	const captchaContainer = document.getElementById('captchaContainer');
 	const captchaImage = document.getElementById('captchaImage');
 	const captchaToken = document.getElementById('captcha_token');
 	const captchaAnswer = document.getElementById('captcha_answer');
@@ -34,7 +34,7 @@ async function fetchCaptcha() {
 		const data = await res.json();
 		if (captchaImage) captchaImage.innerHTML = data.image;
 		if (captchaToken) captchaToken.value = data.token;
-	} catch (e) {
+  } catch {
 		if (captchaImage) captchaImage.innerHTML = '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
 		if (captchaToken) captchaToken.value = '';
 	}
@@ -50,7 +50,7 @@ async function checkCaptchaStatusAndInit() {
 			const data = await res.json();
 			captchaDisabled = !!data.captchaDisabled;
 		}
-	} catch (e) {
+  } catch {
 		captchaDisabled = false;
 	}
 	const captchaContainer = document.getElementById('captchaContainer');
@@ -86,11 +86,7 @@ const previewImage = document.getElementById('previewImage');
 const dropArea = document.getElementById('dropArea');
 const dropText = document.getElementById('dropText');
 const uploadForm = document.getElementById('uploadForm');
-const outputImage = document.getElementById('outputImage');
-const outputPlaceholder = document.getElementById('outputPlaceholder');
 const downloadLink = document.getElementById('downloadLink');
-const queueSizeSpan = document.getElementById('queueSize');
-const processingStatusSpan = document.getElementById('processingStatus');
 const progressPercentageSpans = document.querySelectorAll('.progressPercentage');
 const uploadButton = uploadForm.querySelector('.upload-btn');
 const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
@@ -98,6 +94,10 @@ const advancedModeToggle = document.getElementById('advancedModeToggle');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
+// Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
+const __stageTracker = { encountered: [], lastOverall: 0 };
+window.__nudeForgeStageTracker = __stageTracker;
+window.__nudeForgeConfig = Object.assign(window.__nudeForgeConfig||{}, { useStageWeighting: true });
 
 // Immediate preview handler (ensures image becomes visible on selection before later enhancements run)
 if (inputImage) {
@@ -132,17 +132,17 @@ if (inputImage) {
             fd.append('image', f, f.name);
           fetch('/upload-copy', { method: 'POST', body: fd })
             .then(r => { if(!r.ok) throw new Error('copy upload failed'); return r.json().catch(()=>({})); })
-            .then(data => { /* optional success handling; keep silent to reduce noise */ })
-            .catch(err => { if(window.ClientLogger) ClientLogger.warn('Copy upload failed', { name: f.name, err }); });
+    .then(() => { /* optional success handling; keep silent to reduce noise */ })
+            .catch(err => { window.ClientLogger?.warn('Copy upload failed', { name: f.name, err }); });
         }
-      } catch(e){ if(window.ClientLogger) ClientLogger.error('Copy upload dispatch error', e); }
+  } catch(err){ window.ClientLogger?.error('Copy upload dispatch error', err); }
     })();
     // Basic button enable if later helper not yet defined
     if (uploadButton && (!window.updateUploadButtonState)) {
       const hasFile = inputImage.files && inputImage.files.length > 0;
       uploadButton.disabled = !hasFile;
     } else if (window.updateUploadButtonState) {
-      try { window.updateUploadButtonState(); } catch(_e) {}
+  try { window.updateUploadButtonState(); } catch { /* ignore state update error */ }
     }
   });
 }
@@ -168,6 +168,17 @@ if(allowConcurrentUploadCheckbox){
 function showElement(el){ if(el) el.style.display=''; }
 function hideElement(el){ if(el) el.style.display='none'; }
 function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
+function updateDropPlaceholder(){
+  if(!dropText) return;
+  if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
+    if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
+  } else {
+    const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
+    dropText.style.display = hasFile ? 'none' : '';
+  }
+}
+// initial invocation to mark helper utilized
+updateDropPlaceholder();
 
 // --- Carousel Logic ---
 let carouselInitialized = false;
@@ -181,7 +192,7 @@ async function initializeCarousel(){
     let images = await res.json();
     if(!Array.isArray(images) || images.length===0){
       // Fallback: attempt to probe a known original folder (first few static examples) if available in markup
-      if(window.ClientLogger) ClientLogger.warn('No carousel images returned from API');
+  window.ClientLogger?.warn('No carousel images returned from API');
       if(slideContainer && !slideContainer.querySelector('.carousel-empty')){
         slideContainer.innerHTML = '<div class="carousel-empty" style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--color-text-dim);font-size:.75rem;">No carousel images available</div>';
       }
@@ -232,7 +243,6 @@ async function initializeCarousel(){
     function startScroll(){
       function tick(){
         const origWidth = parseFloat(slideContainer.dataset.originalWidth)||0;
-        const totalWidth = slideContainer.getBoundingClientRect().width; // includes clones
         if(origWidth === 0){ return requestAnimationFrame(tick); }
         scrollPos += 0.3;
         if(scrollPos >= origWidth){ // wrap seamlessly (clones ensure continuity)
@@ -243,20 +253,11 @@ async function initializeCarousel(){
       }
       requestAnimationFrame(tick);
     }
-    function tick(){ /* replaced by startScroll */ }
-    function updateDropPlaceholder(){
-      if(!dropText) return;
-      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-        if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
-      } else {
-        const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-        dropText.style.display = hasFile ? 'none' : '';
-      }
-    }
+    function _tick(){ /* replaced by startScroll */ }
     // previous tick logic replaced with seamless clone-based scrolling
     carouselInitialized = true;
   } catch(err){
-  if(window.ClientLogger) ClientLogger.error('Carousel init failed', err);
+  window.ClientLogger?.error('Carousel init failed', err);
   }
 }
 
@@ -274,11 +275,11 @@ async function initializeLoRAs(){
     if(!data.success) throw new Error('LoRA API returned failure');
     const models = data.loras || [];
     populateInitialLoRAEntry(grid, models);
-    if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntry(grid, models)); }
-        updateDropPlaceholder();
+  if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntry(grid, models)); }
+  updateDropPlaceholder();
     lorasLoaded = true;
   } catch(e){
-    if(window.ClientLogger) ClientLogger.error('Failed to initialize LoRAs', e);
+  window.ClientLogger?.error('Failed to initialize LoRAs', e);
   }
 }
 function createLoraRow(index, models){
@@ -387,7 +388,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
             window.toast?.success('Added to queue. Position '+ (data.yourPosition||'?'));
           }
         }
-      } catch(err){
+  } catch{
         window.toast?.error('Upload error');
       } finally {
         uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
@@ -467,10 +468,77 @@ function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; 
   s._listenersAdded = true; }
 }
 function setStatus(text){ const statusEl = document.getElementById('processingStatus'); if(statusEl) statusEl.textContent = text; }
-function updateStatusUI(payload){ if(payload.status) setStatus(payload.status); if(typeof payload.yourPosition==='number'){ const q=document.getElementById('queueSize'); if(q) q.textContent = payload.yourPosition; } if(payload.progress && progressPercentageSpans){ progressPercentageSpans.forEach(sp=>{ sp.textContent = payload.progress.value?` ${payload.progress.value}/${payload.progress.max}`:''; }); } }
-async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch(e){} if(activeRequestId){ setTimeout(pollStatus, 1500); } }
+function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
+  const meta = document.getElementById('queueMeta');
+  if(meta){
+    if(status==='queued' && typeof yourPosition==='number'){
+      meta.textContent = `(position ${yourPosition})`;
+      meta.style.display='inline';
+    } else if(status==='processing' && typeof queueSize==='number'){
+      meta.textContent = `(queue ${queueSize})`;
+      meta.style.display='inline';
+    } else {
+      meta.textContent=''; meta.style.display='none';
+    }
+  }
+  // Progress percentage (numeric)
+  const pctSpan = document.getElementById('progressPct');
+  if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
+    let rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
+    let overall = rawPct;
+    let stageName = progress.stage;
+    if(window.__nudeForgeConfig?.useStageWeighting && stageName){
+      if(!__stageTracker.encountered.includes(stageName)){
+        __stageTracker.encountered.push(stageName);
+      }
+      const stageIndex = __stageTracker.encountered.indexOf(stageName);
+      const totalStages = __stageTracker.encountered.length;
+      if(totalStages > 1){
+        // Simple equal-weight heuristic (may cause slight drop when a new stage first appears).
+        overall = Math.min(100, Math.round(((stageIndex + (rawPct/100)) / totalStages) * 100));
+      }
+    }
+    if(pctSpan) pctSpan.textContent = overall + '%';
+    updateProgressBar(overall, progress.stage, rawPct);
+  } else if(pctSpan){ pctSpan.textContent=''; updateProgressBar(0); }
+}
+function updateProgressBar(pct, stage, stagePct){
+  const wrap = document.getElementById('processingProgressBarWrapper');
+  const bar = document.getElementById('processingProgressBar');
+  const label = document.getElementById('processingProgressLabel');
+  if(!wrap || !bar || !label) return;
+  if(pct>0){ wrap.hidden=false; } else if(stage==='completed' || pct===0){ /* keep visible only during processing */ }
+  bar.style.width = pct + '%';
+  bar.classList.remove('complete');
+  const baseLabel = (pct||0) + '%';
+  label.textContent = baseLabel;
+  if(stage){
+    const cleanStage = stage.replace(/\.\.\.$/,'');
+    if(typeof stagePct==='number' && stagePct!==pct){
+      label.textContent = baseLabel + ' • ' + cleanStage + ' (' + stagePct + '%)';
+    } else {
+      label.textContent = baseLabel + ' • ' + cleanStage;
+    }
+  }
+  if(pct>=100){
+    bar.classList.add('complete');
+    setTimeout(()=>{ wrap.hidden=true; }, 1800);
+  }
+}
+function updateStatusUI(payload){
+  if(payload.status) setStatus(payload.status);
+  updateUnifiedStatus(payload);
+}
+// Expose UI update helpers for test harness
+window.__nudeForge = Object.assign(window.__nudeForge||{}, {
+  updateStatusUI,
+  updateUnifiedStatus,
+  updateProgressBar
+});
+async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch { /* silent poll failure */ } if(activeRequestId){ setTimeout(pollStatus, 1500); } }
 function handleProcessingComplete(payload){
   setStatus('completed');
+  updateProgressBar(100,'completed');
   if(payload.outputImage){
     const img=document.getElementById('outputImage');
     const ph=document.getElementById('outputPlaceholder');
@@ -547,13 +615,13 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
       await originalInit();
       const slideContainer = document.querySelector('.carousel-slide');
       if(slideContainer && slideContainer.children.length>0){
-        if(window.ClientLogger) ClientLogger.info('Carousel initialized with images', { attempts, duration: Date.now()-before });
+        window.ClientLogger?.info('Carousel initialized with images', { attempts, duration: Date.now()-before });
         return;
       }
-      if(window.ClientLogger) ClientLogger.warn('Carousel empty, retrying...', { attempt: attempts });
+      window.ClientLogger?.warn('Carousel empty, retrying...', { attempt: attempts });
       await delay(500 * attempts); // backoff
     }
-    if(window.ClientLogger) ClientLogger.error('Carousel failed to load images after retries');
+    window.ClientLogger?.error('Carousel failed to load images after retries');
   };
 })();
 
@@ -576,7 +644,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
 
 // Replace LoRA initialization block to support subdirectories
 (function upgradeLoraLoader(){
-  const originalCreateLoraRow = createLoraRow; // preserve if needed
+  // (original createLoraRow preserved implicitly if needed)
   function flattenDetailed(result){
     const out=[];
     if(result.root){
@@ -600,7 +668,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
   }
 
   // Override initializeLoRAs
-  const prevInit = initializeLoRAs;
+  const prevInit = initializeLoRAs; // kept for potential future use
+  void prevInit; // reference to avoid unused warning
   initializeLoRAs = async function(){
     if(lorasLoaded) return; // reuse existing guard
     const grid = document.getElementById('loraGrid');
@@ -621,9 +690,9 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
       populateInitialLoRAEntryDetailed(grid, models);
       if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
       lorasLoaded = true;
-      if(window.ClientLogger) ClientLogger.info('Loaded LoRAs (with subdirs)', { count: models.length });
+  window.ClientLogger?.info('Loaded LoRAs (with subdirs)', { count: models.length });
     } catch(e){
-      if(window.ClientLogger) ClientLogger.error('Failed to initialize detailed LoRAs', e);
+  window.ClientLogger?.error('Failed to initialize detailed LoRAs', e);
     }
   };
 
@@ -663,5 +732,23 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
   // Expose debug
   window.__nudeForge = Object.assign(window.__nudeForge||{}, { flattenDetailedLoras: flattenDetailed });
 })();
-// ...existing code...
+
+// Define globally referenced helpers (previously inside IIFE)
+function clearSelectedFiles(){
+  selectedFiles = [];
+  if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
+  if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
+  updateDropPlaceholder();
+}
+function updateUploadButtonState(){
+  if(!uploadButton) return;
+  if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
+    uploadButton.disabled = selectedFiles.length === 0;
+    uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+  } else {
+    const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
+    uploadButton.disabled = !hasFile;
+    uploadButton.textContent = 'Upload';
+  }
+}
 // --- END ORIGINAL CONTENT ---

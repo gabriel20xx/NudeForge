@@ -1,14 +1,19 @@
-const express = require("express");
-const { v4: uuidv4 } = require("uuid");
-const path = require("path");
-const fs = require("fs");
-const Logger = require("../utils/logger");
-const { generateCaptcha, verifyCaptcha } = require("../services/captcha");
-const { SITE_TITLE } = require('../config/config');
-const { upload, uploadCopy } = require('../services/uploads');
-const { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } = require('../services/queue');
-const { generateAllCarouselThumbnails, getThumbnailPath, getOriginalPath } = require('../services/carousel');
-const { getAvailableLoRAs, getAvailableLoRAsWithSubdirs } = require('../services/loras');
+import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import Logger from '../utils/logger.js';
+import { generateCaptcha, verifyCaptcha } from '../services/captcha.js';
+import { SITE_TITLE } from '../config/config.js';
+import { upload, uploadCopy } from '../services/uploads.js';
+import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
+import { /* generateAllCarouselThumbnails, */ getThumbnailPath, getOriginalPath } from '../services/carousel.js';
+import { getAvailableLoRAs, getAvailableLoRAsWithSubdirs } from '../services/loras.js';
+
+// __dirname shim for ESM (this file uses __dirname for file system paths)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -58,7 +63,7 @@ router.get('/images/carousel/:filename', async (req, res) => {
             // Serve cached thumbnail
             return res.sendFile(thumbnailPath);
             
-        } catch (err) {
+    } catch {
             Logger.error('CAROUSEL', `Thumbnail not found: ${thumbnailPath}`);
             
             // Fallback: try to serve the original file
@@ -67,14 +72,14 @@ router.get('/images/carousel/:filename', async (req, res) => {
                 await fs.promises.access(originalPath);
                 Logger.info('CAROUSEL', `Serving original file as fallback: ${filename}`);
                 res.sendFile(originalPath);
-            } catch (fallbackError) {
-                Logger.error('CAROUSEL', 'Original file also not found:', fallbackError);
+            } catch (_fallbackErr) {
+                Logger.error('CAROUSEL', 'Original file also not found:', _fallbackErr);
                 res.status(404).send('Image not found');
             }
         }
         
-    } catch (error) {
-        Logger.error('CAROUSEL', 'Error serving carousel image:', error);
+    } catch (_carouselErr) {
+        Logger.error('CAROUSEL', 'Error serving carousel image:', _carouselErr);
         res.status(500).send('Error processing image');
     }
 });
@@ -108,8 +113,8 @@ router.get('/api/loras', async (req, res) => {
             success: true,
             loras: loras
         });
-    } catch (error) {
-        Logger.error('LORAS_API', 'Error fetching LoRA models:', error);
+    } catch (_error) {
+        Logger.error('LORAS_API', 'Error fetching LoRA models:', _error);
         res.status(500).json({
             success: false,
             error: 'Failed to fetch LoRA models'
@@ -125,8 +130,8 @@ router.get('/api/loras/detailed', async (req, res) => {
             success: true,
             loras: loras
         });
-    } catch (error) {
-        Logger.error('LORAS_API', 'Error fetching detailed LoRA models:', error);
+    } catch (_error) {
+        Logger.error('LORAS_API', 'Error fetching detailed LoRA models:', _error);
         res.status(500).json({
             success: false,
             error: 'Failed to fetch LoRA models'
@@ -136,7 +141,7 @@ router.get('/api/loras/detailed', async (req, res) => {
 
 // Debug endpoint to check LoRA directory configuration
 router.get('/api/loras/debug', async (req, res) => {
-    const { LORAS_DIR } = require('../config/config');
+    const { LORAS_DIR } = await import('../config/config.js');
     
     try {
         const debugInfo = {
@@ -165,7 +170,7 @@ router.get('/api/loras/debug', async (req, res) => {
                     name: file.name,
                     isFile: file.isFile(),
                     isDirectory: file.isDirectory(),
-                    path: require('path').join(LORAS_DIR, file.name)
+                    path: path.join(LORAS_DIR, file.name)
                 }));
             } catch (error) {
                 debugInfo.error = `Failed to read directory contents: ${error.message}`;
@@ -177,11 +182,11 @@ router.get('/api/loras/debug', async (req, res) => {
             success: true,
             debug: debugInfo
         });
-    } catch (error) {
-        Logger.error('LORAS_DEBUG', 'Debug endpoint error:', error);
+    } catch (_error) {
+        Logger.error('LORAS_DEBUG', 'Debug endpoint error:', _error);
         res.status(500).json({
             success: false,
-            error: error.message
+            error: _error.message
         });
     }
 });
@@ -250,7 +255,11 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
         });
 
         Logger.info('QUEUE', `Added to queue. Queue size: ${getProcessingQueue().length}`);
-        processQueue(req.app.get('io'));
+        if (process.env.SKIP_QUEUE_PROCESSING === 'true') {
+            Logger.info('QUEUE', 'Skipping queue processing (test mode)');
+        } else {
+            processQueue(req.app.get('io'));
+        }
 
         res.status(202).json({
             message: "Image uploaded and added to queue.",
@@ -258,8 +267,8 @@ router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) =
             queueSize: getProcessingQueue().length,
             yourPosition: getProcessingQueue().length,
         });
-    } catch (err) {
-        Logger.error('UPLOAD', 'Error handling upload:', err);
+    } catch (_uploadErr) {
+        Logger.error('UPLOAD', 'Error handling upload:', _uploadErr);
         res.status(500).json({ error: 'Internal server error during upload.' });
     }
 });
@@ -272,8 +281,8 @@ router.post("/upload-copy", uploadCopy.single("image"), (req, res) => {
         }
         Logger.info('UPLOAD-COPY', `Image copy uploaded: ${req.file.filename}`);
         res.json({ message: "Image copy uploaded successfully", filename: req.file.filename });
-    } catch (err) {
-        Logger.error('UPLOAD-COPY', 'Error:', err);
+    } catch (_uploadCopyErr) {
+        Logger.error('UPLOAD-COPY', 'Error:', _uploadCopyErr);
         res.status(500).json({ error: 'Internal server error during upload-copy.' });
     }
 });
@@ -300,7 +309,7 @@ router.get('/download/:requestId', async (req, res) => {
         // Check if file exists
         try {
             await fs.promises.access(outputPath);
-        } catch (err) {
+    } catch {
             Logger.error('DOWNLOAD', `File not found: ${outputPath}`);
             return res.status(404).send('Output file not found');
         }
@@ -327,10 +336,10 @@ router.get('/download/:requestId', async (req, res) => {
         // Send the file
         res.sendFile(outputPath);
         
-    } catch (error) {
-        Logger.error('DOWNLOAD', 'Error serving download:', error);
+    } catch (_downloadErr) {
+        Logger.error('DOWNLOAD', 'Error serving download:', _downloadErr);
         res.status(500).send('Error serving download');
     }
 });
 
-module.exports = { router };
+    export { router };

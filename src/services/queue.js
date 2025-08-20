@@ -1,10 +1,10 @@
-const fs = require("fs");
-const path = require("path");
-const axios = require("axios");
-const { v4: uuidv4 } = require("uuid");
-const Logger = require("../utils/logger");
-const { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR, INPUT_DIR } = require("../config/config");
-const crypto = require('crypto');
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
+// import { v4 as uuidv4 } from 'uuid'; // (unused) keep commented for potential future use
+import Logger from '../utils/logger.js';
+import { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR, INPUT_DIR } from '../config/config.js';
+import crypto from 'crypto';
 
 const processingQueue = [];
 let isProcessing = false;
@@ -73,7 +73,7 @@ async function processQueue(io) {
     }
 
     isProcessing = true;
-    const { requestId, uploadedFilename, originalFilename, uploadedPathForComfyUI } = processingQueue.shift();
+    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI } = processingQueue.shift();
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
@@ -175,7 +175,7 @@ async function processQueue(io) {
         Logger.info('PROCESS', `Sending workflow to ComfyUI for requestId=${requestId}`);
         try {
             Logger.debug('PROCESS_SETTINGS', 'Final workflow settings: ' + JSON.stringify(requestStatus[requestId]?.settings || {}));
-        } catch(_e) { /* ignore */ }
+    } catch { /* ignore */ }
         
         await sendWorkflowWithRetry(workflow, requestId);
 
@@ -200,7 +200,7 @@ async function processQueue(io) {
                     stableCount = 0;
                 }
                 lastSize = stats.size;
-            } catch (e) {
+        } catch {
                 stableCount = 0;
             }
             await new Promise((resolve) => setTimeout(resolve, 300));
@@ -222,8 +222,8 @@ async function processQueue(io) {
                     Logger.info('PROCESS', `Output hash differs from input as expected (in=${inHash.substring(0,8)} out=${outHash.substring(0,8)})`);
                 }
             }
-        } catch (hashErr) {
-            Logger.warn('PROCESS', `Hash comparison failed: ${hashErr.message}`);
+        } catch (_hashErr) {
+            Logger.warn('PROCESS', `Hash comparison failed: ${_hashErr.message}`);
         }
         const downloadUrl = `/download/${requestId}`;
         requestStatus[requestId].status = "completed";
@@ -238,17 +238,17 @@ async function processQueue(io) {
             downloadUrl: downloadUrl,
             requestId: requestId,
         });
-    } catch (err) {
-        Logger.error('PROCESS', `Error during processing for requestId ${requestId}:`, err);
+    } catch (_err) {
+        Logger.error('PROCESS', `Error during processing for requestId ${requestId}:`, _err);
         requestStatus[requestId].status = "failed";
-        requestStatus[requestId].data = { error: "Processing failed.", errorMessage: err.message };
-        io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: err.message });
+        requestStatus[requestId].data = { error: "Processing failed.", errorMessage: _err.message };
+        io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: _err.message });
     } finally {
         isProcessing = false;
         // Clean up stage tracker - use require here to avoid circular dependency
         try {
-            const { cleanupStageTracker } = require("./websocket");
-            cleanupStageTracker(requestId);
+            const mod = await import('./websocket.js');
+            mod.cleanupStageTracker(requestId);
         } catch (err) {
             Logger.warn('QUEUE', 'Could not cleanup stage tracker:', err.message);
         }
@@ -259,7 +259,7 @@ async function processQueue(io) {
     }
 }
 
-module.exports = {
+export {
     getProcessingQueue,
     getRequestStatus,
     getCurrentlyProcessingRequestId,

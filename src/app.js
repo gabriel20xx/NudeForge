@@ -1,20 +1,23 @@
-const express = require("express");
-const http = require("http");
-const https = require("https");
-const { Server } = require("socket.io");
-const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
-const Logger = require("./utils/logger");
-const { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } = require("./config/config");
-const { connectToComfyUIWebSocket } = require("./services/websocket");
-const { router: routes } = require("./routes/routes");
-const { generateAllCarouselThumbnails } = require("./services/carousel");
-const { getAvailableLoRAsWithSubdirs } = require("./services/loras");
+import express from 'express';
+import http from 'http';
+import https from 'https';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import Logger from './utils/logger.js';
+import { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } from './config/config.js';
+import { connectToComfyUIWebSocket } from './services/websocket.js';
+import { router as routes } from './routes/routes.js';
+import { generateAllCarouselThumbnails } from './services/carousel.js';
+import { getAvailableLoRAsWithSubdirs } from './services/loras.js';
 
 const app = express();
 let server; // will initialize after potential cert generation
-function buildServer() {
+async function buildServer() {
     if (!ENABLE_HTTPS) {
         return http.createServer(app);
     }
@@ -33,8 +36,7 @@ function buildServer() {
     if (!key || !cert) {
         try {
             // Lazy-require selfsigned to avoid dependency if HTTPS disabled
-            // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-            const selfsigned = require('selfsigned');
+            const selfsigned = (await import('selfsigned')).default;
             const attrs = [{ name: 'commonName', value: 'localhost' }];
             const pems = selfsigned.generate(attrs, { days: 365, keySize: 2048, algorithm: 'sha256' });
             key = pems.private;
@@ -47,7 +49,7 @@ function buildServer() {
     }
     return https.createServer({ key, cert }, app);
 }
-server = buildServer();
+await (async () => { server = await buildServer(); })();
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -76,6 +78,10 @@ app.get('/health', (req, res) => {
 
 // Serve static assets from src/public (standard layout)
 const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
+// Expose shared client assets (two levels up to monorepo root then NudeShared)
+const sharedDir = path.join(__dirname, '..', '..', 'NudeShared');
+app.use('/shared', express.static(sharedDir));
+Logger.info('STARTUP', `Mounted shared static assets at /shared (dir=${sharedDir})`);
 app.use((req, res, next) => {
     // Allow carousel images route to be handled by dedicated route to apply caching/processing logic
     if (req.path.startsWith('/images/carousel/') && !req.path.includes('/thumbnails/')) {
@@ -97,12 +103,15 @@ io.on("connection", (socket) => {
     });
 });
 
-connectToComfyUIWebSocket(io);
+// Skip external websocket in test environments to avoid hanging tests
+if (process.env.NODE_ENV !== 'test' && process.env.SKIP_WEBSOCKET !== 'true') {
+    connectToComfyUIWebSocket(io);
+}
 
 // Attach 404 & error handlers (exported for test harness registration consistency)
 function attachTerminalMiddleware() {
     // 404 handler
-    app.use((req, res, next) => {
+    app.use((req, res) => {
         if (req.accepts('html')) {
             return res.status(404).render('404', { title: 'Page Not Found' });
         }
@@ -112,8 +121,7 @@ function attachTerminalMiddleware() {
         return res.status(404).type('txt').send('Not Found');
     });
     // Global error handler
-    // eslint-disable-next-line no-unused-vars
-    app.use((err, req, res, next) => {
+    app.use((err, req, res) => {
         Logger.error('SERVER', 'Unhandled error', err);
         if (res.headersSent) return; 
         const wantsJson = req.accepts('json') && !req.accepts('html');
@@ -127,8 +135,8 @@ function attachTerminalMiddleware() {
 // Startup logic separated for parity with NudeFlow
 async function startServer(port = PORT) {
     attachTerminalMiddleware();
-    return new Promise(async (resolve) => {
-        const listener = server.listen(port, async () => {
+    return new Promise((resolve) => {
+        const listener = server.listen(port, () => {
             const protocol = ENABLE_HTTPS ? 'https' : 'http';
             Logger.success('SERVER', `Server running at ${protocol}://localhost:${port}`);
             Logger.info('STARTUP', `Platform: ${process.platform}`);
@@ -137,6 +145,7 @@ async function startServer(port = PORT) {
             Logger.info('STARTUP', `Output directory: ${OUTPUT_DIR}`);
             Logger.info('STARTUP', `Copy directory: ${UPLOAD_COPY_DIR}`);
             Logger.info('STARTUP', `LoRAs directory: ${LORAS_DIR}`);
+            (async () => {
             try {
                 Logger.info('STARTUP', 'Discovering available LoRA models...');
                 const loras = await getAvailableLoRAsWithSubdirs();
@@ -165,8 +174,11 @@ async function startServer(port = PORT) {
             } catch (error) {
                 Logger.error('STARTUP', 'Failed to discover LoRA models:', error);
             }
-            const thumbStats = await generateAllCarouselThumbnails();
             try {
+                if (process.env.NODE_ENV === 'test' || process.env.SKIP_CAROUSEL_THUMBS === 'true') {
+                    Logger.info('CAROUSEL', 'Skipping thumbnail generation in test mode');
+                } else {
+                    const thumbStats = await generateAllCarouselThumbnails();
                 const carouselDir = process.env.NODE_ENV === 'production'
                     ? '/app/public/images/carousel'
                     : path.join(__dirname, 'public/images/carousel');
@@ -177,16 +189,17 @@ async function startServer(port = PORT) {
                 } else {
                     Logger.info('CAROUSEL', `Carousel ready with ${imgs.length} image(s). Thumbnails processed=${thumbStats.processed}, skipped=${thumbStats.skipped}`);
                 }
+                }
             } catch(e){ Logger.error('CAROUSEL','Post-startup check failed:', e); }
+            })();
             resolve(listener);
         });
     });
 }
 
-if (require.main === module) {
-    // Allow overriding port when running multiple modules simultaneously
+if (import.meta.url === `file://${process.argv[1]}`) {
     const desiredPort = process.env.PORT || PORT;
     startServer(desiredPort);
 }
 
-module.exports = { app, server, startServer };
+export { app, server, startServer };

@@ -1,7 +1,12 @@
-const path = require("path");
-const fs = require("fs");
-const Logger = require("../utils/logger");
-require("dotenv").config({ path: path.resolve(__dirname, '../../.env') });
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import Logger from '../utils/logger.js';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Define directories with cross-platform path handling
 // Use the same pattern for all directories to ensure consistency
@@ -14,7 +19,7 @@ const INPUT_DIR = process.env.INPUT_DIR || path.join(PARENT_OF_PROJECT, 'input')
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(PARENT_OF_PROJECT, 'output');  
 const UPLOAD_COPY_DIR = process.env.UPLOAD_COPY_DIR || path.join(PARENT_OF_PROJECT, 'copy');
 const LORAS_DIR = process.env.LORAS_DIR || path.join(PARENT_OF_PROJECT, 'loras');
-const WORKFLOW_PATH = process.env.WORKFLOW_PATH || path.resolve(__dirname, "../../workflow.json");
+const WORKFLOW_PATH = process.env.WORKFLOW_PATH || path.resolve(__dirname, '../../workflow.json');
 // Site branding
 const SITE_TITLE = process.env.SITE_TITLE || 'NudeForge';
 
@@ -75,19 +80,19 @@ if (!process.env.COMFYUI_HOST) {
   Logger.warn('CONFIG', "COMFYUI_HOST is not set in .env file. Using default value '127.0.0.1:8188'.");
 }
 
-module.exports = {
-    INPUT_DIR,
-    OUTPUT_DIR,
-    UPLOAD_COPY_DIR,
-    LORAS_DIR,
-    WORKFLOW_PATH,
-    COMFYUI_HOST,
-    COMFYUI_URL,
-    COMFYUI_WS_URL,
-    PORT,
+export {
+  INPUT_DIR,
+  OUTPUT_DIR,
+  UPLOAD_COPY_DIR,
+  LORAS_DIR,
+  WORKFLOW_PATH,
+  COMFYUI_HOST,
+  COMFYUI_URL,
+  COMFYUI_WS_URL,
+  PORT,
   isDocker,
-  SITE_TITLE
-  ,ENABLE_HTTPS
-  ,SSL_KEY_PATH
-  ,SSL_CERT_PATH
+  SITE_TITLE,
+  ENABLE_HTTPS,
+  SSL_KEY_PATH,
+  SSL_CERT_PATH
 };

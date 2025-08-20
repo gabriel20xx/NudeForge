@@ -35,8 +35,11 @@
   <a href="/" class="app-logo" aria-label="Go to home"><%= (typeof siteTitle !== 'undefined' ? siteTitle : 'NudeForge') %></a>
       <div class="app-topbar-center">
         <div class="processing-stats">
-          <span id="queueStatusDisplay" class="stat-line">Queue: <span id="queueSize">0</span></span>
-          <span id="processingStatusDisplay" class="stat-line">Status: <span id="processingStatus">Idle</span><span class="progressPercentage"></span></span>
+          <span id="unifiedStatusDisplay" class="stat-line">
+            <span id="processingStatus">Idle</span>
+            <span id="queueMeta" class="queue-meta" style="display:none;"></span>
+            <span id="progressPct" class="progress-pct"></span>
+          </span>
         </div>
       </div>
       <div class="app-topbar-right">

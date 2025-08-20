@@ -1,7 +1,7 @@
-const multer = require("multer");
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
-const { INPUT_DIR, UPLOAD_COPY_DIR } = require("../config/config");
+import multer from 'multer';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { INPUT_DIR, UPLOAD_COPY_DIR } from '../config/config.js';
 
 // Multer config for /upload (input dir)
 const storage = multer.diskStorage({
@@ -34,4 +34,4 @@ const uploadCopyStorage = multer.diskStorage({
 const upload = multer({ storage });
 const uploadCopy = multer({ storage: uploadCopyStorage });
 
-module.exports = { upload, uploadCopy };
+export { upload, uploadCopy };

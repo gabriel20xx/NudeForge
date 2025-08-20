@@ -1,7 +1,7 @@
-const WebSocket = require('ws');
-const Logger = require('../utils/logger');
-const { COMFYUI_WS_URL } = require('../config/config');
-const { getRequestStatus, getCurrentlyProcessingRequestId } = require('./queue');
+import WebSocket from 'ws';
+import Logger from '../utils/logger.js';
+import { COMFYUI_WS_URL } from '../config/config.js';
+import { getRequestStatus, getCurrentlyProcessingRequestId } from './queue.js';
 
 let comfyUiWs = null;
 // Track stage progress for each request
@@ -88,4 +88,4 @@ function cleanupStageTracker(requestId) {
     }
 }
 
-module.exports = { connectToComfyUIWebSocket, cleanupStageTracker };
+export { connectToComfyUIWebSocket, cleanupStageTracker };

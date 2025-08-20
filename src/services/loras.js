@@ -1,7 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const { LORAS_DIR } = require('../config/config');
-const Logger = require('../utils/logger');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { LORAS_DIR } from '../config/config.js';
+import Logger from '../utils/logger.js';
+
+// __dirname shim for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Format a filename into a display name
@@ -151,7 +156,7 @@ async function getAvailableLoRAsWithSubdirs() {
     }
 }
 
-module.exports = {
+export {
     getAvailableLoRAs,
     getAvailableLoRAsWithSubdirs,
     formatDisplayName

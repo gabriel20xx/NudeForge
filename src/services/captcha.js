@@ -1,6 +1,6 @@
-const svgCaptcha = require('svg-captcha');
-const crypto = require('crypto');
-const Logger = require('../utils/logger');
+import svgCaptcha from 'svg-captcha';
+import crypto from 'crypto';
+import Logger from '../utils/logger.js';
 
 // In-memory store for CAPTCHA tokens and solutions
 const captchaStore = {};
@@ -58,4 +58,4 @@ function verifyCaptcha(req, res, next) {
     next();
 }
 
-module.exports = { generateCaptcha, verifyCaptcha };
+export { generateCaptcha, verifyCaptcha };

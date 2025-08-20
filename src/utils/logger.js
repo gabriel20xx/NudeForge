@@ -1,7 +1,4 @@
-// Stub logger delegating to shared implementation if available.
-let shared;
-try { shared = require("../../../NudeShared/logger.js"); } catch(e) {
-    shared = { debug(){}, info(){}, warn(){}, error(){}, success(){} };
-}
-module.exports = shared;
+// Delegates entirely to shared logger (NudeShared/logger.js). Local stub intentionally blank.
+import Logger from '../../../NudeShared/logger.js';
+export default Logger;
 

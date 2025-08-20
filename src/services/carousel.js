@@ -1,7 +1,12 @@
-const path = require("path");
-const sharp = require("sharp");
-const fs = require("fs");
-const Logger = require("../utils/logger");
+import path from 'path';
+import sharp from 'sharp';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import Logger from '../utils/logger.js';
+
+// __dirname shim for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Carousel image optimization service
@@ -89,7 +94,7 @@ async function generateThumbnail(filename, carouselDir, thumbnailsDir) {
             Logger.debug('CAROUSEL-STARTUP', `Thumbnail already exists for: ${filename}`);
             return { generated: false, thumbnailPath };
         }
-    } catch (err) {
+    } catch {
         // Thumbnail doesn't exist, we'll create it
     }
     
@@ -162,7 +167,7 @@ function getOriginalPath(filename) {
         : path.join(__dirname, '../public/images/carousel', filename);
 }
 
-module.exports = {
+export {
     generateAllCarouselThumbnails,
     generateThumbnail,
     getThumbnailPath,
