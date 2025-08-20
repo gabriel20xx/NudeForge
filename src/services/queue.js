@@ -139,31 +139,29 @@ async function processQueue(io) {
                 }
             });
             
-            // Apply LoRA settings – only first enabled LoRA is honored per new default rule
-            let firstApplied = false;
+            // Always inject default LoRA as lora_1
+            loraNode.inputs["lora_1"].on = true;
+            loraNode.inputs["lora_1"].strength = 1.0;
+            loraNode.inputs["lora_1"].lora = "fluxkontext/change_clothes_to_nothing_000011200.safetensors";
+            Logger.info('PROCESS', 'Default LoRA injected: fluxkontext/change_clothes_to_nothing_000011200.safetensors');
+
+            // Inject user LoRAs into lora_2+ slots (never override lora_1)
+            let loraSlot = 2;
             Object.keys(loraEntries).sort((a,b)=>Number(a)-Number(b)).forEach(index => {
                 const settings = loraEntries[index];
-                if (!loraNode.inputs[`lora_${index}`]) return;
+                if (!loraNode.inputs[`lora_${loraSlot}`]) return;
                 const requestedOn = settings.on === 'true';
-                if (requestedOn && !firstApplied) {
-                    firstApplied = true;
-                    loraNode.inputs[`lora_${index}`].on = true;
-                    loraNode.inputs[`lora_${index}`].strength = parseFloat(settings.strength) || 0;
+                if (requestedOn) {
+                    loraNode.inputs[`lora_${loraSlot}`].on = true;
+                    loraNode.inputs[`lora_${loraSlot}`].strength = parseFloat(settings.strength) || 0;
                     if (settings.model) {
                         const loraPath = settings.model.replace(/\\/g, '/');
-                        loraNode.inputs[`lora_${index}`].lora = loraPath;
-                        Logger.info('PROCESS', `LoRA ${index} (selected primary): strength=${settings.strength}, model=${loraPath}`);
+                        loraNode.inputs[`lora_${loraSlot}`].lora = loraPath;
+                        Logger.info('PROCESS', `User LoRA injected: slot=${loraSlot}, strength=${settings.strength}, model=${loraPath}`);
                     }
-                } else {
-                    // Force off all subsequent LoRAs (even if client tried to enable)
-                    loraNode.inputs[`lora_${index}`].on = false;
-                    loraNode.inputs[`lora_${index}`].strength = 0;
-                    loraNode.inputs[`lora_${index}`].lora = '';
+                    loraSlot++;
                 }
             });
-            if (!firstApplied) {
-                Logger.warn('PROCESS', 'No enabled LoRA received; proceeding with base model only.');
-            }
         }
 
         const inputNameNode = Object.values(workflow).find((node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name");
