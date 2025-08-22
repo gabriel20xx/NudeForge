@@ -179,9 +179,7 @@ async function startServer(port = PORT) {
                     Logger.info('CAROUSEL', 'Skipping thumbnail generation in test mode');
                 } else {
                     const thumbStats = await generateAllCarouselThumbnails();
-                const carouselDir = process.env.NODE_ENV === 'production'
-                    ? '/app/public/images/carousel'
-                    : path.join(__dirname, 'public/images/carousel');
+                const carouselDir = path.join(__dirname, 'public/images/carousel');
                 const existing = await fs.promises.readdir(carouselDir);
                 const imgs = existing.filter(f=>/\.(jpg|jpeg|png|gif)$/i.test(f));
                 if(imgs.length===0){

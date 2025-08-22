@@ -85,9 +85,7 @@ router.get('/images/carousel/:filename', async (req, res) => {
 });
 
 router.get('/api/carousel-images', (req, res) => {
-    const carouselDir = process.env.NODE_ENV === 'production'
-        ? '/app/public/images/carousel'
-        : path.join(__dirname, '../public/images/carousel');
+    const carouselDir = path.join(__dirname, '../public/images/carousel');
     fs.readdir(carouselDir, (err, files) => {
         if (err) {
             Logger.error('CAROUSEL', 'Error reading carousel directory:', err);

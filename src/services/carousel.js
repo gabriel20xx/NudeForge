@@ -23,9 +23,7 @@ async function generateAllCarouselThumbnails() {
         
         // Handle both development and production paths
         // In dev, __dirname = .../src/services; public assets live at src/public
-        const publicRoot = process.env.NODE_ENV === 'production'
-            ? '/app/public'
-            : path.join(__dirname, '../public');
+    const publicRoot = path.join(__dirname, '../public');
         const carouselDir = path.join(publicRoot, 'images/carousel');
         const thumbnailsDir = path.join(publicRoot, 'images/carousel/thumbnails');
         
@@ -145,9 +143,7 @@ async function generateThumbnail(filename, carouselDir, thumbnailsDir) {
  * @returns {string} Path to the thumbnail
  */
 function getThumbnailPath(filename) {
-    const thumbnailsDir = process.env.NODE_ENV === 'production'
-        ? path.join('/app/public/images/carousel/thumbnails')
-        : path.join(__dirname, '../public/images/carousel/thumbnails');
+    const thumbnailsDir = path.join(__dirname, '../public/images/carousel/thumbnails');
     
     const ext = path.extname(filename);
     const nameWithoutExt = path.basename(filename, ext);
@@ -162,9 +158,7 @@ function getThumbnailPath(filename) {
  * @returns {string} Path to the original image
  */
 function getOriginalPath(filename) {
-    return process.env.NODE_ENV === 'production'
-        ? path.join('/app/public/images/carousel', filename)
-        : path.join(__dirname, '../public/images/carousel', filename);
+    return path.join(__dirname, '../public/images/carousel', filename);
 }
 
 export {
