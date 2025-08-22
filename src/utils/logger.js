@@ -12,6 +12,8 @@ async function loadSharedLogger() {
 	if (process.env.NUDESHARED_DIR) {
 		candidates.add(path.join(process.env.NUDESHARED_DIR, 'logger.js'));
 	}
+	// Preferred container path
+	candidates.add(path.join(path.sep, 'app', 'NudeShared', 'src', 'logger.js'));
 	// Typical monorepo (../../.. from src/utils). e.g., NudeCollection/NudeForge/src/utils -> NudeCollection/NudeShared
 	candidates.add(path.join(__dirname, '..', '..', '..', 'NudeShared', 'logger.js'));
 	// If project root copied to /app (no parent folder for project name) -> /app/src/utils -> /app/NudeShared
