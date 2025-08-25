@@ -84,6 +84,15 @@ const require = createRequire(import.meta.url);
 const sharedDir = path.dirname(require.resolve('@gabriel20xx/nude-shared/clientLogger.js'));
 app.use('/shared', express.static(sharedDir));
 Logger.info('STARTUP', `Mounted shared static assets at /shared (dir=${sharedDir})`);
+
+// Serve shared theme.css directly from npm package
+try {
+    const themePath = require.resolve('@gabriel20xx/nude-shared/theme.css');
+    app.get('/assets/theme.css', (req, res) => res.sendFile(themePath));
+    Logger.info('STARTUP', `Exposed shared theme at /assets/theme.css (path=${themePath})`);
+} catch (e) {
+    Logger.warn('STARTUP', `shared theme.css not found; skipping route (${e.message})`);
+}
 app.use((req, res, next) => {
     // Allow carousel images route to be handled by dedicated route to apply caching/processing logic
     if (req.path.startsWith('/images/carousel/') && !req.path.includes('/thumbnails/')) {
