@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import Logger from '../utils/logger.js';
+import Logger from '@gabriel20xx/nude-shared/serverLogger.js';
 import { generateCaptcha, verifyCaptcha } from '../services/captcha.js';
 import { SITE_TITLE } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';

@@ -81,7 +81,7 @@ app.get('/health', (req, res) => {
 const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
 // Expose shared client assets from installed package (robust resolution)
 const require = createRequire(import.meta.url);
-const sharedDir = path.dirname(require.resolve('@gabriel20xx/nude-shared/package.json'));
+const sharedDir = path.dirname(require.resolve('@gabriel20xx/nude-shared/clientLogger.js'));
 app.use('/shared', express.static(sharedDir));
 Logger.info('STARTUP', `Mounted shared static assets at /shared (dir=${sharedDir})`);
 app.use((req, res, next) => {
@@ -197,9 +197,15 @@ async function startServer(port = PORT) {
     });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-    const desiredPort = process.env.PORT || PORT;
-    startServer(desiredPort);
+try {
+    const executedScript = process.argv[1] ? path.resolve(process.argv[1]) : '';
+    const currentModule = path.resolve(fileURLToPath(import.meta.url));
+    if (executedScript && executedScript === currentModule) {
+        const desiredPort = process.env.PORT || PORT;
+        startServer(desiredPort);
+    }
+} catch {
+    // no-op
 }
 
 export { app, server, startServer };
