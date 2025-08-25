@@ -4,11 +4,12 @@ import https from 'https';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
+import { createRequire } from 'module';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import Logger from './utils/logger.js';
+import Logger from '@gabriel20xx/nude-shared/serverLogger.js';
 import { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } from './config/config.js';
 import { connectToComfyUIWebSocket } from './services/websocket.js';
 import { router as routes } from './routes/routes.js';
@@ -78,8 +79,9 @@ app.get('/health', (req, res) => {
 
 // Serve static assets from src/public (standard layout)
 const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
-// Expose shared client assets (two levels up to monorepo root then NudeShared)
-const sharedDir = path.join(__dirname, '..', '..', 'NudeShared');
+// Expose shared client assets from installed package (robust resolution)
+const require = createRequire(import.meta.url);
+const sharedDir = path.dirname(require.resolve('@gabriel20xx/nude-shared/package.json'));
 app.use('/shared', express.static(sharedDir));
 Logger.info('STARTUP', `Mounted shared static assets at /shared (dir=${sharedDir})`);
 app.use((req, res, next) => {
