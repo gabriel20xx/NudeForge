@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import Logger from '@gabriel20xx/nude-shared/serverLogger.js';
+import Logger from '../../shared/serverLogger.js';
 import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
