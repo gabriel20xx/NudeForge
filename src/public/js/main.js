@@ -390,19 +390,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function applyAdvancedVisibility(){
     const enabled = advancedModeToggle && advancedModeToggle.checked;
     if(settingsSection) settingsSection.style.display = enabled ? 'block':'none';
-    if(comparisonSection){
-      // Only show comparison section proactively if enabled; it will still be forced visible when a comparison is shown
-      if(enabled) {
-        // keep hidden until content appears unless already has image
-        if(!comparisonSection.querySelector('#comparisonContainer')?.style.display || comparisonSection.querySelector('#comparisonContainer')?.style.display==='none'){
-          comparisonSection.style.display='none';
-        } else {
-          comparisonSection.style.display='block';
-        }
-      } else {
-        comparisonSection.style.display='none';
-      }
-    }
+    if(comparisonSection) comparisonSection.style.display = enabled ? 'block' : 'none';
   }
   if(advancedModeToggle){
     advancedModeToggle.addEventListener('change', applyAdvancedVisibility);
@@ -543,9 +531,10 @@ function showComparison(beforeSrc, afterSrc){
   if(afterImg && afterSrc){ afterImg.src = afterSrc + `?t=${Date.now()}`; afterImg.style.display='block'; }
   if(placeholder) placeholder.style.display='none';
   if(container) container.style.display='block';
-  // Ensure section visible (in case advanced mode not toggled)
+  // Only show comparison section when Advanced mode is enabled
   const section = document.getElementById('comparisonSection');
-  if(section && section.style.display==='none') section.style.display='block';
+  const enabled = advancedModeToggle && advancedModeToggle.checked;
+  if(section) section.style.display = enabled ? 'block' : 'none';
   // Reset baseline positions
   const after = container && container.querySelector('.comparison-after');
   const slider = container && container.querySelector('.comparison-slider');
