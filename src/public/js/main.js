@@ -435,7 +435,8 @@ function setStatus(text){
   if(typeof text !== 'string'){ statusEl.textContent = ''; return; }
   const norm = text.trim().replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ');
   const title = norm.split(' ').map(w=> w ? (w[0].toUpperCase()+w.slice(1).toLowerCase()) : w).join(' ');
-  statusEl.textContent = title;
+  const display = title === 'Processing' ? 'Processing:' : (title === 'Unknown' ? 'Finished' : title);
+  statusEl.textContent = display;
 }
 function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const meta = document.getElementById('queueMeta');
@@ -443,9 +444,10 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
   const pctSpan = document.getElementById('progressPct');
-  // Idle/active visuals
+  // Idle/active visuals and end states
   if(status === 'processing' || __hasLiveProgressForActive){
     wrap?.classList.remove('idle');
+    if(bar){ bar.classList.remove('success'); bar.classList.remove('error'); }
   } else if(status === 'queued' || status === 'idle' || !status){
     // Do not force reset to Idle on 'completed' here; completion flow handles it
     wrap?.classList.add('idle');
@@ -453,6 +455,10 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
       if(bar) bar.style.width = '0%';
       if(label) label.textContent = 'Idle';
     }
+  } else if(status === 'failed'){
+    wrap?.classList.remove('idle');
+    if(bar){ bar.style.width='100%'; bar.classList.add('error'); bar.classList.remove('success'); }
+    if(label) label.textContent = 'Failed';
   }
   if(meta){
     // Suppress queue meta during processing entirely
@@ -465,23 +471,19 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   }
   // Progress percentage (numeric) and header mirroring
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
-    let rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
+    const stageName = progress.stage || '';
+    const rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
+    // Two-stage mapping: stage 1 -> 0..80, stage 2 -> 80..100
     let overall = rawPct;
-    let stageName = progress.stage;
-    if(window.__nudeForgeConfig?.useStageWeighting && stageName){
-      if(!__stageTracker.encountered.includes(stageName)){
-        __stageTracker.encountered.push(stageName);
-      }
-      const stageIndex = __stageTracker.encountered.indexOf(stageName);
-      const totalStages = __stageTracker.encountered.length;
-      if(totalStages > 1){
-        // Simple equal-weight heuristic (may cause slight drop when a new stage first appears).
-        overall = Math.min(100, Math.round(((stageIndex + (rawPct/100)) / totalStages) * 100));
-      }
+    if(/Stage\s*1/i.test(stageName)){
+      overall = Math.min(80, Math.round(rawPct * 0.8));
+    } else if(/Stage\s*2/i.test(stageName)){
+      // Map rawPct 0..100 to 80..100
+      overall = Math.min(100, Math.round(80 + (rawPct * 0.20)));
     }
     __lastOverallPct = overall;
     if(pctSpan) pctSpan.textContent = overall + '%';
-    updateProgressBar(overall, progress.stage, rawPct);
+  updateProgressBar(overall, progress.stage, rawPct);
   } else {
     // No numeric progress in this update
     if(status === 'processing' || __hasLiveProgressForActive){
@@ -514,6 +516,7 @@ function updateProgressBar(pct, stage, stagePct){
   if(pct>=100){
     bar.classList.add('complete');
   // Keep wrapper visible; reset to Idle handled after completion event
+  // If completed, label should read Finished when handleProcessingComplete runs
   }
 }
 function updateStatusUI(payload){
@@ -528,7 +531,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, {
 });
 async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch { /* silent poll failure */ } if(activeRequestId){ setTimeout(pollStatus, 1500); } }
 function handleProcessingComplete(payload){
-  setStatus('completed');
+  setStatus('Finished');
   updateProgressBar(100,'completed');
   if(payload.outputImage){
     const img=document.getElementById('outputImage');
@@ -546,10 +549,12 @@ function handleProcessingComplete(payload){
   __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
   try {
-    const wrap = document.getElementById('processingProgressBarWrapper');
-    const bar = document.getElementById('processingProgressBar');
-    const label = document.getElementById('processingProgressLabel');
-    setTimeout(()=>{ if(wrap) wrap.classList.add('idle'); if(bar) bar.style.width='0%'; if(label) label.textContent='Idle'; }, 1800);
+  const wrap = document.getElementById('processingProgressBarWrapper');
+  const bar = document.getElementById('processingProgressBar');
+  const label = document.getElementById('processingProgressLabel');
+  if(wrap) wrap.classList.remove('idle');
+  if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
+  if(label) label.textContent='Finished';
   } catch {}
 }
 
