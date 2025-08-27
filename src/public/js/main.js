@@ -426,7 +426,14 @@ function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; 
   s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
   s._listenersAdded = true; }
 }
-function setStatus(text){ const statusEl = document.getElementById('processingStatus'); if(statusEl) statusEl.textContent = text; }
+function setStatus(text){
+  const statusEl = document.getElementById('processingStatus');
+  if(!statusEl) return;
+  if(typeof text !== 'string'){ statusEl.textContent = ''; return; }
+  const norm = text.trim().replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ');
+  const title = norm.split(' ').map(w=> w ? (w[0].toUpperCase()+w.slice(1).toLowerCase()) : w).join(' ');
+  statusEl.textContent = title;
+}
 function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const meta = document.getElementById('queueMeta');
   const wrap = document.getElementById('processingProgressBarWrapper');
@@ -435,7 +442,8 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   // Idle/active visuals
   if(status === 'processing'){
     wrap?.classList.remove('idle');
-  } else if(status === 'queued' || status === 'idle' || status === 'completed' || !status){
+  } else if(status === 'queued' || status === 'idle' || !status){
+    // Do not force reset to Idle on 'completed' here; completion flow handles it
     wrap?.classList.add('idle');
     if(typeof progress?.value !== 'number' || typeof progress?.max !== 'number' || progress.max === 0){
       if(bar) bar.style.width = '0%';
@@ -475,10 +483,8 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
     if(pctSpan) pctSpan.textContent = overall + '%';
     updateProgressBar(overall, progress.stage, rawPct);
   } else if(pctSpan){
-    // Idle state: clear percentage in header, keep bar at 0 and label as Idle
+    // No numeric progress. If not processing, leave as-is; queued state sets Idle above.
     pctSpan.textContent='';
-    if(bar) bar.style.width = '0%';
-    if(label) label.textContent = 'Idle';
   }
 }
 function updateProgressBar(pct, stage, stagePct){
@@ -501,13 +507,7 @@ function updateProgressBar(pct, stage, stagePct){
   }
   if(pct>=100){
     bar.classList.add('complete');
-    // Keep wrapper visible and reset to idle briefly after completion
-    setTimeout(()=>{
-      const wrap = document.getElementById('processingProgressBarWrapper');
-      wrap?.classList.add('idle');
-      bar.style.width = '0%';
-      label.textContent = 'Idle';
-    }, 2000);
+  // Keep wrapper visible; reset to Idle handled after completion event
   }
 }
 function updateStatusUI(payload){
@@ -537,6 +537,13 @@ function handleProcessingComplete(payload){
     window.toast?.success('Processing complete');
   }
   activeRequestId=null;
+  // Reset progress display to Idle shortly after finish
+  try {
+    const wrap = document.getElementById('processingProgressBarWrapper');
+    const bar = document.getElementById('processingProgressBar');
+    const label = document.getElementById('processingProgressLabel');
+    setTimeout(()=>{ if(wrap) wrap.classList.add('idle'); if(bar) bar.style.width='0%'; if(label) label.textContent='Idle'; }, 1800);
+  } catch {}
 }
 
 // === Comparison Slider Logic ===
