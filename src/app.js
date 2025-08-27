@@ -79,9 +79,27 @@ app.get('/health', (req, res) => {
 
 // Serve static assets from src/public (standard layout)
 const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
-// Expose shared client assets from installed package (robust resolution)
-app.use('/shared', express.static(path.join(__dirname, '..', '..', 'shared')));
-Logger.info('STARTUP', 'Mounted shared static assets at /shared (repo local)');
+// Expose shared client assets; prefer external NudeShared checkout if provided
+const sharedCandidates = [
+    process.env.NUDESHARED_DIR,           // explicit env, e.g. /app/NudeShared
+    '/app/NudeShared',                    // standard container path
+    path.join(__dirname, '..', '..', 'shared') // repo-local fallback
+].filter(Boolean);
+let mountedSharedFrom = '';
+for (const candidate of sharedCandidates) {
+    try {
+        if (candidate && fs.existsSync(candidate)) {
+            app.use('/shared', express.static(candidate));
+            mountedSharedFrom = candidate;
+            break;
+        }
+    } catch { /* ignore */ }
+}
+if (mountedSharedFrom) {
+    Logger.info('STARTUP', `Mounted shared static assets at /shared from ${mountedSharedFrom}`);
+} else {
+    Logger.warn('STARTUP', 'No shared assets directory found; /shared will not be mounted');
+}
 
 // Serve theme.css from app public if present (synced from shared)
 const themeLocal = path.join(__dirname, 'public', 'css', 'theme.css');
