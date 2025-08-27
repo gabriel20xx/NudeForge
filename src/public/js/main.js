@@ -28,6 +28,14 @@ window.addEventListener('DOMContentLoaded', async function() {
   // Always show progress wrapper on load
   const progressWrap = document.getElementById('processingProgressBarWrapper');
   if(progressWrap) progressWrap.hidden = false;
+  // Initialize idle state
+  try {
+    const bar = document.getElementById('processingProgressBar');
+    const label = document.getElementById('processingProgressLabel');
+    if(bar) bar.style.width = '0%';
+    if(label) label.textContent = '0% • Idle';
+    progressWrap?.classList.add('idle');
+  } catch {}
   showElement(comparisonPlaceholder);
   hideElement(comparisonContainer);
   await initializeLoRAs();
@@ -421,6 +429,19 @@ function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; 
 function setStatus(text){ const statusEl = document.getElementById('processingStatus'); if(statusEl) statusEl.textContent = text; }
 function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const meta = document.getElementById('queueMeta');
+  const wrap = document.getElementById('processingProgressBarWrapper');
+  const bar = document.getElementById('processingProgressBar');
+  const label = document.getElementById('processingProgressLabel');
+  // Idle/active visuals
+  if(status === 'processing'){
+    wrap?.classList.remove('idle');
+  } else if(status === 'queued' || status === 'idle' || status === 'completed' || !status){
+    wrap?.classList.add('idle');
+    if(typeof progress?.value !== 'number' || typeof progress?.max !== 'number' || progress.max === 0){
+      if(bar) bar.style.width = '0%';
+      if(label) label.textContent = '0% • Idle';
+    }
+  }
   if(meta){
   // Prefer showing progress over queue meta
   const hasProgress = progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0;

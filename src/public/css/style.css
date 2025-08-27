@@ -30,6 +30,9 @@ h2 { color:var(--color-accent-glow); margin:0 0 .7em; font-size:1.3em; letter-sp
 .processing-progress-track { height:8px; background:var(--color-border); border-radius:4px; overflow:hidden; position:relative; }
 .processing-progress-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--color-accent),var(--color-accent-glow)); transition:width .25s ease; }
 .processing-progress-bar.complete { animation: progress-flash 1.2s ease forwards; }
+/* Idle (dimmed) appearance */
+.processing-progress-wrapper.idle .processing-progress-bar { opacity:.35; filter:saturate(.6); }
+.processing-progress-wrapper.idle .processing-progress-label { color: var(--color-text-dim); }
 @keyframes progress-flash { 0% { filter:brightness(1) saturate(1); } 30% { filter:brightness(1.6) saturate(1.4); } 60% { filter:brightness(1.2) saturate(1.1); } 100% { filter:brightness(1) saturate(1); } }
 .processing-progress-label { margin-top:.35rem; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--color-text-dim); text-align:right; }
 .carousel-container { width:100%; height:200px; overflow:hidden; margin-top: var(--topbar-height); }
