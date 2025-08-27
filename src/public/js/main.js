@@ -62,6 +62,21 @@ const __stageTracker = { encountered: [], lastOverall: 0 };
 window.__nudeForgeStageTracker = __stageTracker;
 window.__nudeForgeConfig = Object.assign(window.__nudeForgeConfig||{}, { useStageWeighting: true });
 
+// Upload button busy-state helper
+function setUploadBusy(busy){
+  if(!uploadButton) return;
+  if(busy){
+    uploadButton.disabled = true;
+    uploadButton.classList.add('disabled');
+    if(!uploadButton.dataset.originalText){ uploadButton.dataset.originalText = uploadButton.textContent || 'Upload'; }
+    uploadButton.textContent = 'Processing...';
+  } else {
+    uploadButton.disabled = false;
+    uploadButton.classList.remove('disabled');
+    try { updateUploadButtonState(); } catch { /* no-op */ }
+  }
+}
+
 // Immediate preview handler (ensures image becomes visible on selection before later enhancements run)
 if (inputImage) {
   inputImage.addEventListener('change', () => {
@@ -332,8 +347,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       gatherAndNormalizeSettings(formData);
   const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
   const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
-  uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
-  if(singleMode && !isAdvanced){ uploadButton.classList.add('disabled'); }
+  setUploadBusy(true);
       try {
         const res = await fetch('/upload', { method:'POST', body: formData });
         if(!res.ok){
@@ -354,8 +368,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   } catch{
         window.toast?.error('Upload error');
       } finally {
-        uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-  if(singleMode && !isAdvanced){ uploadButton.classList.remove('disabled'); }
+  // Keep disabled while active request is being processed
+  if(!activeRequestId){ setUploadBusy(false); }
       }
     });
   }
@@ -435,7 +449,10 @@ function setStatus(text){
   if(typeof text !== 'string'){ statusEl.textContent = ''; return; }
   const norm = text.trim().replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ');
   const title = norm.split(' ').map(w=> w ? (w[0].toUpperCase()+w.slice(1).toLowerCase()) : w).join(' ');
-  const display = title === 'Processing' ? 'Processing:' : (title === 'Unknown' ? 'Finished' : title);
+  let display = title;
+  if(title === 'Processing') display = 'Processing:';
+  else if(title === 'Unknown' || title === 'Finished' || title === 'Completed') display = 'Finished:';
+  else if(title === 'Failed' || title === 'Error') display = 'Error:';
   statusEl.textContent = display;
 }
 function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage }) {
@@ -448,6 +465,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
   if(status === 'processing' || __hasLiveProgressForActive){
     wrap?.classList.remove('idle');
     if(bar){ bar.classList.remove('success'); bar.classList.remove('error'); }
+  setUploadBusy(true);
   } else if(status === 'queued' || status === 'idle' || !status){
     // Do not force reset to Idle on 'completed' here; completion flow handles it
     wrap?.classList.add('idle');
@@ -455,10 +473,12 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
       if(bar) bar.style.width = '0%';
       if(label) label.textContent = 'Idle';
     }
+  if(status === 'queued'){ setUploadBusy(true); } else { setUploadBusy(false); }
   } else if(status === 'failed'){
     wrap?.classList.remove('idle');
     if(bar){ bar.style.width='100%'; bar.classList.add('error'); bar.classList.remove('success'); }
     if(label) label.textContent = 'Failed';
+  setUploadBusy(false);
   }
   if(meta){
     // Suppress queue meta during processing entirely
@@ -468,6 +488,11 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
     } else {
       meta.textContent=''; meta.style.display='none';
     }
+  }
+  // Adjust percent spacing to avoid double gap when meta is hidden
+  if(pctSpan){
+    const metaShown = meta && meta.style.display !== 'none' && meta.textContent !== '';
+    pctSpan.style.marginLeft = metaShown ? '.5em' : '.25em';
   }
   // Progress percentage (numeric) and header mirroring
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
@@ -555,6 +580,7 @@ function handleProcessingComplete(payload){
   if(wrap) wrap.classList.remove('idle');
   if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
   if(label) label.textContent='Finished';
+  setUploadBusy(false);
   } catch {}
 }
 
