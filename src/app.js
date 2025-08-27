@@ -92,11 +92,24 @@ app.use('/shared', express.static(path.resolve(__dirname, '..', '..', 'shared'))
     else Logger.warn('STARTUP', 'No shared assets directory found; /shared middleware registered with fallbacks');
 })();
 
-// Serve theme.css from app public if present (synced from shared)
+// Serve theme.css from app public if present, else fall back to shared
 const themeLocal = path.join(__dirname, 'public', 'css', 'theme.css');
 if (fs.existsSync(themeLocal)) {
     app.get('/assets/theme.css', (req, res) => res.sendFile(themeLocal));
     Logger.info('STARTUP', `Exposed local theme at /assets/theme.css (path=${themeLocal})`);
+} else {
+    const themeCandidates = [
+        path.resolve(__dirname, '..', '..', 'NudeShared', 'theme.css'),
+        path.resolve(__dirname, '..', '..', 'shared', 'theme.css'),
+        '/app/NudeShared/theme.css'
+    ];
+    const foundTheme = themeCandidates.find(p => { try { return p && fs.existsSync(p); } catch { return false; } });
+    if (foundTheme) {
+        app.get('/assets/theme.css', (req, res) => res.sendFile(foundTheme));
+        Logger.info('STARTUP', `Exposed shared theme at /assets/theme.css (path=${foundTheme})`);
+    } else {
+        Logger.warn('STARTUP', 'theme.css not found locally or in shared paths; /assets/theme.css will 404');
+    }
 }
 app.use((req, res, next) => {
     // Allow carousel images route to be handled by dedicated route to apply caching/processing logic
