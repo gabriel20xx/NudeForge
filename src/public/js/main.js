@@ -411,16 +411,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 // === Real-time / Polling Status Handling ===
 let socketInstance = null;
+let __hasLiveProgressForActive = false;
 function ensureSocket(){ if(socketInstance) return socketInstance; if(window.io){ socketInstance = window.io(); } return socketInstance; }
-function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; s.emit('joinRoom', requestId); if(!s._listenersAdded){
+function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; __hasLiveProgressForActive = false; s.emit('joinRoom', requestId); if(!s._listenersAdded){
   s.on('queueUpdate', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; updateStatusUI(payload); });
   // Real-time progress events from server
   s.on('processingProgress', payload=>{
     if(payload.requestId && payload.requestId!==activeRequestId) return;
-    const progress = payload && typeof payload.value==='number' && typeof payload.max==='number'
+  const progress = payload && typeof payload.value==='number' && typeof payload.max==='number'
       ? { value: payload.value, max: payload.max, type: payload.type||'global_steps' }
       : undefined;
-    updateStatusUI({ status:'processing', progress, stage: payload?.stage });
+  if(progress){ __hasLiveProgressForActive = true; }
+  updateStatusUI({ status:'processing', progress, stage: payload?.stage });
   });
   s.on('processingComplete', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; handleProcessingComplete(payload); });
   s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
@@ -440,7 +442,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
   // Idle/active visuals
-  if(status === 'processing'){
+  if(status === 'processing' || __hasLiveProgressForActive){
     wrap?.classList.remove('idle');
   } else if(status === 'queued' || status === 'idle' || !status){
     // Do not force reset to Idle on 'completed' here; completion flow handles it
@@ -451,13 +453,9 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
     }
   }
   if(meta){
-  // Prefer showing progress over queue meta
-  const hasProgress = progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0;
-  if(!hasProgress && status==='queued' && typeof yourPosition==='number'){
+    // Suppress queue meta during processing entirely
+    if(status==='queued' && typeof yourPosition==='number'){
       meta.textContent = `(position ${yourPosition})`;
-      meta.style.display='inline';
-  } else if(!hasProgress && status==='processing' && typeof queueSize==='number'){
-      meta.textContent = `(queue ${queueSize})`;
       meta.style.display='inline';
     } else {
       meta.textContent=''; meta.style.display='none';
@@ -496,6 +494,7 @@ function updateProgressBar(pct, stage, stagePct){
   bar.style.width = pct + '%';
   bar.classList.remove('complete');
   const baseLabel = (pct||0) + '%';
+  // Always update label during progress
   label.textContent = baseLabel;
   if(stage){
     const cleanStage = stage.replace(/\.\.\.$/,'');
@@ -537,6 +536,7 @@ function handleProcessingComplete(payload){
     window.toast?.success('Processing complete');
   }
   activeRequestId=null;
+  __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
   try {
     const wrap = document.getElementById('processingProgressBarWrapper');
