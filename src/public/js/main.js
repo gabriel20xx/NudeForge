@@ -438,7 +438,7 @@ function setStatus(text){
   const display = title === 'Processing' ? 'Processing:' : (title === 'Unknown' ? 'Finished' : title);
   statusEl.textContent = display;
 }
-function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
+function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage }) {
   const meta = document.getElementById('queueMeta');
   const wrap = document.getElementById('processingProgressBarWrapper');
   const bar = document.getElementById('processingProgressBar');
@@ -471,7 +471,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   }
   // Progress percentage (numeric) and header mirroring
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
-    const stageName = progress.stage || '';
+  const stageName = stage || '';
     const rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
     // Two-stage mapping: stage 1 -> 0..80, stage 2 -> 80..100
     let overall = rawPct;
@@ -483,7 +483,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
     }
     __lastOverallPct = overall;
     if(pctSpan) pctSpan.textContent = overall + '%';
-  updateProgressBar(overall, progress.stage, rawPct);
+  updateProgressBar(overall, stageName, rawPct);
   } else {
     // No numeric progress in this update
     if(status === 'processing' || __hasLiveProgressForActive){

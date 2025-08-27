@@ -32,9 +32,11 @@ async function sendWorkflowWithRetry(workflow, requestId) {
     let attempt = 0;
     while (true) { // Wait indefinitely
         try {
+            const body = { prompt: workflow };
+            try { Logger.debug('COMFY_POST', 'Sending to ComfyUI URL=' + COMFYUI_URL + ' body=' + JSON.stringify(body).substring(0, 1000)); } catch {}
             await axios.post(
                 COMFYUI_URL,
-                { prompt: workflow },
+                body,
                 { 
                     headers: { "Content-Type": "application/json" },
                     timeout: 30000 // 30 second timeout
