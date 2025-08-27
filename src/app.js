@@ -9,7 +9,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import Logger from '../../shared/serverLogger.js';
+import Logger from '../../NudeShared/serverLogger.js';
 import { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } from './config/config.js';
 import { connectToComfyUIWebSocket } from './services/websocket.js';
 import { router as routes } from './routes/routes.js';
@@ -79,27 +79,18 @@ app.get('/health', (req, res) => {
 
 // Serve static assets from src/public (standard layout)
 const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
-// Expose shared client assets; prefer external NudeShared checkout if provided
-const sharedCandidates = [
-    process.env.NUDESHARED_DIR,           // explicit env, e.g. /app/NudeShared
-    '/app/NudeShared',                    // standard container path
-    path.join(__dirname, '..', '..', 'shared') // repo-local fallback
-].filter(Boolean);
-let mountedSharedFrom = '';
-for (const candidate of sharedCandidates) {
-    try {
-        if (candidate && fs.existsSync(candidate)) {
-            app.use('/shared', express.static(candidate));
-            mountedSharedFrom = candidate;
-            break;
-        }
-    } catch { /* ignore */ }
-}
-if (mountedSharedFrom) {
-    Logger.info('STARTUP', `Mounted shared static assets at /shared from ${mountedSharedFrom}`);
-} else {
-    Logger.warn('STARTUP', 'No shared assets directory found; /shared will not be mounted');
-}
+// Expose shared client assets
+// Mount multiple locations (first existing wins at request time)
+app.use('/shared', express.static(process.env.NUDESHARED_DIR || '/nonexistent')); // explicit env
+app.use('/shared', express.static('/app/NudeShared')); // Docker standard
+app.use('/shared', express.static(path.resolve(__dirname, '..', '..', 'NudeShared'))); // workspace
+app.use('/shared', express.static(path.resolve(__dirname, '..', '..', 'shared')));     // workspace legacy
+(() => {
+    const tryPaths = [process.env.NUDESHARED_DIR, '/app/NudeShared', path.resolve(__dirname, '..', '..', 'NudeShared'), path.resolve(__dirname, '..', '..', 'shared')].filter(Boolean);
+    const found = tryPaths.find(p => { try { return p && fs.existsSync(p); } catch { return false; } });
+    if (found) Logger.info('STARTUP', `Mounted shared static assets at /shared from ${found}`);
+    else Logger.warn('STARTUP', 'No shared assets directory found; /shared middleware registered with fallbacks');
+})();
 
 // Serve theme.css from app public if present (synced from shared)
 const themeLocal = path.join(__dirname, 'public', 'css', 'theme.css');

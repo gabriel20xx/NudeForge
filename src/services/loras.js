@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { LORAS_DIR } from '../config/config.js';
-import Logger from '../../shared/serverLogger.js';
+import Logger from '../../../NudeShared/serverLogger.js';
 
 // __dirname shim for ESM
 const __filename = fileURLToPath(import.meta.url);

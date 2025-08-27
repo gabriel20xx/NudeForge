@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import Logger from '../../shared/serverLogger.js';
+import Logger from '../../../NudeShared/serverLogger.js';
 import { COMFYUI_WS_URL } from '../config/config.js';
 import { getRequestStatus, getCurrentlyProcessingRequestId } from './queue.js';
 

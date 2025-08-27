@@ -2,7 +2,7 @@ import path from 'path';
 import sharp from 'sharp';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import Logger from '../../shared/serverLogger.js';
+import Logger from '../../../NudeShared/serverLogger.js';
 
 // __dirname shim for ESM
 const __filename = fileURLToPath(import.meta.url);

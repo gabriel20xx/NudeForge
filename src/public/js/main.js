@@ -21,60 +21,12 @@ function enableDownload(url) {
 		if (url) downloadLink.setAttribute('href', url);
 	}
 }
-// --- CAPTCHA Logic (moved from index.ejs) ---
-// Fetch and display advanced SVG CAPTCHA
-async function fetchCaptcha() {
-	const captchaImage = document.getElementById('captchaImage');
-	const captchaToken = document.getElementById('captcha_token');
-	const captchaAnswer = document.getElementById('captcha_answer');
-	if (captchaAnswer) captchaAnswer.value = '';
-	try {
-		const res = await fetch('/captcha');
-		if (!res.ok) throw new Error('Failed to fetch CAPTCHA');
-		const data = await res.json();
-		if (captchaImage) captchaImage.innerHTML = data.image;
-		if (captchaToken) captchaToken.value = data.token;
-  } catch {
-		if (captchaImage) captchaImage.innerHTML = '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
-		if (captchaToken) captchaToken.value = '';
-	}
-}
-
-// Fetch captchaDisabled from API and show/hide CAPTCHA accordingly
-let captchaDisabled = false;
-async function checkCaptchaStatusAndInit() {
-	const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-	try {
-		const res = await fetch('/api/captcha-status');
-		if (res.ok) {
-			const data = await res.json();
-			captchaDisabled = !!data.captchaDisabled;
-		}
-  } catch {
-		captchaDisabled = false;
-	}
-	const captchaContainer = document.getElementById('captchaContainer');
-	const captchaAnswer = document.getElementById('captcha_answer');
-	if (captchaContainer) {
-		if (isLocal || captchaDisabled) {
-			captchaContainer.style.display = 'none';
-			if (captchaAnswer) captchaAnswer.removeAttribute('required');
-		} else {
-			captchaContainer.style.display = '';
-			if (captchaAnswer) captchaAnswer.setAttribute('required', 'required');
-		}
-	}
-	if (!isLocal && !captchaDisabled) fetchCaptcha();
-    
-	// Initialize comparison section - show placeholder, hide container
-	const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
-	const comparisonContainer = document.getElementById('comparisonContainer');
-	showElement(comparisonPlaceholder);
-	hideElement(comparisonContainer);
-}
-
 window.addEventListener('DOMContentLoaded', async function() {
-  await checkCaptchaStatusAndInit();
+  // CAPTCHA removed; proceed with other inits
+  const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+  const comparisonContainer = document.getElementById('comparisonContainer');
+  showElement(comparisonPlaceholder);
+  hideElement(comparisonContainer);
   await initializeLoRAs();
   initializeCarousel();
   const headerOptions = document.querySelector('.header-options');
