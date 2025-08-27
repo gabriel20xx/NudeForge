@@ -25,6 +25,9 @@ window.addEventListener('DOMContentLoaded', async function() {
   // CAPTCHA removed; proceed with other inits
   const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
   const comparisonContainer = document.getElementById('comparisonContainer');
+  // Always show progress wrapper on load
+  const progressWrap = document.getElementById('processingProgressBarWrapper');
+  if(progressWrap) progressWrap.hidden = false;
   showElement(comparisonPlaceholder);
   hideElement(comparisonContainer);
   await initializeLoRAs();
@@ -403,6 +406,14 @@ let socketInstance = null;
 function ensureSocket(){ if(socketInstance) return socketInstance; if(window.io){ socketInstance = window.io(); } return socketInstance; }
 function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; s.emit('joinRoom', requestId); if(!s._listenersAdded){
   s.on('queueUpdate', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; updateStatusUI(payload); });
+  // Real-time progress events from server
+  s.on('processingProgress', payload=>{
+    if(payload.requestId && payload.requestId!==activeRequestId) return;
+    const progress = payload && typeof payload.value==='number' && typeof payload.max==='number'
+      ? { value: payload.value, max: payload.max, type: payload.type||'global_steps' }
+      : undefined;
+    updateStatusUI({ status:'processing', progress, stage: payload?.stage });
+  });
   s.on('processingComplete', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; handleProcessingComplete(payload); });
   s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
   s._listenersAdded = true; }
@@ -411,10 +422,12 @@ function setStatus(text){ const statusEl = document.getElementById('processingSt
 function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const meta = document.getElementById('queueMeta');
   if(meta){
-    if(status==='queued' && typeof yourPosition==='number'){
+  // Prefer showing progress over queue meta
+  const hasProgress = progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0;
+  if(!hasProgress && status==='queued' && typeof yourPosition==='number'){
       meta.textContent = `(position ${yourPosition})`;
       meta.style.display='inline';
-    } else if(status==='processing' && typeof queueSize==='number'){
+  } else if(!hasProgress && status==='processing' && typeof queueSize==='number'){
       meta.textContent = `(queue ${queueSize})`;
       meta.style.display='inline';
     } else {
@@ -447,7 +460,7 @@ function updateProgressBar(pct, stage, stagePct){
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
   if(!wrap || !bar || !label) return;
-  if(pct>0){ wrap.hidden=false; } else if(stage==='completed' || pct===0){ /* keep visible only during processing */ }
+  // Visibility handled by updateUnifiedStatus; keep wrapper shown during processing
   bar.style.width = pct + '%';
   bar.classList.remove('complete');
   const baseLabel = (pct||0) + '%';
@@ -462,7 +475,7 @@ function updateProgressBar(pct, stage, stagePct){
   }
   if(pct>=100){
     bar.classList.add('complete');
-    setTimeout(()=>{ wrap.hidden=true; }, 1800);
+  // Keep the wrapper visible even after completion
   }
 }
 function updateStatusUI(payload){
