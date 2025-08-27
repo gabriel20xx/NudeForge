@@ -412,6 +412,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 // === Real-time / Polling Status Handling ===
 let socketInstance = null;
 let __hasLiveProgressForActive = false;
+let __lastOverallPct = null;
 function ensureSocket(){ if(socketInstance) return socketInstance; if(window.io){ socketInstance = window.io(); } return socketInstance; }
 function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; __hasLiveProgressForActive = false; s.emit('joinRoom', requestId); if(!s._listenersAdded){
   s.on('queueUpdate', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; updateStatusUI(payload); });
@@ -441,6 +442,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
   const wrap = document.getElementById('processingProgressBarWrapper');
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
+  const pctSpan = document.getElementById('progressPct');
   // Idle/active visuals
   if(status === 'processing' || __hasLiveProgressForActive){
     wrap?.classList.remove('idle');
@@ -461,8 +463,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
       meta.textContent=''; meta.style.display='none';
     }
   }
-  // Progress percentage (numeric)
-  const pctSpan = document.getElementById('progressPct');
+  // Progress percentage (numeric) and header mirroring
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
     let rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
     let overall = rawPct;
@@ -478,11 +479,17 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
         overall = Math.min(100, Math.round(((stageIndex + (rawPct/100)) / totalStages) * 100));
       }
     }
+    __lastOverallPct = overall;
     if(pctSpan) pctSpan.textContent = overall + '%';
     updateProgressBar(overall, progress.stage, rawPct);
-  } else if(pctSpan){
-    // No numeric progress. If not processing, leave as-is; queued state sets Idle above.
-    pctSpan.textContent='';
+  } else {
+    // No numeric progress in this update
+    if(status === 'processing' || __hasLiveProgressForActive){
+      // Stick to last known percent during processing updates without progress
+      if(pctSpan && typeof __lastOverallPct === 'number') pctSpan.textContent = __lastOverallPct + '%';
+    } else if(pctSpan){
+      pctSpan.textContent = '';
+    }
   }
 }
 function updateProgressBar(pct, stage, stagePct){
