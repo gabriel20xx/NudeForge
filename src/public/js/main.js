@@ -33,7 +33,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     const bar = document.getElementById('processingProgressBar');
     const label = document.getElementById('processingProgressLabel');
     if(bar) bar.style.width = '0%';
-    if(label) label.textContent = '0% • Idle';
+  if(label) label.textContent = 'Idle';
     progressWrap?.classList.add('idle');
   } catch {}
   showElement(comparisonPlaceholder);
@@ -439,7 +439,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
     wrap?.classList.add('idle');
     if(typeof progress?.value !== 'number' || typeof progress?.max !== 'number' || progress.max === 0){
       if(bar) bar.style.width = '0%';
-      if(label) label.textContent = '0% • Idle';
+      if(label) label.textContent = 'Idle';
     }
   }
   if(meta){
@@ -474,7 +474,12 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
     }
     if(pctSpan) pctSpan.textContent = overall + '%';
     updateProgressBar(overall, progress.stage, rawPct);
-  } else if(pctSpan){ pctSpan.textContent=''; updateProgressBar(0); }
+  } else if(pctSpan){
+    // Idle state: clear percentage in header, keep bar at 0 and label as Idle
+    pctSpan.textContent='';
+    if(bar) bar.style.width = '0%';
+    if(label) label.textContent = 'Idle';
+  }
 }
 function updateProgressBar(pct, stage, stagePct){
   const wrap = document.getElementById('processingProgressBarWrapper');
@@ -496,7 +501,13 @@ function updateProgressBar(pct, stage, stagePct){
   }
   if(pct>=100){
     bar.classList.add('complete');
-  // Keep the wrapper visible even after completion
+    // Keep wrapper visible and reset to idle briefly after completion
+    setTimeout(()=>{
+      const wrap = document.getElementById('processingProgressBarWrapper');
+      wrap?.classList.add('idle');
+      bar.style.width = '0%';
+      label.textContent = 'Idle';
+    }, 2000);
   }
 }
 function updateStatusUI(payload){
