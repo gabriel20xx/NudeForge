@@ -607,6 +607,10 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     }
   // Always grid of thumbnails
   multiPreviewContainer.style.display = '';
+    // Reset to default multi layout first
+    multiPreviewContainer.style.gridTemplateColumns = 'repeat(auto-fit,minmax(120px,1fr))';
+    multiPreviewContainer.style.height = '';
+    multiPreviewContainer.style.maxHeight = '300px';
     const maxThumbs = 12; // safety cap
     if(hasFiles){
       files.slice(0, maxThumbs).forEach((file, idx)=>{
@@ -618,6 +622,18 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       });
     } else if (Array.isArray(sources) && sources.length>0){
       sources.slice(0, maxThumbs).forEach((it, idx)=>{ const wrapper=document.createElement('div'); wrapper.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper); });
+    }
+    // If there is exactly one preview, expand to fill container height with non-cropping fit
+    const items = multiPreviewContainer.querySelectorAll('.multi-preview-item');
+    if(items.length === 1){
+      multiPreviewContainer.style.gridTemplateColumns = '1fr';
+      multiPreviewContainer.style.maxHeight = 'none';
+      multiPreviewContainer.style.height = '100%';
+      const only = items[0];
+      only.style.aspectRatio = 'auto';
+      only.style.height = '100%';
+      const img = only.querySelector('img');
+      if(img){ img.style.height='100%'; img.style.width='auto'; img.style.objectFit='contain'; }
     }
   }
   function updateUploadButtonState(){
@@ -931,7 +947,8 @@ function appendOutputThumb(src, downloadUrl){
   outputGrid.style.height = '100%';
   outputGrid.style.maxHeight = 'none';
       item.style.aspectRatio = 'auto';
-      const i = item.querySelector('img'); if(i){ i.style.height='auto'; i.style.objectFit='contain'; }
+  item.style.height = '100%';
+  const i = item.querySelector('img'); if(i){ i.style.height='100%'; i.style.width='auto'; i.style.objectFit='contain'; }
     } else {
       outputGrid.style.gridTemplateColumns = '';
   outputGrid.style.height = '';
@@ -1246,7 +1263,20 @@ window.addEventListener('storage', (e)=>{
     const addBtn = document.getElementById('addLoraBtn');
     if(!grid) return;
     try {
-      // show loading state
+      // Cache-first: use localStorage to avoid re-scanning across tabs
+      const cacheKey = 'nudeforge:loras:v1';
+      const getCached = () => { try{ const raw = localStorage.getItem(cacheKey); if(!raw) return null; const obj = JSON.parse(raw); if(obj && Array.isArray(obj.models) && obj.models.length){ return obj.models; } }catch{} return null; };
+      const setCached = (models) => { try{ localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), models })); }catch{} };
+      const cached = getCached();
+      if(Array.isArray(cached) && cached.length){
+        grid.innerHTML='';
+        populateInitialLoRAEntryDetailed(grid, cached);
+        if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, cached)); }
+        lorasLoaded = true;
+        window.ClientLogger?.info('Loaded LoRAs from cache', { count: cached.length });
+        return;
+      }
+      // show loading state then fetch once
       grid.innerHTML = '<div class="lora-status" style="font-size:.8em;color:var(--color-text-dim);padding:.25rem .4rem;">Loading LoRAs...</div>';
       const res = await fetch('/api/loras/detailed');
       if(!res.ok) throw new Error('Failed to fetch detailed LoRAs');
@@ -1256,11 +1286,12 @@ window.addEventListener('storage', (e)=>{
       if(models.length===0){
         grid.innerHTML = '<div class="lora-status empty" style="font-size:.8em;color:var(--color-danger);padding:.3rem .4rem;">No LoRA models found.</div>';
         lorasLoaded = true; return; }
+      setCached(models);
       grid.innerHTML='';
       populateInitialLoRAEntryDetailed(grid, models);
       if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
       lorasLoaded = true;
-  window.ClientLogger?.info('Loaded LoRAs (with subdirs)', { count: models.length });
+      window.ClientLogger?.info('Loaded LoRAs (with subdirs)', { count: models.length });
     } catch(e){
   window.ClientLogger?.error('Failed to initialize detailed LoRAs', e);
     }
@@ -1302,6 +1333,42 @@ window.addEventListener('storage', (e)=>{
   // Expose debug
   window.__nudeForge = Object.assign(window.__nudeForge||{}, { flattenDetailedLoras: flattenDetailed });
 })();
+
+// Cross-tab LoRA cache hydration: render from cached list if present and grid is empty
+window.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const grid = document.getElementById('loraGrid');
+    if(!grid) return;
+    if(grid.querySelector('.lora-row')) return; // already populated
+    const raw = localStorage.getItem('nudeforge:loras:v1');
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    const models = obj && Array.isArray(obj.models) ? obj.models : [];
+    if(models.length){
+      grid.innerHTML='';
+      populateInitialLoRAEntryDetailed(grid, models);
+      const addBtn = document.getElementById('addLoraBtn');
+      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+      // do not flip lorasLoaded here to allow future refresh if needed; we only hydrate UI
+    }
+  }catch{}
+});
+
+window.addEventListener('storage', (e)=>{
+  try{
+    if(e.key !== 'nudeforge:loras:v1' || !e.newValue) return;
+    const grid = document.getElementById('loraGrid'); if(!grid) return;
+    if(grid.querySelector('.lora-row')) return; // already filled
+    const obj = JSON.parse(e.newValue);
+    const models = obj && Array.isArray(obj.models) ? obj.models : [];
+    if(models.length){
+      grid.innerHTML='';
+      populateInitialLoRAEntryDetailed(grid, models);
+      const addBtn = document.getElementById('addLoraBtn');
+      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+    }
+  }catch{}
+});
 
 // Define globally referenced helpers (previously inside IIFE)
 function clearSelectedFiles(){
