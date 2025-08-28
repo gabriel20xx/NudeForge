@@ -50,12 +50,14 @@ const dropArea = document.getElementById('dropArea');
 const dropText = document.getElementById('dropText');
 const uploadForm = document.getElementById('uploadForm');
 const downloadLink = document.getElementById('downloadLink');
+const outputGrid = document.getElementById('outputGrid');
 // Removed unused NodeList assignment (was triggering eslint no-unused-vars)
 const uploadButton = uploadForm.querySelector('.upload-btn');
 const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
 const advancedModeToggle = document.getElementById('advancedModeToggle');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
+let activeRequestIds = []; // track multiple when multi-upload
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
@@ -103,6 +105,9 @@ if (inputImage) {
       // Collect selected files (multi mode) but don't render thumbnails here (handled later); just hide placeholder.
       selectedFiles = imageFiles;
       if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
+      if (previewImage) { previewImage.style.display = 'none'; previewImage.removeAttribute('src'); }
+      if (multiPreviewContainer) multiPreviewContainer.style.display = '';
+      if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
     } else {
       const file = imageFiles && imageFiles[0];
       if (file && previewImage) {
@@ -113,6 +118,7 @@ if (inputImage) {
           if (dropText) dropText.style.display = 'none';
         };
         reader.readAsDataURL(file);
+        if (multiPreviewContainer) { multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
       }
     }
     // Background: send copy/copies immediately to /upload-copy (non-blocking) so server stores original in /copy
@@ -325,6 +331,28 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
     if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
   }
+  function renderMultiPreviews(){
+    if(!multiPreviewContainer) return;
+    multiPreviewContainer.innerHTML = '';
+    const files = selectedFiles || [];
+    if(!Array.isArray(files) || files.length === 0){ multiPreviewContainer.style.display='none'; return; }
+    multiPreviewContainer.style.display = '';
+    const maxThumbs = 12; // safety cap
+    files.slice(0, maxThumbs).forEach((file, idx)=>{
+      if(!file) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'multi-preview-item';
+      const img = document.createElement('img');
+      img.alt = file.name || ('image ' + (idx+1));
+      img.loading = 'lazy';
+      img.className = 'multi-preview-img';
+      const reader = new FileReader();
+      reader.onload = ev => { img.src = ev.target.result; };
+      reader.readAsDataURL(file);
+      wrapper.appendChild(img);
+      multiPreviewContainer.appendChild(wrapper);
+    });
+  }
   function updateUploadButtonState(){
     if(!uploadButton) return;
     if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
@@ -339,6 +367,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   // Expose for earlier references
   window.clearSelectedFiles = clearSelectedFiles;
   window.updateUploadButtonState = updateUploadButtonState;
+  window.renderMultiPreviews = renderMultiPreviews;
 
   // Input file change logic
   function gatherAndNormalizeSettings(formData){
@@ -375,12 +404,13 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
           const data = await res.json().catch(()=>({}));
           if(data.requestId){
             activeRequestId = data.requestId;
+            activeRequestIds = Array.isArray(data.requestIds) ? data.requestIds.slice() : [activeRequestId];
             joinStatusChannel(activeRequestId);
             updateStatusUI({ status:'queued', yourPosition: data.yourPosition });
             pollStatus();
-            window.toast?.success('Queued (position '+(data.yourPosition||'?')+')');
+            window.toast?.success('Queued '+(data.queued||1)+' item(s) (first position '+(data.yourPosition||'?')+')');
           } else {
-            window.toast?.success('Added to queue. Position '+ (data.yourPosition||'?'));
+            window.toast?.success('Added to queue.');
           }
         }
   } catch{
@@ -573,6 +603,22 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, {
   updateProgressBar
 });
 async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch { /* silent poll failure */ } if(activeRequestId){ setTimeout(pollStatus, 1500); } }
+function appendOutputThumb(src, downloadUrl){
+  if(!outputGrid) return;
+  outputGrid.style.display='grid';
+  const item = document.createElement('div');
+  item.className='output-item';
+  const img = document.createElement('img');
+  img.src = src + `?t=${Date.now()}`;
+  const dl = document.createElement('a');
+  dl.href = downloadUrl || src;
+  dl.className='download-overlay';
+  dl.textContent='Download';
+  dl.setAttribute('download','');
+  item.appendChild(img);
+  item.appendChild(dl);
+  outputGrid.appendChild(item);
+}
 function handleProcessingComplete(payload){
   setStatus('Finished');
   updateProgressBar(100,'completed');
@@ -582,13 +628,22 @@ function handleProcessingComplete(payload){
     if(img){ img.src = payload.outputImage + `?t=${Date.now()}`; img.style.display='block'; }
     if(ph){ ph.style.display='none'; }
     enableDownload(payload.downloadUrl || payload.outputImage);
+    appendOutputThumb(payload.outputImage, payload.downloadUrl);
     // Show comparison (single mode only or if preview available)
     if(previewImage && previewImage.src){
       showComparison(previewImage.src, payload.outputImage);
     }
     window.toast?.success('Processing complete');
   }
-  activeRequestId=null;
+  // If multiple were queued, remove completed ID and keep polling next
+  if(Array.isArray(activeRequestIds) && activeRequestIds.length>1 && payload.requestId){
+    activeRequestIds = activeRequestIds.filter(id=> id!==payload.requestId);
+    // Advance to next request id for live updates
+    const nextId = activeRequestIds[0];
+    if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); }
+  } else {
+    activeRequestId=null;
+  }
   __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
   try {

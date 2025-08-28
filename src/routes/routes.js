@@ -96,6 +96,24 @@ router.get('/api/carousel-images', (req, res) => {
     });
 });
 
+// API: list output images for Library
+router.get('/api/library-images', async (req, res) => {
+    try {
+        const { OUTPUT_DIR } = await import('../config/config.js');
+        const files = await fs.promises.readdir(OUTPUT_DIR);
+        const images = files
+            .filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f))
+            .sort((a,b) => fs.statSync(path.join(OUTPUT_DIR,b)).mtimeMs - fs.statSync(path.join(OUTPUT_DIR,a)).mtimeMs)
+            .slice(0, 500);
+        // Return paths relative to /output static mount
+        const items = images.map(name => ({ name, url: `/output/${encodeURIComponent(name)}` }));
+        res.json({ success: true, images: items });
+    } catch (err) {
+        Logger.error('LIBRARY', 'Failed to list output images:', err);
+        res.status(500).json({ success: false, error: 'Failed to list library images' });
+    }
+});
+
 // CAPTCHA removed
 
 // API endpoint to get available LoRA models
@@ -216,49 +234,60 @@ router.get('/queue-status', (req, res) => {
     });
 });
 
-router.post('/upload', upload.single('image'), async (req, res) => {
+router.post('/upload', upload.array('image', 12), async (req, res) => {
     try {
-        if (!req.file) {
+        const files = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+        if (!files || files.length === 0) {
             Logger.warn('UPLOAD', 'No file uploaded');
             return res.status(400).send("No file uploaded");
         }
 
-        const uploadedFilename = req.file.filename;
-        const originalFilename = req.file.originalname;
-        const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename);
-        const requestId = uuidv4();
-
         const { prompt, steps, outputHeight, ...loraSettings } = req.body;
+        const initialQueueSize = getProcessingQueue().length;
+        const createdIds = [];
 
-    Logger.info('UPLOAD', `Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
-    Logger.debug('UPLOAD_SETTINGS', 'Raw body settings: ' + JSON.stringify({ prompt, steps, outputHeight, ...loraSettings }));
-        getRequestStatus()[requestId] = {
-            status: "pending",
-            totalNodesInWorkflow: 0,
-            originalFilename: originalFilename,
-            uploadedFilename: uploadedFilename,
-            settings: { prompt, steps, outputHeight, ...loraSettings },
-        };
+        for (const f of files) {
+            const uploadedFilename = f.filename;
+            const originalFilename = f.originalname;
+            const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename);
+            const requestId = uuidv4();
+            createdIds.push(requestId);
 
-        getProcessingQueue().push({
-            requestId,
-            uploadedFilename,
-            originalFilename,
-            uploadedPathForComfyUI,
-        });
+            Logger.info('UPLOAD', `Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
+            Logger.debug('UPLOAD_SETTINGS', 'Raw body settings: ' + JSON.stringify({ prompt, steps, outputHeight, ...loraSettings }));
 
-        Logger.info('QUEUE', `Added to queue. Queue size: ${getProcessingQueue().length}`);
+            getRequestStatus()[requestId] = {
+                status: "pending",
+                totalNodesInWorkflow: 0,
+                originalFilename: originalFilename,
+                uploadedFilename: uploadedFilename,
+                settings: { prompt, steps, outputHeight, ...loraSettings },
+            };
+
+            getProcessingQueue().push({
+                requestId,
+                uploadedFilename,
+                originalFilename,
+                uploadedPathForComfyUI,
+            });
+        }
+
+        Logger.info('QUEUE', `Added ${createdIds.length} item(s) to queue. Queue size: ${getProcessingQueue().length}`);
         if (process.env.SKIP_QUEUE_PROCESSING === 'true') {
             Logger.info('QUEUE', 'Skipping queue processing (test mode)');
         } else {
             processQueue(req.app.get('io'));
         }
 
+        const firstRequestId = createdIds[0];
+        const yourPosition = initialQueueSize + 1;
         res.status(202).json({
-            message: "Image uploaded and added to queue.",
-            requestId: requestId,
+            message: createdIds.length > 1 ? `Images uploaded and added to queue (${createdIds.length}).` : "Image uploaded and added to queue.",
+            requestId: firstRequestId,
+            requestIds: createdIds,
+            queued: createdIds.length,
             queueSize: getProcessingQueue().length,
-            yourPosition: getProcessingQueue().length,
+            yourPosition,
         });
     } catch (_uploadErr) {
         Logger.error('UPLOAD', 'Error handling upload:', _uploadErr);

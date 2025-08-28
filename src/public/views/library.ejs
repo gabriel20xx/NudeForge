@@ -3,8 +3,40 @@
   <div class="main-col">
     <div class="main-section">
       <h2>Your Library</h2>
-      <p style="font-size:var(--font-size-base);color:var(--color-text-dim);">No items yet.</p>
+      <div id="libraryGrid" class="output-grid" style="min-height:200px;"></div>
+      <p id="libraryEmpty" style="font-size:var(--font-size-base);color:var(--color-text-dim);display:none;">No items yet.</p>
     </div>
   </div>
 </div>
+<script>
+  (async function(){
+    const grid = document.getElementById('libraryGrid');
+    const empty = document.getElementById('libraryEmpty');
+    try {
+      const res = await fetch('/api/library-images');
+      if(!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      const items = (data && data.images) || [];
+      if(!items.length){ empty.style.display='block'; return; }
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'output-item';
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.src = item.url;
+        img.alt = item.name;
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.className = 'download-overlay';
+        a.setAttribute('download','');
+        a.textContent = 'Download';
+        div.appendChild(img);
+        div.appendChild(a);
+        grid.appendChild(div);
+      });
+    } catch(e){
+      if(empty){ empty.textContent = 'Failed to load library.'; empty.style.display='block'; }
+    }
+  })();
+</script>
 <%- include('partials/navbar', { active: 'library' }) %>
