@@ -1,32 +1,78 @@
 <%- include('partials/header', { title: 'Library' }) %>
 <div class="main-container" style="padding-top:var(--topbar-height);">
   <div class="main-col">
-    <div class="main-section">
-      <h2>Your Library</h2>
-      <div id="libraryGrid" class="output-grid" style="min-height:200px;"></div>
-      <p id="libraryEmpty" style="font-size:var(--font-size-base);color:var(--color-text-dim);display:none;">No items yet.</p>
+    <div class="main-section" style="padding-top:.75rem;">
+      <div class="library-controls">
+        <label class="mode-toggle">
+          <span>Source:</span>
+          <select id="libraryMode">
+            <option value="local">This browser</option>
+            <option value="api">Server (API)</option>
+          </select>
+        </label>
+      </div>
+      <div id="libraryGrid" class="output-grid library-grid" style="min-height:50vh;"></div>
+      <p id="libraryEmpty" class="library-empty">No items yet.</p>
     </div>
   </div>
 </div>
+<!-- Lightbox / fullscreen viewer -->
+<div id="lightbox" class="lightbox" aria-hidden="true" style="display:none;">
+  <button id="lightboxClose" class="lightbox-close" aria-label="Close">✕</button>
+  <div class="lightbox-inner">
+    <img id="lightboxImg" alt="Preview" />
+    <div class="lightbox-controls">
+      <button id="lightboxPrev" class="lightbox-nav lightbox-prev" aria-label="Previous">◀ Prev</button>
+      <button id="lightboxNext" class="lightbox-nav lightbox-next" aria-label="Next">Next ▶</button>
+    </div>
+  </div>
+  <div class="lightbox-backdrop"></div>
+  
+</div>
 <script>
-  (async function(){
+  (function(){
     const grid = document.getElementById('libraryGrid');
     const empty = document.getElementById('libraryEmpty');
-    try {
+    const modeSel = document.getElementById('libraryMode');
+    const key = 'nudeforge:library:v1';
+    const modeKey = 'nudeforge:library:mode';
+    let items = [];
+    let currentIndex = -1;
+
+    function getMode(){
+      const stored = localStorage.getItem(modeKey);
+      return (stored === 'api' || stored === 'local') ? stored : 'local';
+    }
+    function setMode(m){ localStorage.setItem(modeKey, m); }
+
+    async function fetchFromApi(){
       const res = await fetch('/api/library-images');
-      if(!res.ok) throw new Error('Failed to load');
+      if(!res.ok) throw new Error('API failed');
       const data = await res.json();
-      const items = (data && data.images) || [];
+      const arr = (data && data.images) || [];
+      return arr.map(x => ({ url: x.url, downloadUrl: x.url }));
+    }
+    function fetchFromLocal(){
+      try {
+        const raw = localStorage.getItem(key);
+        const list = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+        return list.map(x => ({ url: x.url, downloadUrl: x.downloadUrl || x.url }));
+      } catch { return []; }
+    }
+    function render(){
+      grid.innerHTML = '';
       if(!items.length){ empty.style.display='block'; return; }
-      items.forEach(item => {
+      empty.style.display='none';
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.className = 'output-item';
         const img = document.createElement('img');
         img.loading = 'lazy';
         img.src = item.url;
-        img.alt = item.name;
+        img.alt = item.url.split('/').pop();
+        img.addEventListener('click', ()=> openLightbox(idx));
         const a = document.createElement('a');
-        a.href = item.url;
+        a.href = item.downloadUrl || item.url;
         a.className = 'download-overlay';
         a.setAttribute('download','');
         a.textContent = 'Download';
@@ -34,9 +80,56 @@
         div.appendChild(a);
         grid.appendChild(div);
       });
-    } catch(e){
-      if(empty){ empty.textContent = 'Failed to load library.'; empty.style.display='block'; }
     }
+    async function load(){
+      const mode = getMode();
+      modeSel.value = mode;
+      try {
+        items = mode === 'api' ? await fetchFromApi() : fetchFromLocal();
+      } catch { items = []; }
+      render();
+    }
+
+    // Lightbox
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const btnPrev = document.getElementById('lightboxPrev');
+    const btnNext = document.getElementById('lightboxNext');
+    const btnClose = document.getElementById('lightboxClose');
+    function openLightbox(idx){
+      if(!items.length) return;
+      currentIndex = Math.max(0, Math.min(idx, items.length-1));
+      const it = items[currentIndex];
+      lightboxImg.src = it.url;
+      lightbox.style.display = 'block';
+      lightbox.setAttribute('aria-hidden','false');
+      document.body.classList.add('no-scroll');
+    }
+    function closeLightbox(){
+      lightbox.style.display = 'none';
+      lightbox.setAttribute('aria-hidden','true');
+      document.body.classList.remove('no-scroll');
+      currentIndex = -1;
+    }
+    function prev(){ if(!items.length) return; openLightbox((currentIndex-1+items.length)%items.length); }
+    function next(){ if(!items.length) return; openLightbox((currentIndex+1)%items.length); }
+    btnPrev.addEventListener('click', prev);
+    btnNext.addEventListener('click', next);
+    btnClose.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) closeLightbox(); });
+    window.addEventListener('keydown', (e)=>{
+      if(lightbox.getAttribute('aria-hidden') === 'false'){
+        if(e.key === 'Escape') closeLightbox();
+        else if(e.key === 'ArrowLeft') prev();
+        else if(e.key === 'ArrowRight') next();
+      }
+    });
+
+    // Mode toggle
+    modeSel.addEventListener('change', ()=>{ setMode(modeSel.value); load(); });
+    // Auto-load and listen for local library changes
+    load();
+    window.addEventListener('storage', (ev)=>{ if(ev.key === key && getMode()==='local') load(); });
   })();
 </script>
 <%- include('partials/navbar', { active: 'library' }) %>

@@ -619,6 +619,21 @@ function appendOutputThumb(src, downloadUrl){
   item.appendChild(dl);
   outputGrid.appendChild(item);
 }
+function addToLocalLibrary(url, downloadUrl){
+  try {
+    const key = 'nudeforge:library:v1';
+    const raw = localStorage.getItem(key);
+    const list = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+    const cleanUrl = String(url||'').split('?')[0];
+    const exists = list.some(it => (it && String(it.url||'').split('?')[0] === cleanUrl));
+    if(!exists){
+      list.unshift({ url: cleanUrl, downloadUrl: downloadUrl||cleanUrl, ts: Date.now() });
+      // Cap to last 500 entries
+      while(list.length > 500) list.pop();
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  } catch { /* ignore storage errors */ }
+}
 function handleProcessingComplete(payload){
   setStatus('Finished');
   updateProgressBar(100,'completed');
@@ -629,6 +644,7 @@ function handleProcessingComplete(payload){
     if(ph){ ph.style.display='none'; }
     enableDownload(payload.downloadUrl || payload.outputImage);
     appendOutputThumb(payload.outputImage, payload.downloadUrl);
+  addToLocalLibrary(payload.outputImage, payload.downloadUrl);
     // Show comparison (single mode only or if preview available)
     if(previewImage && previewImage.src){
       showComparison(previewImage.src, payload.outputImage);
