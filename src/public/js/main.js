@@ -18,7 +18,20 @@ function enableDownload(url) {
 		downloadLink.classList.remove('disabled');
 		const btn = downloadLink.querySelector('button');
 		if (btn) btn.disabled = false;
-		if (url) downloadLink.setAttribute('href', url);
+    if (url) downloadLink.setAttribute('href', url);
+    try {
+      // If multiple images exist in the grid, change label to "Download Latest" and expose a zip-all on right-click via title
+      const imgs = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
+      const btn = downloadLink.querySelector('button');
+      if (imgs.length > 1 && btn) {
+        btn.textContent = 'Download Latest';
+        // Optional hint; actual zip handled below
+        downloadLink.title = 'Right-click to copy link. Use the Zip All control if available.';
+      } else if (btn) {
+        btn.textContent = 'Download';
+        downloadLink.removeAttribute('title');
+      }
+    } catch {}
 	}
 }
 window.addEventListener('DOMContentLoaded', async function() {
@@ -43,6 +56,88 @@ window.addEventListener('DOMContentLoaded', async function() {
   const headerOptions = document.querySelector('.header-options');
   if(headerOptions) headerOptions.style.display='block';
   restoreGeneratorState();
+  // Enhance download for multi: if multiple images are present, add a secondary "Zip All" button dynamically
+  try {
+    const ensureZipAll = () => {
+      const grid = document.getElementById('outputGrid');
+      const imgs = grid ? grid.querySelectorAll('.output-item img') : [];
+      const wrapLink = document.getElementById('downloadLink');
+      if (!wrapLink) return;
+      let zipBtn = document.getElementById('zipAllBtn');
+      if (imgs.length > 1) {
+        if (!zipBtn) {
+          zipBtn = document.createElement('button');
+          zipBtn.id = 'zipAllBtn';
+          zipBtn.type = 'button';
+          zipBtn.className = 'btn download-btn';
+          zipBtn.style.marginLeft = '.5rem';
+          zipBtn.textContent = 'Zip All';
+          wrapLink.insertAdjacentElement('afterend', zipBtn);
+          zipBtn.addEventListener('click', async () => {
+            try {
+              const urls = Array.from(document.querySelectorAll('#outputGrid .output-item a.download-overlay')).map(a => a.getAttribute('href')).filter(Boolean);
+              if (!urls.length) return;
+              // Build a simple client-zip using Blob fetch; fallback to last image if zipping fails
+              const parts = [];
+              for (const u of urls) {
+                try {
+                  const res = await fetch(u);
+                  if (!res.ok) continue;
+                  const b = await res.blob();
+                  parts.push({ name: u.split('/').pop() || 'image.png', blob: b });
+                } catch {}
+              }
+              if (!parts.length) return;
+              // Minimal zip using JSZip if available on page; otherwise, download the latest image
+              if (window.JSZip) {
+                const zip = new window.JSZip();
+                parts.forEach(p => zip.file(p.name, p.blob));
+                const content = await zip.generateAsync({ type: 'blob' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = `nudeforge_outputs_${Date.now()}.zip`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+              } else {
+                // Fallback: trigger download of the latest image (already enabled)
+                const a = document.getElementById('downloadLink');
+                if (a) a.click();
+              }
+            } catch {}
+          });
+        }
+      } else if (zipBtn) {
+        zipBtn.remove();
+      }
+    };
+    // Observe grid for changes to toggle Zip All
+    const grid = document.getElementById('outputGrid');
+    if (grid && window.MutationObserver) {
+      const mo = new MutationObserver(() => ensureZipAll());
+      mo.observe(grid, { childList: true, subtree: false });
+      ensureZipAll();
+    }
+  } catch {}
+  // Output image lightbox hookup
+  try{
+    const grid = document.getElementById('outputGrid');
+    const overlay = document.getElementById('lightboxOverlay');
+    const img = document.getElementById('lightboxImage');
+    const closeBtn = document.getElementById('lightboxClose');
+    const close = ()=>{ if(overlay){ overlay.style.display='none'; if(img){ img.removeAttribute('src'); } } };
+    if(grid && overlay && img){
+      grid.addEventListener('click', (e)=>{
+        const target = e.target && e.target.closest('.output-item img');
+        if(!target) return;
+        e.preventDefault();
+        img.src = target.src.split('?')[0];
+        overlay.style.display = 'flex';
+      });
+    }
+    if(closeBtn){ closeBtn.addEventListener('click', close); }
+    if(overlay){ overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); }); }
+    window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+  }catch{}
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
@@ -117,12 +212,10 @@ if (inputImage) {
     const limitedImages = imageFiles.slice(0, maxFiles);
   const multi = true;
   if (multi) {
-      // Collect selected files (multi mode) but don't render thumbnails here (handled later); just hide placeholder.
-      selectedFiles = limitedImages;
-      if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
-      if (previewImage) { previewImage.style.display = 'none'; previewImage.removeAttribute('src'); }
-      if (multiPreviewContainer) multiPreviewContainer.style.display = '';
-      if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
+    // Collect selected files and let renderer decide single vs multi layout.
+    selectedFiles = limitedImages;
+    if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
+    if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
       // Initialize persisted preview sources from selectedFiles using data URLs (updated later if copy URL becomes available)
       try {
         __persist.selectedPreviewSources = [];
@@ -171,6 +264,73 @@ if (inputImage) {
 function showElement(el){ if(el) el.style.display=''; }
 function hideElement(el){ if(el) el.style.display='none'; }
 function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
+// Convert data URL to Blob
+function dataUrlToBlob(dataUrl){
+  try{
+    const parts = dataUrl.split(',');
+    const header = parts[0];
+    const data = parts[1] || '';
+    const isBase64 = /;base64/i.test(header);
+    const mimeMatch = /^data:([^;]+)(;|,)/i.exec(header);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    if(isBase64){
+      const byteStr = atob(data);
+      const len = byteStr.length;
+      const bytes = new Uint8Array(len);
+      for(let i=0;i<len;i++){ bytes[i] = byteStr.charCodeAt(i); }
+      return new Blob([bytes], { type: mime });
+    } else {
+      const decoded = decodeURIComponent(data);
+      return new Blob([decoded], { type: mime });
+    }
+  } catch { return null; }
+}
+async function getBlobFromSrc(src){
+  try{
+    if(typeof src === 'string' && src.startsWith('data:')){
+      const b = dataUrlToBlob(src); if(b) return b; throw new Error('Invalid data URL');
+    }
+    const res = await fetch(src, { cache: 'no-cache' });
+    if(!res.ok) throw new Error('fetch failed');
+    return await res.blob();
+  } catch(err){ window.ClientLogger?.error('getBlobFromSrc failed', { src, err }); throw err; }
+}
+async function reconstructFilesFromPersistedSources(maxFiles){
+  const sources = Array.isArray(__persist?.selectedPreviewSources) ? __persist.selectedPreviewSources : [];
+  const slice = sources.slice(0, Math.max(1, Number(maxFiles||sources.length)));
+  const out = [];
+  for(const it of slice){
+    try{
+      const blob = await getBlobFromSrc(it.src);
+      const fname = (it && it.filename) ? it.filename : 'image';
+      const type = blob && blob.type ? blob.type : 'image/png';
+      out.push(new File([blob], fname, { type }));
+    } catch(e){ /* skip failed */ }
+  }
+  return out;
+}
+async function rehydrateSelectionFromPersisted(reason){
+  try{
+    const sources = Array.isArray(__persist?.selectedPreviewSources) ? __persist.selectedPreviewSources : [];
+    if(!sources.length) return;
+    // Render previews if missing: single fills the box
+    if(sources.length === 1 && previewImage){
+      previewImage.src = sources[0].src; previewImage.style.display='block';
+      if(multiPreviewContainer){ multiPreviewContainer.style.display='none'; multiPreviewContainer.innerHTML=''; }
+    } else if(multiPreviewContainer && multiPreviewContainer.children.length===0){
+      multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='';
+      sources.forEach((it, idx)=>{ const wrap=document.createElement('div'); wrap.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrap.appendChild(img); multiPreviewContainer.appendChild(wrap); });
+    }
+    if(dropText) dropText.style.display='none';
+    const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+    const files = await reconstructFilesFromPersistedSources(maxFiles);
+    if(files && files.length){
+      selectedFiles = files;
+      if(inputImage){ const dt = new DataTransfer(); files.forEach(f=> dt.items.add(f)); inputImage.files = dt.files; }
+      updateUploadButtonState();
+    }
+  } catch(err){ window.ClientLogger?.warn('rehydrateSelectionFromPersisted failed', { reason, err }); }
+}
 function saveGeneratorState(){
   try{
     const key='nudeforge:generatorState:v1';
@@ -216,6 +376,11 @@ function saveGeneratorState(){
         outputHeight: String(outputHeightVal),
         loras: loraRows
       },
+      // Derived UI flags for placeholder visibility
+      ui: {
+        inputHasSelection: Array.isArray(__persist.selectedPreviewSources) && __persist.selectedPreviewSources.length > 0,
+        outputHasImages: Array.isArray(imgGrid) && imgGrid.length > 0
+      },
       statusText: (document.getElementById('processingStatus')?.textContent)||'',
       progress: {
         pct: (function(){ const s=document.getElementById('processingProgressBar'); if(!s) return null; const w=s.style.width||''; const m=/^(\d+)%$/.exec(w); return m? Number(m[1]) : null; })(),
@@ -243,19 +408,46 @@ function restoreGeneratorState(){
     }
     if(state && Array.isArray(state.selectedPreviewSources) && state.selectedPreviewSources.length>0){
       __persist.selectedPreviewSources = state.selectedPreviewSources;
-      // Render previews from sources
-      if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display=''; }
-      state.selectedPreviewSources.forEach((it, idx)=>{
-        const wrap=document.createElement('div'); wrap.className='multi-preview-item';
-        const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src;
-        wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
-      });
+      // Render previews from sources (single fills the whole box)
+      if(state.selectedPreviewSources.length === 1 && previewImage){
+        previewImage.src = state.selectedPreviewSources[0].src; previewImage.style.display='block';
+        if(multiPreviewContainer){ multiPreviewContainer.style.display='none'; multiPreviewContainer.innerHTML=''; }
+      } else {
+        if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display=''; }
+        state.selectedPreviewSources.forEach((it, idx)=>{
+          const wrap=document.createElement('div'); wrap.className='multi-preview-item';
+          const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src;
+          wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
+        });
+      }
       if(dropText) dropText.style.display='none';
+      // Ensure Upload button is enabled based on persisted selection
+      try{ if(uploadButton){ uploadButton.disabled = false; uploadButton.classList.remove('disabled'); uploadButton.textContent = `Upload All (${state.selectedPreviewSources.length})`; } }catch{}
+      // Optionally reconstruct FileList for the input asynchronously to keep system state consistent
+      try{
+        const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+        reconstructFilesFromPersistedSources(maxFiles).then(files=>{
+          if(files && files.length){
+            selectedFiles = files;
+            // Best-effort: reflect into <input type="file"> using a DataTransfer
+            if(inputImage){ const dt = new DataTransfer(); files.forEach(f=> dt.items.add(f)); inputImage.files = dt.files; }
+            updateUploadButtonState();
+          }
+        }).catch(()=>{});
+      }catch{}
       // Note: selectedFiles remains empty until submission reconstructs
     }
     if(state && Array.isArray(state.outputGrid) && state.outputGrid.length>0){
       const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; dl.setAttribute('download',''); item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
     }
+    // Restore placeholder visibility based on derived UI flags
+    try{
+      const ui = state.ui || {};
+      const inputPh = document.getElementById('dropText');
+      if(inputPh){ inputPh.style.display = ui.inputHasSelection ? 'none' : ''; }
+      const outPh = document.getElementById('outputPlaceholder');
+      if(outPh){ outPh.style.display = (Array.isArray(state.outputGrid) && state.outputGrid.length>0) ? 'none' : ''; }
+    }catch{}
     // Restore Advanced settings values
     if(state && state.settings){
       try{
@@ -466,7 +658,21 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     const files = selectedFiles || [];
     const hasFiles = Array.isArray(files) && files.length>0;
     const sources = __persist.selectedPreviewSources || [];
-    if(!hasFiles && (!Array.isArray(sources) || sources.length===0)){ multiPreviewContainer.style.display='none'; return; }
+    const count = hasFiles ? files.length : (Array.isArray(sources) ? sources.length : 0);
+    if(count === 0){
+      multiPreviewContainer.style.display='none';
+      if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
+      return;
+    }
+    if(count === 1){
+      // Single preview fills the whole box
+      const setSingle = (src)=>{ if(previewImage){ previewImage.src = src; previewImage.style.display='block'; } if(multiPreviewContainer){ multiPreviewContainer.style.display='none'; multiPreviewContainer.innerHTML=''; } };
+      if(hasFiles){
+        const f = files[0]; const reader = new FileReader(); reader.onload = ev => setSingle(ev.target.result); reader.readAsDataURL(f);
+      } else if (sources[0] && sources[0].src){ setSingle(sources[0].src); }
+      return;
+    }
+    // Multiple files -> grid of thumbnails
     multiPreviewContainer.style.display = '';
     const maxThumbs = 12; // safety cap
     if(hasFiles){
@@ -508,6 +714,13 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       e.preventDefault();
       if(!uploadButton || uploadButton.disabled) return;
       const formData = new FormData(uploadForm);
+      // If no live selectedFiles but we have persisted previews (after tab switch), reconstruct File objects
+      if((!selectedFiles || selectedFiles.length===0) && Array.isArray(__persist?.selectedPreviewSources) && __persist.selectedPreviewSources.length>0){
+        try{
+          const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+          selectedFiles = await reconstructFilesFromPersistedSources(maxFiles);
+        } catch {}
+      }
       // Enforce server limit as final guard before appending
       const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
       if (selectedFiles.length > maxFiles) {
@@ -524,9 +737,11 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   const singleMode = false; // always multi mode
   // Determine multi run state for output box behavior
   multiRunActive = !singleMode && selectedFiles && selectedFiles.length > 1;
-  // If multi run, hide the single output image to avoid confusion
+  // Clean output placeholder and disable download on start
   try{
-    if(multiRunActive){ const imgEl=document.getElementById('outputImage'); if(imgEl){ imgEl.style.display='none'; } }
+    const ph=document.getElementById('outputPlaceholder');
+    if(ph){ ph.style.display='none'; }
+    if(typeof _disableDownload === 'function'){ _disableDownload(); }
   }catch{}
   setUploadBusy(true);
       try {
@@ -595,6 +810,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     advancedModeToggle.addEventListener('change', ()=>{ applyAdvancedVisibility(); try{ saveGeneratorState(); }catch{} });
     applyAdvancedVisibility();
   }
+  // Rehydrate selection when page regains visibility/focus (covers browser tab switches)
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible'){ rehydrateSelectionFromPersisted('visibilitychange'); } });
+  window.addEventListener('focus', ()=>{ rehydrateSelectionFromPersisted('focus'); });
   // Persist Advanced inputs and LoRA changes
   const promptEl = document.getElementById('prompt'); if(promptEl){ promptEl.addEventListener('input', ()=>{ try{ saveGeneratorState(); }catch{} }); }
   const stepsEl = document.getElementById('steps'); if(stepsEl){ stepsEl.addEventListener('input', ()=>{ const sv=document.getElementById('stepsValue'); if(sv) sv.textContent=String(stepsEl.value); try{ saveGeneratorState(); }catch{} }); }
@@ -743,8 +961,6 @@ async function pollStatus(){ if(!activeRequestId) return; try { const res = awai
 function appendOutputThumb(src, downloadUrl){
   if(!outputGrid) return;
   outputGrid.style.display='grid';
-  // During multi run, keep single output image hidden
-  try{ if(multiRunActive){ const imgEl=document.getElementById('outputImage'); if(imgEl){ imgEl.style.display='none'; } } }catch{}
   const item = document.createElement('div');
   item.className='output-item';
   const img = document.createElement('img');
@@ -757,6 +973,8 @@ function appendOutputThumb(src, downloadUrl){
   item.appendChild(img);
   item.appendChild(dl);
   outputGrid.appendChild(item);
+  // Ensure placeholder is hidden when an output exists
+  try{ const ph=document.getElementById('outputPlaceholder'); if(ph){ ph.style.display='none'; } }catch{}
   try{ saveGeneratorState(); }catch{}
 }
 function addToLocalLibrary(url, downloadUrl){
@@ -778,21 +996,14 @@ function handleProcessingComplete(payload){
   setStatus('Finished');
   updateProgressBar(100,'completed');
   if(payload.outputImage){
-    const img=document.getElementById('outputImage');
     const ph=document.getElementById('outputPlaceholder');
-    // In multi run, prefer grid; hide single image
-    if(img){
-      if(multiRunActive){ img.style.display='none'; }
-      else { img.src = payload.outputImage + `?t=${Date.now()}`; img.style.display='block'; }
-    }
     if(ph){ ph.style.display='none'; }
-    enableDownload(payload.downloadUrl || payload.outputImage);
+  // For multi outputs, set the download link to the latest image
+  enableDownload(payload.downloadUrl || payload.outputImage);
     appendOutputThumb(payload.outputImage, payload.downloadUrl);
   addToLocalLibrary(payload.outputImage, payload.downloadUrl);
-    // Show comparison (single mode only or if preview available)
-    if(previewImage && previewImage.src){
-      showComparison(previewImage.src, payload.outputImage);
-    }
+  // Show comparison if preview available and advanced mode enabled
+  if(previewImage && previewImage.src){ showComparison(previewImage.src, payload.outputImage); }
     window.toast?.success('Processing complete');
   }
   // If multiple were queued, remove completed ID and keep polling next

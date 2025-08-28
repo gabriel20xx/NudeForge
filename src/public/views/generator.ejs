@@ -28,7 +28,11 @@
         <div id="outputArea" class="image-box">
           <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
           <div id="outputGrid" class="output-grid" style="display:none;"></div>
-          <img id="outputImage" src="" alt="Processed Image" style="display:none;" />
+        </div>
+        <!-- Lightbox for viewing output images full-size -->
+        <div id="lightboxOverlay" class="lightbox-overlay" style="display:none;">
+          <button id="lightboxClose" type="button" class="lightbox-close" aria-label="Close">×</button>
+          <img id="lightboxImage" alt="Full view" />
         </div>
         <a id="downloadLink" href="#" download class="disabled">
           <button class="btn download-btn" type="button" disabled>Download</button>
