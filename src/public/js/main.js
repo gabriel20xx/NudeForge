@@ -20,17 +20,10 @@ function enableDownload(url) {
 		if (btn) btn.disabled = false;
     if (url) downloadLink.setAttribute('href', url);
     try {
-      // If multiple images exist in the grid, change label to "Download Latest" and expose a zip-all on right-click via title
       const imgs = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
-      const btn = downloadLink.querySelector('button');
-      if (imgs.length > 1 && btn) {
-        btn.textContent = 'Download Latest';
-        // Optional hint; actual zip handled below
-        downloadLink.title = 'Right-click to copy link. Use the Zip All control if available.';
-      } else if (btn) {
-        btn.textContent = 'Download';
-        downloadLink.removeAttribute('title');
-      }
+      if (btn) btn.textContent = (imgs.length > 1) ? 'Download All' : 'Download';
+      downloadLink.setAttribute('download','');
+      downloadLink.removeAttribute('title');
     } catch {}
 	}
 }
@@ -46,7 +39,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     const bar = document.getElementById('processingProgressBar');
     const label = document.getElementById('processingProgressLabel');
     if(bar) bar.style.width = '0%';
-  if(label) label.textContent = 'Idle';
+    if(label) label.textContent = 'Idle';
     progressWrap?.classList.add('idle');
   } catch {}
   showElement(comparisonPlaceholder);
@@ -56,68 +49,6 @@ window.addEventListener('DOMContentLoaded', async function() {
   const headerOptions = document.querySelector('.header-options');
   if(headerOptions) headerOptions.style.display='block';
   restoreGeneratorState();
-  // Enhance download for multi: if multiple images are present, add a secondary "Zip All" button dynamically
-  try {
-    const ensureZipAll = () => {
-      const grid = document.getElementById('outputGrid');
-      const imgs = grid ? grid.querySelectorAll('.output-item img') : [];
-      const wrapLink = document.getElementById('downloadLink');
-      if (!wrapLink) return;
-      let zipBtn = document.getElementById('zipAllBtn');
-      if (imgs.length > 1) {
-        if (!zipBtn) {
-          zipBtn = document.createElement('button');
-          zipBtn.id = 'zipAllBtn';
-          zipBtn.type = 'button';
-          zipBtn.className = 'btn download-btn';
-          zipBtn.style.marginLeft = '.5rem';
-          zipBtn.textContent = 'Zip All';
-          wrapLink.insertAdjacentElement('afterend', zipBtn);
-          zipBtn.addEventListener('click', async () => {
-            try {
-              const urls = Array.from(document.querySelectorAll('#outputGrid .output-item a.download-overlay')).map(a => a.getAttribute('href')).filter(Boolean);
-              if (!urls.length) return;
-              // Build a simple client-zip using Blob fetch; fallback to last image if zipping fails
-              const parts = [];
-              for (const u of urls) {
-                try {
-                  const res = await fetch(u);
-                  if (!res.ok) continue;
-                  const b = await res.blob();
-                  parts.push({ name: u.split('/').pop() || 'image.png', blob: b });
-                } catch {}
-              }
-              if (!parts.length) return;
-              // Minimal zip using JSZip if available on page; otherwise, download the latest image
-              if (window.JSZip) {
-                const zip = new window.JSZip();
-                parts.forEach(p => zip.file(p.name, p.blob));
-                const content = await zip.generateAsync({ type: 'blob' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(content);
-                a.download = `nudeforge_outputs_${Date.now()}.zip`;
-                document.body.appendChild(a); a.click(); a.remove();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-              } else {
-                // Fallback: trigger download of the latest image (already enabled)
-                const a = document.getElementById('downloadLink');
-                if (a) a.click();
-              }
-            } catch {}
-          });
-        }
-      } else if (zipBtn) {
-        zipBtn.remove();
-      }
-    };
-    // Observe grid for changes to toggle Zip All
-    const grid = document.getElementById('outputGrid');
-    if (grid && window.MutationObserver) {
-      const mo = new MutationObserver(() => ensureZipAll());
-      mo.observe(grid, { childList: true, subtree: false });
-      ensureZipAll();
-    }
-  } catch {}
   // Output image lightbox hookup
   try{
     const grid = document.getElementById('outputGrid');
@@ -141,14 +72,15 @@ window.addEventListener('DOMContentLoaded', async function() {
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
-const previewImage = document.getElementById('previewImage');
+// previewImage element was removed; keep placeholder null for legacy checks
+const previewImage = null;
 const dropArea = document.getElementById('dropArea');
 const dropText = document.getElementById('dropText');
 const uploadForm = document.getElementById('uploadForm');
 const downloadLink = document.getElementById('downloadLink');
 const outputGrid = document.getElementById('outputGrid');
 // Removed unused NodeList assignment (was triggering eslint no-unused-vars)
-const uploadButton = uploadForm.querySelector('.upload-btn');
+const uploadButton = uploadForm ? uploadForm.querySelector('.upload-btn') : null;
 const allowConcurrentUploadCheckbox = null; // toggle removed: always multi-upload
 const advancedModeToggle = document.getElementById('advancedModeToggle');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
@@ -313,11 +245,8 @@ async function rehydrateSelectionFromPersisted(reason){
   try{
     const sources = Array.isArray(__persist?.selectedPreviewSources) ? __persist.selectedPreviewSources : [];
     if(!sources.length) return;
-    // Render previews if missing: single fills the box
-    if(sources.length === 1 && previewImage){
-      previewImage.src = sources[0].src; previewImage.style.display='block';
-      if(multiPreviewContainer){ multiPreviewContainer.style.display='none'; multiPreviewContainer.innerHTML=''; }
-    } else if(multiPreviewContainer && multiPreviewContainer.children.length===0){
+    // Render previews if missing: always grid
+    if(multiPreviewContainer && multiPreviewContainer.children.length===0){
       multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='';
       sources.forEach((it, idx)=>{ const wrap=document.createElement('div'); wrap.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrap.appendChild(img); multiPreviewContainer.appendChild(wrap); });
     }
@@ -408,18 +337,13 @@ function restoreGeneratorState(){
     }
     if(state && Array.isArray(state.selectedPreviewSources) && state.selectedPreviewSources.length>0){
       __persist.selectedPreviewSources = state.selectedPreviewSources;
-      // Render previews from sources (single fills the whole box)
-      if(state.selectedPreviewSources.length === 1 && previewImage){
-        previewImage.src = state.selectedPreviewSources[0].src; previewImage.style.display='block';
-        if(multiPreviewContainer){ multiPreviewContainer.style.display='none'; multiPreviewContainer.innerHTML=''; }
-      } else {
-        if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display=''; }
-        state.selectedPreviewSources.forEach((it, idx)=>{
-          const wrap=document.createElement('div'); wrap.className='multi-preview-item';
-          const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src;
-          wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
-        });
-      }
+      // Render previews from sources (always grid)
+      if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display=''; }
+      state.selectedPreviewSources.forEach((it, idx)=>{
+        const wrap=document.createElement('div'); wrap.className='multi-preview-item';
+        const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src;
+        wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
+      });
       if(dropText) dropText.style.display='none';
       // Ensure Upload button is enabled based on persisted selection
       try{ if(uploadButton){ uploadButton.disabled = false; uploadButton.classList.remove('disabled'); uploadButton.textContent = `Upload All (${state.selectedPreviewSources.length})`; } }catch{}
@@ -509,17 +433,16 @@ async function initializeCarousel(){
   if(carouselInitialized) return;
   const slideContainer = document.querySelector('.carousel-slide');
   if(!slideContainer) return;
-  try {
-    const res = await fetch('/api/carousel-images');
-    if(!res.ok) throw new Error('Failed to fetch carousel images');
-    let images = await res.json();
+  const cacheKey = 'nudeforge:carousel-images:v1';
+  function getCached(){ try{ const raw=localStorage.getItem(cacheKey); const arr=JSON.parse(raw); return Array.isArray(arr)? arr : []; }catch{ return []; } }
+  function setCached(arr){ try{ localStorage.setItem(cacheKey, JSON.stringify(Array.isArray(arr)? arr: [])); }catch{} }
+  async function render(images){
     if(!Array.isArray(images) || images.length===0){
-      // Fallback: attempt to probe a known original folder (first few static examples) if available in markup
-  window.ClientLogger?.warn('No carousel images returned from API');
+      window.ClientLogger?.warn('No carousel images (cache or API)');
       if(slideContainer && !slideContainer.querySelector('.carousel-empty')){
         slideContainer.innerHTML = '<div class="carousel-empty" style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--color-text-dim);font-size:.75rem;">No carousel images available</div>';
       }
-      return; // keep retry logic outside
+      return false;
     }
     slideContainer.innerHTML='';
     images.forEach(name => {
@@ -579,8 +502,28 @@ async function initializeCarousel(){
     function _tick(){ /* replaced by startScroll */ }
     // previous tick logic replaced with seamless clone-based scrolling
     carouselInitialized = true;
+    return true;
+  }
+  try {
+    const cached = getCached();
+    if(Array.isArray(cached) && cached.length){
+      const ok = await render(cached);
+      if(ok) return; // rendered from cache, avoid fetch
+    }
+    const res = await fetch('/api/carousel-images');
+    if(!res.ok) throw new Error('Failed to fetch carousel images');
+    let images = await res.json();
+    if(!Array.isArray(images) || images.length===0){
+      window.ClientLogger?.warn('No carousel images returned from API');
+      if(slideContainer && !slideContainer.querySelector('.carousel-empty')){
+        slideContainer.innerHTML = '<div class="carousel-empty" style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--color-text-dim);font-size:.75rem;">No carousel images available</div>';
+      }
+      return;
+    }
+    setCached(images);
+    await render(images);
   } catch(err){
-  window.ClientLogger?.error('Carousel init failed', err);
+    window.ClientLogger?.error('Carousel init failed', err);
   }
 }
 
@@ -650,7 +593,6 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   function clearSelectedFiles(){
     selectedFiles = [];
     if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
-    if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
   }
   function renderMultiPreviews(){
     if(!multiPreviewContainer) return;
@@ -661,19 +603,10 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     const count = hasFiles ? files.length : (Array.isArray(sources) ? sources.length : 0);
     if(count === 0){
       multiPreviewContainer.style.display='none';
-      if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
       return;
     }
-    if(count === 1){
-      // Single preview fills the whole box
-      const setSingle = (src)=>{ if(previewImage){ previewImage.src = src; previewImage.style.display='block'; } if(multiPreviewContainer){ multiPreviewContainer.style.display='none'; multiPreviewContainer.innerHTML=''; } };
-      if(hasFiles){
-        const f = files[0]; const reader = new FileReader(); reader.onload = ev => setSingle(ev.target.result); reader.readAsDataURL(f);
-      } else if (sources[0] && sources[0].src){ setSingle(sources[0].src); }
-      return;
-    }
-    // Multiple files -> grid of thumbnails
-    multiPreviewContainer.style.display = '';
+  // Always grid of thumbnails
+  multiPreviewContainer.style.display = '';
     const maxThumbs = 12; // safety cap
     if(hasFiles){
       files.slice(0, maxThumbs).forEach((file, idx)=>{
@@ -861,24 +794,36 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
   const wrap = document.getElementById('processingProgressBarWrapper');
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
+  // Global bar (always present in header on all pages)
+  const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+  const gBar = document.getElementById('globalProcessingProgressBar');
+  const gLabel = document.getElementById('globalProcessingProgressLabel');
   const pctSpan = document.getElementById('progressPct');
   // Idle/active visuals and end states
   if(status === 'processing' || __hasLiveProgressForActive){
     wrap?.classList.remove('idle');
     if(bar){ bar.classList.remove('success'); bar.classList.remove('error'); }
+    gWrap?.classList.remove('idle');
+    if(gBar){ gBar.classList.remove('success'); gBar.classList.remove('error'); }
   setUploadBusy(true);
   } else if(status === 'queued' || status === 'idle' || !status){
     // Do not force reset to Idle on 'completed' here; completion flow handles it
     wrap?.classList.add('idle');
+    gWrap?.classList.add('idle');
     if(typeof progress?.value !== 'number' || typeof progress?.max !== 'number' || progress.max === 0){
       if(bar) bar.style.width = '0%';
       if(label) label.textContent = 'Idle';
+      if(gBar) gBar.style.width = '0%';
+      if(gLabel) gLabel.textContent = 'Idle';
     }
   if(status === 'queued'){ setUploadBusy(true); } else { setUploadBusy(false); }
   } else if(status === 'failed'){
     wrap?.classList.remove('idle');
     if(bar){ bar.style.width='100%'; bar.classList.add('error'); bar.classList.remove('success'); }
     if(label) label.textContent = 'Failed';
+    gWrap?.classList.remove('idle');
+    if(gBar){ gBar.style.width='100%'; gBar.classList.add('error'); gBar.classList.remove('success'); }
+    if(gLabel) gLabel.textContent = 'Failed';
   setUploadBusy(false);
   }
   if(meta){
@@ -910,13 +855,18 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
     __lastOverallPct = overall;
     if(pctSpan) pctSpan.textContent = overall + '%';
   updateProgressBar(overall, stageName, rawPct);
+  // Mirror to global bar
+  if(gBar){ gBar.style.width = overall + '%'; gBar.classList.remove('complete'); }
+  if(gLabel){ gLabel.textContent = (overall||0) + '%'; }
   } else {
     // No numeric progress in this update
     if(status === 'processing' || __hasLiveProgressForActive){
       // Stick to last known percent during processing updates without progress
-      if(pctSpan && typeof __lastOverallPct === 'number') pctSpan.textContent = __lastOverallPct + '%';
+  if(pctSpan && typeof __lastOverallPct === 'number') pctSpan.textContent = __lastOverallPct + '%';
+  if(gLabel && typeof __lastOverallPct === 'number') gLabel.textContent = __lastOverallPct + '%';
     } else if(pctSpan){
       pctSpan.textContent = '';
+  if(gLabel) gLabel.textContent = 'Idle';
     }
   }
 }
@@ -973,6 +923,22 @@ function appendOutputThumb(src, downloadUrl){
   item.appendChild(img);
   item.appendChild(dl);
   outputGrid.appendChild(item);
+  // Adjust grid when only one image -> use full space (single cell spanning)
+  try{
+    const count = outputGrid.querySelectorAll('.output-item').length;
+    if(count === 1){
+      outputGrid.style.gridTemplateColumns = '1fr';
+  outputGrid.style.height = '100%';
+  outputGrid.style.maxHeight = 'none';
+      item.style.aspectRatio = 'auto';
+      const i = item.querySelector('img'); if(i){ i.style.height='auto'; i.style.objectFit='contain'; }
+    } else {
+      outputGrid.style.gridTemplateColumns = '';
+  outputGrid.style.height = '';
+  outputGrid.style.maxHeight = '';
+      const imgs = outputGrid.querySelectorAll('.output-item img'); imgs.forEach(it=>{ it.style.height='100%'; it.style.objectFit='cover'; });
+    }
+  }catch{}
   // Ensure placeholder is hidden when an output exists
   try{ const ph=document.getElementById('outputPlaceholder'); if(ph){ ph.style.display='none'; } }catch{}
   try{ saveGeneratorState(); }catch{}
@@ -998,12 +964,29 @@ function handleProcessingComplete(payload){
   if(payload.outputImage){
     const ph=document.getElementById('outputPlaceholder');
     if(ph){ ph.style.display='none'; }
-  // For multi outputs, set the download link to the latest image
-  enableDownload(payload.downloadUrl || payload.outputImage);
+  // Update download control based on how many outputs are visible
+  try{
+    const gridImgs = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
+    const total = gridImgs.length + 1; // include the one being added
+    const link = document.getElementById('downloadLink');
+    if(link){
+      const btn = link.querySelector('button');
+      if(btn) btn.textContent = (total > 1) ? 'Download All' : 'Download';
+      link.classList.remove('disabled');
+      if(btn) btn.disabled = false;
+      // Point to the latest for single; multiple handled by click handler
+      link.setAttribute('href', payload.downloadUrl || payload.outputImage);
+      link.setAttribute('download','');
+    }
+  }catch{}
     appendOutputThumb(payload.outputImage, payload.downloadUrl);
   addToLocalLibrary(payload.outputImage, payload.downloadUrl);
-  // Show comparison if preview available and advanced mode enabled
-  if(previewImage && previewImage.src){ showComparison(previewImage.src, payload.outputImage); }
+  // Show comparison if a preview source is available and advanced mode enabled
+  try {
+    const beforeSrc = (__persist && Array.isArray(__persist.selectedPreviewSources) && __persist.selectedPreviewSources[0] && __persist.selectedPreviewSources[0].src)
+      || (document.querySelector('#multiPreviewContainer .multi-preview-item img')?.src);
+    if(beforeSrc){ showComparison(beforeSrc, payload.outputImage); }
+  } catch {}
     window.toast?.success('Processing complete');
   }
   // If multiple were queued, remove completed ID and keep polling next
@@ -1026,11 +1009,82 @@ function handleProcessingComplete(payload){
   if(wrap) wrap.classList.remove('idle');
   if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
   if(label) label.textContent='Finished';
+  // Global bar success state
+  try{
+    const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+    const gBar = document.getElementById('globalProcessingProgressBar');
+    const gLabel = document.getElementById('globalProcessingProgressLabel');
+    if(gWrap) gWrap.classList.remove('idle');
+    if(gBar){ gBar.style.width='100%'; gBar.classList.add('success'); gBar.classList.remove('error'); }
+    if(gLabel) gLabel.textContent='Finished';
+  }catch{}
   setUploadBusy(false);
   // Re-enable multi toggle if it was disabled
   try{ if(allowConcurrentUploadCheckbox){ allowConcurrentUploadCheckbox.disabled = false; allowConcurrentUploadCheckbox.removeAttribute('title'); } }catch{}
   } catch {}
 }
+
+// Cross-tab status sync: write compact progress into localStorage so other tabs update
+(function setupCrossTabSync(){
+  const key = 'nudeforge:status:v1';
+  let lastStr = '';
+  function publish(payload){
+    try{
+      const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+      const gBar = document.getElementById('globalProcessingProgressBar');
+      // Determine visual variant from current classes/state
+      let variant = 'processing';
+      if(gBar && gBar.classList.contains('error')) variant = 'error';
+      else if(gBar && gBar.classList.contains('success')) variant = 'success';
+      else if((gWrap && gWrap.classList.contains('idle'))) variant = 'idle';
+      const obj = {
+        ts: Date.now(),
+        status: document.getElementById('processingStatus')?.textContent || '',
+        pct: (function(){ const s=document.getElementById('globalProcessingProgressBar'); if(!s) return null; const w=s.style.width||''; const m=/^(\d+)%$/.exec(w); return m? Number(m[1]) : null; })(),
+        variant,
+        complete: !!(gBar && gBar.classList.contains('complete'))
+      };
+      const str = JSON.stringify(obj);
+      if(str !== lastStr){ localStorage.setItem(key, str); lastStr = str; }
+    }catch{}
+  }
+  // Hook into our existing update points
+  const _origUpdateStatus = window.__nudeForge?.updateStatusUI || updateStatusUI;
+  window.__nudeForge = Object.assign(window.__nudeForge||{}, {
+    updateStatusUI: (p)=>{ _origUpdateStatus(p); try{ publish(p); }catch{} }
+  });
+  function applyFromData(data){
+    try{
+      const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+      const gBar = document.getElementById('globalProcessingProgressBar');
+      const gLabel = document.getElementById('globalProcessingProgressLabel');
+      const statusEl = document.getElementById('processingStatus');
+      if(statusEl && typeof data.status === 'string'){ statusEl.textContent = data.status; }
+      if(typeof data.pct === 'number'){
+        if(gBar){ gBar.style.width = data.pct + '%'; }
+        if(gLabel){ gLabel.textContent = data.pct + '%'; }
+        if(gWrap){ gWrap.classList.toggle('idle', data.pct === 0 || data.variant === 'idle'); }
+      }
+      // Apply color variant
+      if(gBar){
+        gBar.classList.remove('success','error');
+        if(data.variant === 'success') gBar.classList.add('success');
+        else if(data.variant === 'error') gBar.classList.add('error');
+        // maintain/reflect completion state
+        gBar.classList.toggle('complete', !!data.complete);
+      }
+    } catch {}
+  }
+  window.addEventListener('storage', (e)=>{
+    if(e.key !== key || !e.newValue) return;
+    try{ applyFromData(JSON.parse(e.newValue)); } catch {}
+  });
+  // Hydrate on load for newly opened tabs
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw){ applyFromData(JSON.parse(raw)); }
+  }catch{}
+})();
 
 // === Comparison Slider Logic ===
 let comparisonSliderInitialized = false;
@@ -1106,6 +1160,40 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
     window.ClientLogger?.error('Carousel failed to load images after retries');
   };
 })();
+
+// Cross-tab carousel sync: if another tab updates image list in cache, render without fetching
+window.addEventListener('storage', (e)=>{
+  try{
+    if(e.key !== 'nudeforge:carousel-images:v1' || !e.newValue) return;
+    const slideContainer = document.querySelector('.carousel-slide');
+    if(!slideContainer) return;
+    if(slideContainer.children.length>0) return; // already rendered
+    const arr = JSON.parse(e.newValue);
+    if(Array.isArray(arr) && arr.length){
+      // Ensure our initializer runs again to render from cache
+      if(typeof initializeCarousel === 'function'){
+        // give DOM a tick
+        setTimeout(()=>{ try{ carouselInitialized = false; initializeCarousel(); }catch{} }, 0);
+      }
+    }
+  }catch{}
+});
+
+// Cross-tab carousel sync: if another tab updates image list in cache, render without fetching
+window.addEventListener('storage', (e)=>{
+  try{
+    if(e.key !== 'nudeforge:carousel-images:v1' || !e.newValue) return;
+    const slideContainer = document.querySelector('.carousel-slide');
+    if(!slideContainer) return;
+    if(slideContainer.children.length>0) return; // already rendered
+    const arr = JSON.parse(e.newValue);
+    if(Array.isArray(arr) && arr.length){
+      // render quickly using initializeCarousel's cache path next tick
+      carouselInitialized = false; // force re-run
+      setTimeout(()=> initializeCarousel(), 0);
+    }
+  }catch{}
+});
 
 // Enhance LoRA initialization with loading / empty states
 (function patchLoras(){
@@ -1219,7 +1307,6 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
 function clearSelectedFiles(){
   selectedFiles = [];
   if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
-  if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
   updateDropPlaceholder();
 }
 function updateUploadButtonState(){
