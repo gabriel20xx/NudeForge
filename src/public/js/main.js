@@ -100,15 +100,33 @@ window.__nudeForgeStageTracker = __stageTracker;
 window.__nudeForgeConfig = Object.assign(window.__nudeForgeConfig||{}, { useStageWeighting: true });
 
 // Immediate preview handler (ensures image becomes visible on selection before later enhancements run)
+// On Android, force the standard Files picker instead of the Photos picker by loosening the accept type.
+// We'll still validate and only allow images on the client side.
 if (inputImage) {
+  try {
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    if (isAndroid) {
+      inputImage.setAttribute('accept', '*/*');
+    }
+  } catch { /* ignore UA errors */ }
+
   inputImage.addEventListener('change', () => {
+    // Client-side guard: only allow images
+    const allFiles = Array.from(inputImage.files || []);
+    const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
+    if (allFiles.length > 0 && imageFiles.length === 0) {
+      window.toast?.error('Please select an image file.');
+      inputImage.value = '';
+      return;
+    }
     const multi = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked;
     if (multi) {
       // Collect selected files (multi mode) but don't render thumbnails here (handled later); just hide placeholder.
-      selectedFiles = Array.from(inputImage.files || []);
+      selectedFiles = imageFiles;
       if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
     } else {
-      const file = inputImage.files && inputImage.files[0];
+      const file = imageFiles && imageFiles[0];
       if (file && previewImage) {
         const reader = new FileReader();
         reader.onload = ev => {
