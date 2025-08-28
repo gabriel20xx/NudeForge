@@ -3,8 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import Logger from '../utils/logger.js';
-import { generateCaptcha, verifyCaptcha } from '../services/captcha.js';
+import Logger from '../../../NudeShared/serverLogger.js';
 import { SITE_TITLE } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
 import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
@@ -30,7 +29,7 @@ router.get('/health', (req, res) => {
 
 // Default route: generator (moved former index content into generator view)
 router.get('/', (req, res) => {
-    res.render('generator', { captchaDisabled: process.env.CAPTCHA_DISABLED === 'true', title: 'Generator', siteTitle: SITE_TITLE });
+    res.render('generator', { title: 'Generator', siteTitle: SITE_TITLE });
 });
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
@@ -97,11 +96,7 @@ router.get('/api/carousel-images', (req, res) => {
     });
 });
 
-router.get('/captcha', generateCaptcha);
-
-router.get('/api/captcha-status', (req, res) => {
-    res.json({ captchaDisabled: process.env.CAPTCHA_DISABLED === 'true' });
-});
+// CAPTCHA removed
 
 // API endpoint to get available LoRA models
 router.get('/api/loras', async (req, res) => {
@@ -221,7 +216,7 @@ router.get('/queue-status', (req, res) => {
     });
 });
 
-router.post('/upload', upload.single('image'), verifyCaptcha, async (req, res) => {
+router.post('/upload', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             Logger.warn('UPLOAD', 'No file uploaded');

@@ -4,11 +4,12 @@ import https from 'https';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
+import { createRequire } from 'module';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import Logger from './utils/logger.js';
+import Logger from '../../NudeShared/serverLogger.js';
 import { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } from './config/config.js';
 import { connectToComfyUIWebSocket } from './services/websocket.js';
 import { router as routes } from './routes/routes.js';
@@ -78,10 +79,38 @@ app.get('/health', (req, res) => {
 
 // Serve static assets from src/public (standard layout)
 const staticDir = path.join(__dirname, 'public'); // assets migrated from legacy /public
-// Expose shared client assets (two levels up to monorepo root then NudeShared)
-const sharedDir = path.join(__dirname, '..', '..', 'NudeShared');
-app.use('/shared', express.static(sharedDir));
-Logger.info('STARTUP', `Mounted shared static assets at /shared (dir=${sharedDir})`);
+// Expose shared client assets
+// Mount multiple locations (first existing wins at request time)
+app.use('/shared', express.static(process.env.NUDESHARED_DIR || '/nonexistent')); // explicit env
+app.use('/shared', express.static('/app/NudeShared')); // Docker standard
+app.use('/shared', express.static(path.resolve(__dirname, '..', '..', 'NudeShared'))); // workspace
+app.use('/shared', express.static(path.resolve(__dirname, '..', '..', 'shared')));     // workspace legacy
+(() => {
+    const tryPaths = [process.env.NUDESHARED_DIR, '/app/NudeShared', path.resolve(__dirname, '..', '..', 'NudeShared'), path.resolve(__dirname, '..', '..', 'shared')].filter(Boolean);
+    const found = tryPaths.find(p => { try { return p && fs.existsSync(p); } catch { return false; } });
+    if (found) Logger.info('STARTUP', `Mounted shared static assets at /shared from ${found}`);
+    else Logger.warn('STARTUP', 'No shared assets directory found; /shared middleware registered with fallbacks');
+})();
+
+// Serve theme.css from app public if present, else fall back to shared
+const themeLocal = path.join(__dirname, 'public', 'css', 'theme.css');
+if (fs.existsSync(themeLocal)) {
+    app.get('/assets/theme.css', (req, res) => res.sendFile(themeLocal));
+    Logger.info('STARTUP', `Exposed local theme at /assets/theme.css (path=${themeLocal})`);
+} else {
+    const themeCandidates = [
+        path.resolve(__dirname, '..', '..', 'NudeShared', 'theme.css'),
+        path.resolve(__dirname, '..', '..', 'shared', 'theme.css'),
+        '/app/NudeShared/theme.css'
+    ];
+    const foundTheme = themeCandidates.find(p => { try { return p && fs.existsSync(p); } catch { return false; } });
+    if (foundTheme) {
+        app.get('/assets/theme.css', (req, res) => res.sendFile(foundTheme));
+        Logger.info('STARTUP', `Exposed shared theme at /assets/theme.css (path=${foundTheme})`);
+    } else {
+        Logger.warn('STARTUP', 'theme.css not found locally or in shared paths; /assets/theme.css will 404');
+    }
+}
 app.use((req, res, next) => {
     // Allow carousel images route to be handled by dedicated route to apply caching/processing logic
     if (req.path.startsWith('/images/carousel/') && !req.path.includes('/thumbnails/')) {
@@ -195,9 +224,15 @@ async function startServer(port = PORT) {
     });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-    const desiredPort = process.env.PORT || PORT;
-    startServer(desiredPort);
+try {
+    const executedScript = process.argv[1] ? path.resolve(process.argv[1]) : '';
+    const currentModule = path.resolve(fileURLToPath(import.meta.url));
+    if (executedScript && executedScript === currentModule) {
+        const desiredPort = process.env.PORT || PORT;
+        startServer(desiredPort);
+    }
+} catch {
+    // no-op
 }
 
 export { app, server, startServer };

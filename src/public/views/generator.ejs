@@ -2,11 +2,11 @@
 <div class="carousel-container">
   <div class="carousel-slide"></div>
 </div>
-<div id="processingProgressBarWrapper" class="processing-progress-wrapper" hidden>
+<div id="processingProgressBarWrapper" class="processing-progress-wrapper">
   <div class="processing-progress-track">
     <div id="processingProgressBar" class="processing-progress-bar"></div>
+    <div id="processingProgressLabel" class="processing-progress-label">Idle</div>
   </div>
-  <div id="processingProgressLabel" class="processing-progress-label">0%</div>
 </div>
 <form id="uploadForm" enctype="multipart/form-data">
   <div class="main-container">
@@ -61,7 +61,7 @@
           <h2>Settings</h2>
           <div class="settings-box">
             <label for="prompt" class="settings-label">Prompt</label>
-            <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. Preserve the person in the exact same position, scale, and pose. Preserve skin color and body type. Preserve the exact same face details, shape and expression. Preserve jewelry, accessories and tattoos. If hair, hands, arms, feet or legs block the view to the breasts or vagina, move them out of the way." />
+            <input type="text" id="prompt" name="prompt" class="settings-input" value="Change clothes to nothing revealing realistic and detailed skin, breasts and nipples. Preserve the person in the exact same position, scale, and pose. Preserve skin color and body type. Preserve the exact same face details, shape and expression. Preserve jewelry, accessories and tattoos. If hair, hands, arms, feet or legs block the view to the breasts, nipples or vagina, move them out of the way." />
             <div class="settings-row">
               <div class="settings-item">
                 <label for="steps" class="settings-label">Steps</label>
@@ -100,15 +100,7 @@
                 <button type="button" id="addLoraBtn" class="btn lora-add-btn">+ Add LoRA</button>
               </div>
             </fieldset>
-            <div class="captcha-container" id="captchaContainer">
-              <div class="captcha-row">
-                <span id="captchaImage"></span>
-                <button type="button" class="refresh-captcha-btn" onclick="fetchCaptcha()" title="Refresh CAPTCHA">&#x21bb;</button>
-              </div>
-              <input type="text" id="captcha_answer" name="captcha_answer" placeholder="Enter CAPTCHA" required autocomplete="off" class="captcha-input" />
-              <input type="hidden" id="captcha_token" name="captcha_token" />
-              <div id="captchaError" class="captcha-error"></div>
-            </div>
+            <!-- CAPTCHA removed -->
           </div>
         </div>
       </div>

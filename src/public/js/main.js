@@ -21,60 +21,23 @@ function enableDownload(url) {
 		if (url) downloadLink.setAttribute('href', url);
 	}
 }
-// --- CAPTCHA Logic (moved from index.ejs) ---
-// Fetch and display advanced SVG CAPTCHA
-async function fetchCaptcha() {
-	const captchaImage = document.getElementById('captchaImage');
-	const captchaToken = document.getElementById('captcha_token');
-	const captchaAnswer = document.getElementById('captcha_answer');
-	if (captchaAnswer) captchaAnswer.value = '';
-	try {
-		const res = await fetch('/captcha');
-		if (!res.ok) throw new Error('Failed to fetch CAPTCHA');
-		const data = await res.json();
-		if (captchaImage) captchaImage.innerHTML = data.image;
-		if (captchaToken) captchaToken.value = data.token;
-  } catch {
-		if (captchaImage) captchaImage.innerHTML = '<span style="color:#ff4d4d">Failed to load CAPTCHA</span>';
-		if (captchaToken) captchaToken.value = '';
-	}
-}
-
-// Fetch captchaDisabled from API and show/hide CAPTCHA accordingly
-let captchaDisabled = false;
-async function checkCaptchaStatusAndInit() {
-	const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-	try {
-		const res = await fetch('/api/captcha-status');
-		if (res.ok) {
-			const data = await res.json();
-			captchaDisabled = !!data.captchaDisabled;
-		}
-  } catch {
-		captchaDisabled = false;
-	}
-	const captchaContainer = document.getElementById('captchaContainer');
-	const captchaAnswer = document.getElementById('captcha_answer');
-	if (captchaContainer) {
-		if (isLocal || captchaDisabled) {
-			captchaContainer.style.display = 'none';
-			if (captchaAnswer) captchaAnswer.removeAttribute('required');
-		} else {
-			captchaContainer.style.display = '';
-			if (captchaAnswer) captchaAnswer.setAttribute('required', 'required');
-		}
-	}
-	if (!isLocal && !captchaDisabled) fetchCaptcha();
-    
-	// Initialize comparison section - show placeholder, hide container
-	const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
-	const comparisonContainer = document.getElementById('comparisonContainer');
-	showElement(comparisonPlaceholder);
-	hideElement(comparisonContainer);
-}
-
 window.addEventListener('DOMContentLoaded', async function() {
-  await checkCaptchaStatusAndInit();
+  // CAPTCHA removed; proceed with other inits
+  const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+  const comparisonContainer = document.getElementById('comparisonContainer');
+  // Always show progress wrapper on load
+  const progressWrap = document.getElementById('processingProgressBarWrapper');
+  if(progressWrap) progressWrap.hidden = false;
+  // Initialize idle state
+  try {
+    const bar = document.getElementById('processingProgressBar');
+    const label = document.getElementById('processingProgressLabel');
+    if(bar) bar.style.width = '0%';
+  if(label) label.textContent = 'Idle';
+    progressWrap?.classList.add('idle');
+  } catch {}
+  showElement(comparisonPlaceholder);
+  hideElement(comparisonContainer);
   await initializeLoRAs();
   initializeCarousel();
   const headerOptions = document.querySelector('.header-options');
@@ -98,6 +61,21 @@ let selectedFiles = []; // ensure declared (used in multi-upload logic)
 const __stageTracker = { encountered: [], lastOverall: 0 };
 window.__nudeForgeStageTracker = __stageTracker;
 window.__nudeForgeConfig = Object.assign(window.__nudeForgeConfig||{}, { useStageWeighting: true });
+
+// Upload button busy-state helper
+function setUploadBusy(busy){
+  if(!uploadButton) return;
+  if(busy){
+    uploadButton.disabled = true;
+    uploadButton.classList.add('disabled');
+    if(!uploadButton.dataset.originalText){ uploadButton.dataset.originalText = uploadButton.textContent || 'Upload'; }
+    uploadButton.textContent = 'Processing...';
+  } else {
+    uploadButton.disabled = false;
+    uploadButton.classList.remove('disabled');
+    try { updateUploadButtonState(); } catch { /* no-op */ }
+  }
+}
 
 // Immediate preview handler (ensures image becomes visible on selection before later enhancements run)
 // On Android, force the standard Files picker instead of the Photos picker by loosening the accept type.
@@ -387,8 +365,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       gatherAndNormalizeSettings(formData);
   const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
   const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
-  uploadButton.disabled = true; uploadButton.textContent = 'Uploading...';
-  if(singleMode && !isAdvanced){ uploadButton.classList.add('disabled'); }
+  setUploadBusy(true);
       try {
         const res = await fetch('/upload', { method:'POST', body: formData });
         if(!res.ok){
@@ -409,8 +386,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   } catch{
         window.toast?.error('Upload error');
       } finally {
-        uploadButton.disabled = false; uploadButton.textContent = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-  if(singleMode && !isAdvanced){ uploadButton.classList.remove('disabled'); }
+  // Keep disabled while active request is being processed
+  if(!activeRequestId){ setUploadBusy(false); }
       }
     });
   }
@@ -456,19 +433,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function applyAdvancedVisibility(){
     const enabled = advancedModeToggle && advancedModeToggle.checked;
     if(settingsSection) settingsSection.style.display = enabled ? 'block':'none';
-    if(comparisonSection){
-      // Only show comparison section proactively if enabled; it will still be forced visible when a comparison is shown
-      if(enabled) {
-        // keep hidden until content appears unless already has image
-        if(!comparisonSection.querySelector('#comparisonContainer')?.style.display || comparisonSection.querySelector('#comparisonContainer')?.style.display==='none'){
-          comparisonSection.style.display='none';
-        } else {
-          comparisonSection.style.display='block';
-        }
-      } else {
-        comparisonSection.style.display='none';
-      }
-    }
+    if(comparisonSection) comparisonSection.style.display = enabled ? 'block' : 'none';
   }
   if(advancedModeToggle){
     advancedModeToggle.addEventListener('change', applyAdvancedVisibility);
@@ -478,57 +443,110 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 // === Real-time / Polling Status Handling ===
 let socketInstance = null;
+let __hasLiveProgressForActive = false;
+let __lastOverallPct = null;
 function ensureSocket(){ if(socketInstance) return socketInstance; if(window.io){ socketInstance = window.io(); } return socketInstance; }
-function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; s.emit('joinRoom', requestId); if(!s._listenersAdded){
+function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; __hasLiveProgressForActive = false; s.emit('joinRoom', requestId); if(!s._listenersAdded){
   s.on('queueUpdate', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; updateStatusUI(payload); });
+  // Real-time progress events from server
+  s.on('processingProgress', payload=>{
+    if(payload.requestId && payload.requestId!==activeRequestId) return;
+  const progress = payload && typeof payload.value==='number' && typeof payload.max==='number'
+      ? { value: payload.value, max: payload.max, type: payload.type||'global_steps' }
+      : undefined;
+  if(progress){ __hasLiveProgressForActive = true; }
+  updateStatusUI({ status:'processing', progress, stage: payload?.stage });
+  });
   s.on('processingComplete', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; handleProcessingComplete(payload); });
   s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
   s._listenersAdded = true; }
 }
-function setStatus(text){ const statusEl = document.getElementById('processingStatus'); if(statusEl) statusEl.textContent = text; }
-function updateUnifiedStatus({ status, yourPosition, queueSize, progress }) {
+function setStatus(text){
+  const statusEl = document.getElementById('processingStatus');
+  if(!statusEl) return;
+  if(typeof text !== 'string'){ statusEl.textContent = ''; return; }
+  const norm = text.trim().replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ');
+  const title = norm.split(' ').map(w=> w ? (w[0].toUpperCase()+w.slice(1).toLowerCase()) : w).join(' ');
+  let display = title;
+  if(title === 'Processing') display = 'Processing:';
+  else if(title === 'Unknown' || title === 'Finished' || title === 'Completed') display = 'Finished:';
+  else if(title === 'Failed' || title === 'Error') display = 'Error:';
+  statusEl.textContent = display;
+}
+function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage }) {
   const meta = document.getElementById('queueMeta');
+  const wrap = document.getElementById('processingProgressBarWrapper');
+  const bar = document.getElementById('processingProgressBar');
+  const label = document.getElementById('processingProgressLabel');
+  const pctSpan = document.getElementById('progressPct');
+  // Idle/active visuals and end states
+  if(status === 'processing' || __hasLiveProgressForActive){
+    wrap?.classList.remove('idle');
+    if(bar){ bar.classList.remove('success'); bar.classList.remove('error'); }
+  setUploadBusy(true);
+  } else if(status === 'queued' || status === 'idle' || !status){
+    // Do not force reset to Idle on 'completed' here; completion flow handles it
+    wrap?.classList.add('idle');
+    if(typeof progress?.value !== 'number' || typeof progress?.max !== 'number' || progress.max === 0){
+      if(bar) bar.style.width = '0%';
+      if(label) label.textContent = 'Idle';
+    }
+  if(status === 'queued'){ setUploadBusy(true); } else { setUploadBusy(false); }
+  } else if(status === 'failed'){
+    wrap?.classList.remove('idle');
+    if(bar){ bar.style.width='100%'; bar.classList.add('error'); bar.classList.remove('success'); }
+    if(label) label.textContent = 'Failed';
+  setUploadBusy(false);
+  }
   if(meta){
+    // Suppress queue meta during processing entirely
     if(status==='queued' && typeof yourPosition==='number'){
       meta.textContent = `(position ${yourPosition})`;
-      meta.style.display='inline';
-    } else if(status==='processing' && typeof queueSize==='number'){
-      meta.textContent = `(queue ${queueSize})`;
       meta.style.display='inline';
     } else {
       meta.textContent=''; meta.style.display='none';
     }
   }
-  // Progress percentage (numeric)
-  const pctSpan = document.getElementById('progressPct');
+  // Adjust percent spacing to avoid double gap when meta is hidden
+  if(pctSpan){
+    const metaShown = meta && meta.style.display !== 'none' && meta.textContent !== '';
+    pctSpan.style.marginLeft = metaShown ? '.5em' : '.25em';
+  }
+  // Progress percentage (numeric) and header mirroring
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
-    let rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
+  const stageName = stage || '';
+    const rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
+    // Two-stage mapping: stage 1 -> 0..80, stage 2 -> 80..100
     let overall = rawPct;
-    let stageName = progress.stage;
-    if(window.__nudeForgeConfig?.useStageWeighting && stageName){
-      if(!__stageTracker.encountered.includes(stageName)){
-        __stageTracker.encountered.push(stageName);
-      }
-      const stageIndex = __stageTracker.encountered.indexOf(stageName);
-      const totalStages = __stageTracker.encountered.length;
-      if(totalStages > 1){
-        // Simple equal-weight heuristic (may cause slight drop when a new stage first appears).
-        overall = Math.min(100, Math.round(((stageIndex + (rawPct/100)) / totalStages) * 100));
-      }
+    if(/Stage\s*1/i.test(stageName)){
+      overall = Math.min(80, Math.round(rawPct * 0.8));
+    } else if(/Stage\s*2/i.test(stageName)){
+      // Map rawPct 0..100 to 80..100
+      overall = Math.min(100, Math.round(80 + (rawPct * 0.20)));
     }
+    __lastOverallPct = overall;
     if(pctSpan) pctSpan.textContent = overall + '%';
-    updateProgressBar(overall, progress.stage, rawPct);
-  } else if(pctSpan){ pctSpan.textContent=''; updateProgressBar(0); }
+  updateProgressBar(overall, stageName, rawPct);
+  } else {
+    // No numeric progress in this update
+    if(status === 'processing' || __hasLiveProgressForActive){
+      // Stick to last known percent during processing updates without progress
+      if(pctSpan && typeof __lastOverallPct === 'number') pctSpan.textContent = __lastOverallPct + '%';
+    } else if(pctSpan){
+      pctSpan.textContent = '';
+    }
+  }
 }
 function updateProgressBar(pct, stage, stagePct){
   const wrap = document.getElementById('processingProgressBarWrapper');
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
   if(!wrap || !bar || !label) return;
-  if(pct>0){ wrap.hidden=false; } else if(stage==='completed' || pct===0){ /* keep visible only during processing */ }
+  // Visibility handled by updateUnifiedStatus; keep wrapper shown during processing
   bar.style.width = pct + '%';
   bar.classList.remove('complete');
   const baseLabel = (pct||0) + '%';
+  // Always update label during progress
   label.textContent = baseLabel;
   if(stage){
     const cleanStage = stage.replace(/\.\.\.$/,'');
@@ -540,7 +558,8 @@ function updateProgressBar(pct, stage, stagePct){
   }
   if(pct>=100){
     bar.classList.add('complete');
-    setTimeout(()=>{ wrap.hidden=true; }, 1800);
+  // Keep wrapper visible; reset to Idle handled after completion event
+  // If completed, label should read Finished when handleProcessingComplete runs
   }
 }
 function updateStatusUI(payload){
@@ -555,7 +574,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, {
 });
 async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch { /* silent poll failure */ } if(activeRequestId){ setTimeout(pollStatus, 1500); } }
 function handleProcessingComplete(payload){
-  setStatus('completed');
+  setStatus('Finished');
   updateProgressBar(100,'completed');
   if(payload.outputImage){
     const img=document.getElementById('outputImage');
@@ -570,6 +589,17 @@ function handleProcessingComplete(payload){
     window.toast?.success('Processing complete');
   }
   activeRequestId=null;
+  __hasLiveProgressForActive = false;
+  // Reset progress display to Idle shortly after finish
+  try {
+  const wrap = document.getElementById('processingProgressBarWrapper');
+  const bar = document.getElementById('processingProgressBar');
+  const label = document.getElementById('processingProgressLabel');
+  if(wrap) wrap.classList.remove('idle');
+  if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
+  if(label) label.textContent='Finished';
+  setUploadBusy(false);
+  } catch {}
 }
 
 // === Comparison Slider Logic ===
@@ -609,9 +639,10 @@ function showComparison(beforeSrc, afterSrc){
   if(afterImg && afterSrc){ afterImg.src = afterSrc + `?t=${Date.now()}`; afterImg.style.display='block'; }
   if(placeholder) placeholder.style.display='none';
   if(container) container.style.display='block';
-  // Ensure section visible (in case advanced mode not toggled)
+  // Only show comparison section when Advanced mode is enabled
   const section = document.getElementById('comparisonSection');
-  if(section && section.style.display==='none') section.style.display='block';
+  const enabled = advancedModeToggle && advancedModeToggle.checked;
+  if(section) section.style.display = enabled ? 'block' : 'none';
   // Reset baseline positions
   const after = container && container.querySelector('.comparison-after');
   const slider = container && container.querySelector('.comparison-slider');

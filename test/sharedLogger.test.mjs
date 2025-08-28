@@ -69,7 +69,7 @@ function postMultipart(pathUrl, base, fields, fileField){
   // 10. Upload (queue) - should return 202 with requestId
   let uploadedRequestId;
   {
-    const res = await withTimeout(postMultipart('/upload', base, { captcha_answer:'dummy', captcha_token:'dummy', prompt:'hello', steps:'5' }, { filename:'in.png', content:'filedata', contentType:'image/png' }), 5000, 'upload');
+    const res = await withTimeout(postMultipart('/upload', base, { prompt:'hello', steps:'5' }, { filename:'in.png', content:'filedata', contentType:'image/png' }), 5000, 'upload');
     assert.strictEqual(res.statusCode, 202, 'upload 202');
     const json = JSON.parse(res.body);
     assert.ok(json.requestId, 'requestId present');
@@ -96,12 +96,6 @@ function postMultipart(pathUrl, base, fields, fileField){
     const arr = JSON.parse(res.body); assert.ok(Array.isArray(arr), 'carousel images array');
   }
 
-  // 4. CAPTCHA status
-  {
-    const res = await withTimeout(get('/api/captcha-status', base), 3000, 'captcha-status');
-    assert.strictEqual(res.statusCode, 200, 'captcha-status 200');
-    const json = JSON.parse(res.body); assert.ok('captchaDisabled' in json, 'captchaDisabled key');
-  }
 
   // 5. LoRAs simple list (allow 200 or 500 depending on env)
   {

@@ -7,7 +7,8 @@
     "start": "node src/app.js",
     "dev": "NODE_ENV=development node src/app.js",
     "prod": "NODE_ENV=production node src/app.js",
-    "postinstall": "npm rebuild sharp",
+  "sync:shared": "node ../scripts/sync-shared.mjs",
+  "postinstall": "npm rebuild sharp",
   "deploy": "chmod +x deploy.sh && ./deploy.sh",
   "lint": "eslint \"src/**/*.js\" --max-warnings=0",
   "lint:fix": "eslint \"src/**/*.js\" --fix",
@@ -23,7 +24,6 @@
     "multer": "^2.0.1",
     "sharp": "^0.33.5",
     "socket.io": "^4.8.1",
-    "svg-captcha": "^1.4.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.3",
     "selfsigned": "^2.4.1"
