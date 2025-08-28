@@ -88,6 +88,8 @@ let activeRequestId = null; // track current processing request
 let activeRequestIds = []; // track multiple when multi-upload
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
 let multiRunActive = false; // true while a multi-upload batch (>1) is being processed
+let multiRunTotalCount = 0; // total images in current batch
+let multiRunDoneCount = 0;  // completed (success or fail) in current batch
 let __persist = { selectedPreviewSources: [], comparisonSplitPct: null }; // fallback sources for previews and comparison slider
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
@@ -703,6 +705,10 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
           if(data.requestId){
             activeRequestId = data.requestId;
             activeRequestIds = Array.isArray(data.requestIds) ? data.requestIds.slice() : [activeRequestId];
+              // initialize batch counters
+              multiRunTotalCount = activeRequestIds.length;
+              multiRunDoneCount = 0;
+              multiRunActive = multiRunTotalCount > 1;
             joinStatusChannel(activeRequestId);
             updateStatusUI({ status:'queued', yourPosition: data.yourPosition });
             pollStatus();
@@ -790,7 +796,21 @@ function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; 
   updateStatusUI({ status:'processing', progress, stage: payload?.stage });
   });
   s.on('processingComplete', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; handleProcessingComplete(payload); });
-  s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
+  s.on('processingFailed', payload=>{
+    if(payload.requestId && payload.requestId!==activeRequestId) return;
+    window.toast?.error(payload.error||'Processing failed');
+    // Count as done for batch tracking
+    if(multiRunTotalCount > 1){ multiRunDoneCount = Math.min(multiRunTotalCount, multiRunDoneCount + 1); }
+    // Advance to next ID if present
+    if(Array.isArray(activeRequestIds) && activeRequestIds.length>1 && payload.requestId){
+      activeRequestIds = activeRequestIds.filter(id=> id!==payload.requestId);
+      const nextId = activeRequestIds[0];
+      if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); updateStatusUI({ status:'processing' }); return; }
+    }
+    // No more items; finalize batch state
+    activeRequestId=null; multiRunActive=false;
+    updateStatusUI({ status:'failed' });
+  });
   s._listenersAdded = true; }
 }
 function setStatus(text){
@@ -976,8 +996,22 @@ function addToLocalLibrary(url, downloadUrl){
   } catch { /* ignore storage errors */ }
 }
 function handleProcessingComplete(payload){
-  setStatus('Finished');
-  updateProgressBar(100,'completed');
+  // Batch-aware completion: only mark Finished globally when all done
+  if(multiRunTotalCount > 1){
+    multiRunDoneCount = Math.min(multiRunTotalCount, multiRunDoneCount + 1);
+    // reflect per-item completion but keep global state processing until batch completes
+    const remaining = multiRunTotalCount - multiRunDoneCount;
+    if(remaining > 0){
+      // Keep status as Processing and show percent based on items done
+      const pctByItems = Math.round((multiRunDoneCount / multiRunTotalCount) * 100);
+      updateUnifiedStatus({ status:'processing', progress: { value: pctByItems, max: 100, type:'global_steps' }, stage: 'Batch progress' });
+    }
+  }
+  const isBatchCompleted = multiRunTotalCount <= 1 ? true : (multiRunDoneCount >= multiRunTotalCount);
+  if(isBatchCompleted){
+    setStatus('Finished');
+    updateProgressBar(100,'completed');
+  }
   if(payload.outputImage){
     const ph=document.getElementById('outputPlaceholder');
     if(ph){ ph.style.display='none'; }
@@ -1011,33 +1045,35 @@ function handleProcessingComplete(payload){
     activeRequestIds = activeRequestIds.filter(id=> id!==payload.requestId);
     // Advance to next request id for live updates
     const nextId = activeRequestIds[0];
-    if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); }
+    if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); updateStatusUI({ status:'processing' }); }
   } else {
     activeRequestId=null;
-  // Batch completed
-  if(multiRunActive){ multiRunActive = false; }
+    // Batch completed
+    if(multiRunActive){ multiRunActive = false; }
   }
   __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
   try {
-  const wrap = document.getElementById('processingProgressBarWrapper');
-  const bar = document.getElementById('processingProgressBar');
-  const label = document.getElementById('processingProgressLabel');
-  if(wrap) wrap.classList.remove('idle');
-  if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
-  if(label) label.textContent='Finished';
-  // Global bar success state
-  try{
-    const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
-    const gBar = document.getElementById('globalProcessingProgressBar');
-    const gLabel = document.getElementById('globalProcessingProgressLabel');
-    if(gWrap) gWrap.classList.remove('idle');
-    if(gBar){ gBar.style.width='100%'; gBar.classList.add('success'); gBar.classList.remove('error'); }
-    if(gLabel) gLabel.textContent='Finished';
-  }catch{}
-  setUploadBusy(false);
-  // Re-enable multi toggle if it was disabled
-  try{ if(allowConcurrentUploadCheckbox){ allowConcurrentUploadCheckbox.disabled = false; allowConcurrentUploadCheckbox.removeAttribute('title'); } }catch{}
+    // Only mark success visuals if entire batch is complete
+    if(isBatchCompleted){
+      const wrap = document.getElementById('processingProgressBarWrapper');
+      const bar = document.getElementById('processingProgressBar');
+      const label = document.getElementById('processingProgressLabel');
+      if(wrap) wrap.classList.remove('idle');
+      if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
+      if(label) label.textContent='Finished';
+      // Global bar success state
+      try{
+        const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+        const gBar = document.getElementById('globalProcessingProgressBar');
+        const gLabel = document.getElementById('globalProcessingProgressLabel');
+        if(gWrap) gWrap.classList.remove('idle');
+        if(gBar){ gBar.style.width='100%'; gBar.classList.add('success'); gBar.classList.remove('error'); }
+        if(gLabel) gLabel.textContent='Finished';
+      }catch{}
+      setUploadBusy(false);
+      try{ if(allowConcurrentUploadCheckbox){ allowConcurrentUploadCheckbox.disabled = false; allowConcurrentUploadCheckbox.removeAttribute('title'); } }catch{}
+    }
   } catch {}
 }
 
