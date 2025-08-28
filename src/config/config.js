@@ -40,6 +40,9 @@ const COMFYUI_WS_URL = `ws://${COMFYUI_HOST}/ws`;
 // Unified standard port across modules (both use 8080 unless overridden)
 const PORT = process.env.PORT || 8080;
 
+// Max number of images accepted per upload request
+const MAX_UPLOAD_FILES = Number(process.env.MAX_UPLOAD_FILES || process.env.UPLOAD_MAX_FILES || 12);
+
 // Detect if running in Docker container
 const isDocker = process.env.DOCKER === 'true' || 
                  process.env.LORAS_DIR || 
@@ -90,6 +93,7 @@ export {
   COMFYUI_URL,
   COMFYUI_WS_URL,
   PORT,
+  MAX_UPLOAD_FILES,
   isDocker,
   SITE_TITLE,
   ENABLE_HTTPS,

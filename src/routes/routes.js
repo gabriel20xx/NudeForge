@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import Logger from '../../../NudeShared/serverLogger.js';
-import { SITE_TITLE } from '../config/config.js';
+import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
 import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
 import { /* generateAllCarouselThumbnails, */ getThumbnailPath, getOriginalPath } from '../services/carousel.js';
@@ -29,7 +29,7 @@ router.get('/health', (req, res) => {
 
 // Default route: generator (moved former index content into generator view)
 router.get('/', (req, res) => {
-    res.render('generator', { title: 'Generator', siteTitle: SITE_TITLE });
+    res.render('generator', { title: 'Generator', siteTitle: SITE_TITLE, maxUploadFiles: MAX_UPLOAD_FILES });
 });
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
@@ -234,7 +234,7 @@ router.get('/queue-status', (req, res) => {
     });
 });
 
-router.post('/upload', upload.array('image', 12), async (req, res) => {
+router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res) => {
     try {
         const files = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
         if (!files || files.length === 0) {

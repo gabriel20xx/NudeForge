@@ -8,16 +8,16 @@
     <div id="processingProgressLabel" class="processing-progress-label">Idle</div>
   </div>
 </div>
-<form id="uploadForm" enctype="multipart/form-data">
+<form id="uploadForm" enctype="multipart/form-data" data-max-upload-files="<%= typeof maxUploadFiles !== 'undefined' ? maxUploadFiles : 12 %>">
   <div class="main-container">
     <div class="main-col">
         <div class="main-section upload-section">
         <h2>Image Input</h2>
         <div id="dropArea" class="drop-area image-box">
-          <p id="dropText" class="placeholder">Drag & drop or click to upload</p>
+          <p id="dropText" class="placeholder">Drag & drop or click to upload (up to <%= typeof maxUploadFiles !== 'undefined' ? maxUploadFiles : 12 %> images)</p>
           <img id="previewImage" />
           <div id="multiPreviewContainer" class="multi-preview-container" style="display:none;"></div>
-          <input id="inputImage" type="file" name="image" accept="image/*" />
+          <input id="inputImage" type="file" name="image" accept="image/*" multiple />
         </div>
   <button class="btn upload-btn" type="submit">Upload</button>
       </div>

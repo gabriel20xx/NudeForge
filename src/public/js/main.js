@@ -53,12 +53,13 @@ const downloadLink = document.getElementById('downloadLink');
 const outputGrid = document.getElementById('outputGrid');
 // Removed unused NodeList assignment (was triggering eslint no-unused-vars)
 const uploadButton = uploadForm.querySelector('.upload-btn');
-const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
+const allowConcurrentUploadCheckbox = null; // toggle removed: always multi-upload
 const advancedModeToggle = document.getElementById('advancedModeToggle');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
 let activeRequestIds = []; // track multiple when multi-upload
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
+let multiRunActive = false; // true while a multi-upload batch (>1) is being processed
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
 window.__nudeForgeStageTracker = __stageTracker;
@@ -72,10 +73,12 @@ function setUploadBusy(busy){
     uploadButton.classList.add('disabled');
     if(!uploadButton.dataset.originalText){ uploadButton.dataset.originalText = uploadButton.textContent || 'Upload'; }
     uploadButton.textContent = 'Processing...';
+  // toggle removed
   } else {
     uploadButton.disabled = false;
     uploadButton.classList.remove('disabled');
     try { updateUploadButtonState(); } catch { /* no-op */ }
+  // toggle removed
   }
 }
 
@@ -92,6 +95,7 @@ if (inputImage) {
   } catch { /* ignore UA errors */ }
 
   inputImage.addEventListener('change', () => {
+    const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
     // Client-side guard: only allow images
     const allFiles = Array.from(inputImage.files || []);
     const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
@@ -100,32 +104,25 @@ if (inputImage) {
       inputImage.value = '';
       return;
     }
-    const multi = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked;
-    if (multi) {
+    // Enforce max file limit client-side
+    if (imageFiles.length > maxFiles) {
+      window.toast?.warn?.(`You selected ${imageFiles.length} images. Only the first ${maxFiles} will be uploaded.`);
+    }
+    const limitedImages = imageFiles.slice(0, maxFiles);
+  const multi = true;
+  if (multi) {
       // Collect selected files (multi mode) but don't render thumbnails here (handled later); just hide placeholder.
-      selectedFiles = imageFiles;
+      selectedFiles = limitedImages;
       if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
       if (previewImage) { previewImage.style.display = 'none'; previewImage.removeAttribute('src'); }
       if (multiPreviewContainer) multiPreviewContainer.style.display = '';
       if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
-    } else {
-      const file = imageFiles && imageFiles[0];
-      if (file && previewImage) {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          previewImage.src = ev.target.result;
-          previewImage.style.display = 'block';
-          if (dropText) dropText.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-        if (multiPreviewContainer) { multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
-      }
-    }
+  }
     // Background: send copy/copies immediately to /upload-copy (non-blocking) so server stores original in /copy
     // Do NOT await to avoid delaying UI preview.
     (async () => {
       try {
-        const filesToSend = multi ? selectedFiles : (inputImage.files ? [inputImage.files[0]] : []);
+  const filesToSend = selectedFiles;
         if (!filesToSend || filesToSend.length === 0) return;
         // Endpoint currently expects single 'image', so send sequentially.
         for (const f of filesToSend) {
@@ -150,21 +147,7 @@ if (inputImage) {
 }
 
 // Multi-upload mode toggle listener (guard for element existing)
-if(allowConcurrentUploadCheckbox){
-  allowConcurrentUploadCheckbox.addEventListener('change', function() {
-    if (this.checked) {
-      inputImage.setAttribute('multiple', 'multiple');
-      dropText.textContent = 'Drag & drop or click to upload (multiple files allowed)';
-      uploadButton.textContent = 'Upload All';
-    } else {
-      inputImage.removeAttribute('multiple');
-      dropText.textContent = 'Drag & drop or click to upload';
-      uploadButton.textContent = 'Upload';
-    }
-    clearSelectedFiles();
-    updateUploadButtonState();
-  });
-}
+// toggle removed
 
 // --- Utilities & Helpers ---
 function showElement(el){ if(el) el.style.display=''; }
@@ -172,12 +155,7 @@ function hideElement(el){ if(el) el.style.display='none'; }
 function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
 function updateDropPlaceholder(){
   if(!dropText) return;
-  if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-    if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
-  } else {
-    const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-    dropText.style.display = hasFile ? 'none' : '';
-  }
+  if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
 }
 // initial invocation to mark helper utilized
 updateDropPlaceholder();
@@ -355,14 +333,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   }
   function updateUploadButtonState(){
     if(!uploadButton) return;
-    if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-      uploadButton.disabled = selectedFiles.length === 0;
-      uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-    } else {
-      const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-      uploadButton.disabled = !hasFile;
-      uploadButton.textContent = 'Upload';
-    }
+  uploadButton.disabled = selectedFiles.length === 0;
+  uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
   }
   // Expose for earlier references
   window.clearSelectedFiles = clearSelectedFiles;
@@ -386,14 +358,26 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       e.preventDefault();
       if(!uploadButton || uploadButton.disabled) return;
       const formData = new FormData(uploadForm);
-      // Append selected multi files explicitly if multi-upload enabled
-      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>0){
+      // Enforce server limit as final guard before appending
+      const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+      if (selectedFiles.length > maxFiles) {
+        window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (selected ${selectedFiles.length}).`);
+        selectedFiles = selectedFiles.slice(0, maxFiles);
+      }
+      // Always append selected files (multi-upload always on)
+      if(selectedFiles.length>0){
         formData.delete('image'); // remove potential single
         selectedFiles.forEach(f=> formData.append('image', f));
       }
       gatherAndNormalizeSettings(formData);
   const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
-  const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
+  const singleMode = false; // always multi mode
+  // Determine multi run state for output box behavior
+  multiRunActive = !singleMode && selectedFiles && selectedFiles.length > 1;
+  // If multi run, hide the single output image to avoid confusion
+  try{
+    if(multiRunActive){ const imgEl=document.getElementById('outputImage'); if(imgEl){ imgEl.style.display='none'; } }
+  }catch{}
   setUploadBusy(true);
       try {
         const res = await fetch('/upload', { method:'POST', body: formData });
@@ -417,7 +401,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         window.toast?.error('Upload error');
       } finally {
   // Keep disabled while active request is being processed
-  if(!activeRequestId){ setUploadBusy(false); }
+  if(!activeRequestId){ setUploadBusy(false); multiRunActive = false; }
       }
     });
   }
@@ -432,26 +416,18 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     ;['dragleave','dragend'].forEach(evt=> dropArea.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over'); }));
     dropArea.addEventListener('drop', e=>{
       e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over');
-      const files = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
+  const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  const all = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
+  if(all.length > maxFiles){ window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (dropped ${all.length}).`); }
+  const files = all.slice(0, maxFiles);
       if(files.length===0) return;
       const dt = new DataTransfer();
-      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-        files.forEach(f=> dt.items.add(f));
-      } else {
-        dt.items.add(files[0]);
-      }
+  // Always multi-upload: add all files
+  files.forEach(f=> dt.items.add(f));
       inputImage.files = dt.files; // triggers change event programmatically below
       const changeEvt = new Event('change');
       inputImage.dispatchEvent(changeEvt);
-      if(!allowConcurrentUploadCheckbox || !allowConcurrentUploadCheckbox.checked){
-        // show immediate preview using FileReader (in case change async)
-        const first = dt.files[0];
-        if(first && previewImage){
-          const reader = new FileReader();
-          reader.onload = ev => { previewImage.src = ev.target.result; previewImage.style.display='block'; if(dropText) dropText.style.display='none'; };
-          reader.readAsDataURL(first);
-        }
-      }
+  // Always multi: previews handled by change event -> renderMultiPreviews()
     });
   }
 })();
@@ -606,6 +582,8 @@ async function pollStatus(){ if(!activeRequestId) return; try { const res = awai
 function appendOutputThumb(src, downloadUrl){
   if(!outputGrid) return;
   outputGrid.style.display='grid';
+  // During multi run, keep single output image hidden
+  try{ if(multiRunActive){ const imgEl=document.getElementById('outputImage'); if(imgEl){ imgEl.style.display='none'; } } }catch{}
   const item = document.createElement('div');
   item.className='output-item';
   const img = document.createElement('img');
@@ -640,7 +618,11 @@ function handleProcessingComplete(payload){
   if(payload.outputImage){
     const img=document.getElementById('outputImage');
     const ph=document.getElementById('outputPlaceholder');
-    if(img){ img.src = payload.outputImage + `?t=${Date.now()}`; img.style.display='block'; }
+    // In multi run, prefer grid; hide single image
+    if(img){
+      if(multiRunActive){ img.style.display='none'; }
+      else { img.src = payload.outputImage + `?t=${Date.now()}`; img.style.display='block'; }
+    }
     if(ph){ ph.style.display='none'; }
     enableDownload(payload.downloadUrl || payload.outputImage);
     appendOutputThumb(payload.outputImage, payload.downloadUrl);
@@ -659,6 +641,8 @@ function handleProcessingComplete(payload){
     if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); }
   } else {
     activeRequestId=null;
+  // Batch completed
+  if(multiRunActive){ multiRunActive = false; }
   }
   __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
@@ -670,6 +654,8 @@ function handleProcessingComplete(payload){
   if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
   if(label) label.textContent='Finished';
   setUploadBusy(false);
+  // Re-enable multi toggle if it was disabled
+  try{ if(allowConcurrentUploadCheckbox){ allowConcurrentUploadCheckbox.disabled = false; allowConcurrentUploadCheckbox.removeAttribute('title'); } }catch{}
   } catch {}
 }
 
@@ -862,13 +848,8 @@ function clearSelectedFiles(){
 }
 function updateUploadButtonState(){
   if(!uploadButton) return;
-  if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-    uploadButton.disabled = selectedFiles.length === 0;
-    uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-  } else {
-    const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-    uploadButton.disabled = !hasFile;
-    uploadButton.textContent = 'Upload';
-  }
+  uploadButton.disabled = selectedFiles.length === 0;
+  uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+  uploadButton.classList.toggle('disabled', !!uploadButton.disabled);
 }
 // --- END ORIGINAL CONTENT ---
