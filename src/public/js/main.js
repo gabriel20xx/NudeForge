@@ -42,6 +42,7 @@ window.addEventListener('DOMContentLoaded', async function() {
   initializeCarousel();
   const headerOptions = document.querySelector('.header-options');
   if(headerOptions) headerOptions.style.display='block';
+  restoreGeneratorState();
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
@@ -60,6 +61,7 @@ let activeRequestId = null; // track current processing request
 let activeRequestIds = []; // track multiple when multi-upload
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
 let multiRunActive = false; // true while a multi-upload batch (>1) is being processed
+let __persist = { selectedPreviewSources: [], comparisonSplitPct: null }; // fallback sources for previews and comparison slider
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
 window.__nudeForgeStageTracker = __stageTracker;
@@ -98,6 +100,10 @@ if (inputImage) {
     const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
     // Client-side guard: only allow images
     const allFiles = Array.from(inputImage.files || []);
+    // If user cancels the picker, keep previous selection and previews
+    if (allFiles.length === 0) {
+      return;
+    }
     const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
     if (allFiles.length > 0 && imageFiles.length === 0) {
       window.toast?.error('Please select an image file.');
@@ -117,6 +123,12 @@ if (inputImage) {
       if (previewImage) { previewImage.style.display = 'none'; previewImage.removeAttribute('src'); }
       if (multiPreviewContainer) multiPreviewContainer.style.display = '';
       if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
+      // Initialize persisted preview sources from selectedFiles using data URLs (updated later if copy URL becomes available)
+      try {
+        __persist.selectedPreviewSources = [];
+        const readers = selectedFiles.map(file => new Promise((resolve)=>{ const r=new FileReader(); r.onload=e=>resolve({ src:e.target.result, kind:'data', filename:file.name||'image' }); r.readAsDataURL(file); }));
+        Promise.all(readers).then(list=>{ __persist.selectedPreviewSources = list; saveGeneratorState(); });
+      } catch {}
   }
     // Background: send copy/copies immediately to /upload-copy (non-blocking) so server stores original in /copy
     // Do NOT await to avoid delaying UI preview.
@@ -131,7 +143,13 @@ if (inputImage) {
             fd.append('image', f, f.name);
           fetch('/upload-copy', { method: 'POST', body: fd })
             .then(r => { if(!r.ok) throw new Error('copy upload failed'); return r.json().catch(()=>({})); })
-    .then(() => { /* optional success handling; keep silent to reduce noise */ })
+    .then((resp) => { if(resp && resp.filename){
+      // Update persisted preview source to use copy url if available for same name
+      const url = `/copy/${encodeURIComponent(resp.filename)}`;
+      const base = (f.name||'image');
+      const idx = (__persist.selectedPreviewSources||[]).findIndex(it=> it && it.filename===base);
+      if(idx>=0){ __persist.selectedPreviewSources[idx] = { src:url, kind:'copy', filename: base }; saveGeneratorState(); }
+    } })
             .catch(err => { window.ClientLogger?.warn('Copy upload failed', { name: f.name, err }); });
         }
   } catch(err){ window.ClientLogger?.error('Copy upload dispatch error', err); }
@@ -153,6 +171,139 @@ if (inputImage) {
 function showElement(el){ if(el) el.style.display=''; }
 function hideElement(el){ if(el) el.style.display='none'; }
 function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
+function saveGeneratorState(){
+  try{
+    const key='nudeforge:generatorState:v1';
+    const imgGrid = Array.from(document.querySelectorAll('#outputGrid .output-item img')).map(img=> img && img.src ? String(img.src).split('?')[0] : null).filter(Boolean);
+    // Helpers to capture UI state
+    const getComparisonSplitPct = () => {
+      try {
+        const container = document.getElementById('comparisonContainer');
+        if(!container) return null;
+        const after = container.querySelector('.comparison-after');
+        const slider = container.querySelector('.comparison-slider');
+        let pct = null;
+        if(after && after.style.width && after.style.width.endsWith('%')) pct = parseFloat(after.style.width);
+        else if(slider && slider.style.left && slider.style.left.endsWith('%')) pct = parseFloat(slider.style.left);
+        if(Number.isFinite(pct)) return Math.max(0, Math.min(100, pct));
+      } catch {}
+      return typeof __persist?.comparisonSplitPct === 'number' ? __persist.comparisonSplitPct : null;
+    };
+    const applyBool = v => !!v;
+    // Capture Advanced settings values
+    const promptVal = (document.getElementById('prompt')?.value) ?? '';
+    const stepsEl = document.getElementById('steps');
+    const stepsVal = stepsEl ? String(stepsEl.value ?? '20') : '20';
+    const outputHeightVal = (document.getElementById('outputHeight')?.value) ?? '1080';
+    const loraRows = Array.from(document.querySelectorAll('#loraGrid .lora-row')).map(row => {
+      try{
+        const model = row.querySelector('select.lora-model-select')?.value || '';
+        const enable = !!row.querySelector('input[type="checkbox"]')?.checked;
+        const strength = row.querySelector('input.lora-strength')?.value || '1.0';
+        return { model, enable, strength };
+      } catch { return { model:'', enable:false, strength:'1.0' }; }
+    });
+    const state = {
+      selectedPreviewSources: __persist.selectedPreviewSources||[],
+      outputGrid: imgGrid,
+      activeRequestId,
+      activeRequestIds,
+      advancedMode: applyBool(advancedModeToggle && advancedModeToggle.checked),
+      comparisonSplitPct: getComparisonSplitPct(),
+      settings: {
+        prompt: String(promptVal),
+        steps: String(stepsVal),
+        outputHeight: String(outputHeightVal),
+        loras: loraRows
+      },
+      statusText: (document.getElementById('processingStatus')?.textContent)||'',
+      progress: {
+        pct: (function(){ const s=document.getElementById('processingProgressBar'); if(!s) return null; const w=s.style.width||''; const m=/^(\d+)%$/.exec(w); return m? Number(m[1]) : null; })(),
+        label: (document.getElementById('processingProgressLabel')?.textContent)||''
+      }
+    };
+    localStorage.setItem(key, JSON.stringify(state));
+  }catch{}
+}
+function restoreGeneratorState(){
+  try{
+    const key='nudeforge:generatorState:v1';
+    const raw = localStorage.getItem(key);
+    if(!raw) return;
+    const state = JSON.parse(raw);
+    // Restore Advanced/settings visibility first so subsequent UI respects it
+    if(typeof state?.advancedMode === 'boolean' && advancedModeToggle){
+      try { advancedModeToggle.checked = !!state.advancedMode; } catch {}
+      try {
+        const settingsSection = document.getElementById('settingsSection');
+        const comparisonSection = document.getElementById('comparisonSection');
+        if(settingsSection) settingsSection.style.display = state.advancedMode ? 'block' : 'none';
+        if(comparisonSection) comparisonSection.style.display = state.advancedMode ? 'block' : 'none';
+      } catch {}
+    }
+    if(state && Array.isArray(state.selectedPreviewSources) && state.selectedPreviewSources.length>0){
+      __persist.selectedPreviewSources = state.selectedPreviewSources;
+      // Render previews from sources
+      if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display=''; }
+      state.selectedPreviewSources.forEach((it, idx)=>{
+        const wrap=document.createElement('div'); wrap.className='multi-preview-item';
+        const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src;
+        wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
+      });
+      if(dropText) dropText.style.display='none';
+      // Note: selectedFiles remains empty until submission reconstructs
+    }
+    if(state && Array.isArray(state.outputGrid) && state.outputGrid.length>0){
+      const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; dl.setAttribute('download',''); item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
+    }
+    // Restore Advanced settings values
+    if(state && state.settings){
+      try{
+        const promptEl = document.getElementById('prompt'); if(promptEl) promptEl.value = state.settings.prompt ?? promptEl.value;
+        const stepsEl = document.getElementById('steps'); if(stepsEl){ stepsEl.value = state.settings.steps ?? stepsEl.value; const sv=document.getElementById('stepsValue'); if(sv) sv.textContent = String(stepsEl.value); }
+        const outH = document.getElementById('outputHeight'); if(outH){ outH.value = state.settings.outputHeight ?? outH.value; }
+        // Restore LoRA rows
+        const loraGrid = document.getElementById('loraGrid');
+        const addBtn = document.getElementById('addLoraBtn');
+        if(loraGrid && Array.isArray(state.settings.loras)){
+          // Ensure row count matches
+          const target = state.settings.loras.length;
+          let current = loraGrid.querySelectorAll('.lora-row').length;
+          while(current < target && addBtn){ addBtn.click(); current++; }
+          while(current > target){ const rows = loraGrid.querySelectorAll('.lora-row'); const last = rows[rows.length-1]; if(last) last.remove(); current--; }
+          // Apply values
+          const rows = loraGrid.querySelectorAll('.lora-row');
+          state.settings.loras.forEach((conf, i) => {
+            const row = rows[i]; if(!row) return;
+            const sel = row.querySelector('select.lora-model-select'); if(sel && typeof conf.model === 'string'){ sel.value = conf.model; }
+            const chk = row.querySelector('input[type="checkbox"]'); if(chk){ chk.checked = !!conf.enable; }
+            const str = row.querySelector('input.lora-strength'); if(str && typeof conf.strength === 'string'){ str.value = conf.strength; }
+          });
+        }
+      } catch {}
+    }
+    // Restore comparison slider position if available
+    if(typeof state?.comparisonSplitPct === 'number'){
+      __persist.comparisonSplitPct = state.comparisonSplitPct;
+      try{
+        const container = document.getElementById('comparisonContainer');
+        if(container){
+          const after = container.querySelector('.comparison-after');
+          const slider = container.querySelector('.comparison-slider');
+          if(after) after.style.width = state.comparisonSplitPct + '%';
+          if(slider) slider.style.left = state.comparisonSplitPct + '%';
+        }
+      }catch{}
+    }
+    if(typeof state?.statusText==='string'){ const sEl=document.getElementById('processingStatus'); if(sEl){ sEl.textContent=state.statusText; } }
+    if(state && state.progress){ const bar=document.getElementById('processingProgressBar'); const label=document.getElementById('processingProgressLabel'); if(bar && typeof state.progress.pct==='number'){ bar.style.width=state.progress.pct+'%'; } if(label && state.progress.label){ label.textContent=state.progress.label; } }
+    if(state && (state.activeRequestId || (Array.isArray(state.activeRequestIds) && state.activeRequestIds.length))){
+      activeRequestId = state.activeRequestId || null;
+      activeRequestIds = Array.isArray(state.activeRequestIds) ? state.activeRequestIds : (activeRequestId? [activeRequestId] : []);
+      if(activeRequestId){ joinStatusChannel(activeRequestId); pollStatus(); }
+    }
+  }catch{}
+}
 function updateDropPlaceholder(){
   if(!dropText) return;
   if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
@@ -313,23 +464,22 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     if(!multiPreviewContainer) return;
     multiPreviewContainer.innerHTML = '';
     const files = selectedFiles || [];
-    if(!Array.isArray(files) || files.length === 0){ multiPreviewContainer.style.display='none'; return; }
+    const hasFiles = Array.isArray(files) && files.length>0;
+    const sources = __persist.selectedPreviewSources || [];
+    if(!hasFiles && (!Array.isArray(sources) || sources.length===0)){ multiPreviewContainer.style.display='none'; return; }
     multiPreviewContainer.style.display = '';
     const maxThumbs = 12; // safety cap
-    files.slice(0, maxThumbs).forEach((file, idx)=>{
-      if(!file) return;
-      const wrapper = document.createElement('div');
-      wrapper.className = 'multi-preview-item';
-      const img = document.createElement('img');
-      img.alt = file.name || ('image ' + (idx+1));
-      img.loading = 'lazy';
-      img.className = 'multi-preview-img';
-      const reader = new FileReader();
-      reader.onload = ev => { img.src = ev.target.result; };
-      reader.readAsDataURL(file);
-      wrapper.appendChild(img);
-      multiPreviewContainer.appendChild(wrapper);
-    });
+    if(hasFiles){
+      files.slice(0, maxThumbs).forEach((file, idx)=>{
+        if(!file) return;
+        const wrapper = document.createElement('div'); wrapper.className = 'multi-preview-item';
+        const img = document.createElement('img'); img.alt = file.name || ('image ' + (idx+1)); img.loading = 'lazy'; img.className = 'multi-preview-img';
+        const reader = new FileReader(); reader.onload = ev => { img.src = ev.target.result; }; reader.readAsDataURL(file);
+        wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper);
+      });
+    } else if (Array.isArray(sources) && sources.length>0){
+      sources.slice(0, maxThumbs).forEach((it, idx)=>{ const wrapper=document.createElement('div'); wrapper.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper); });
+    }
   }
   function updateUploadButtonState(){
     if(!uploadButton) return;
@@ -442,9 +592,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(comparisonSection) comparisonSection.style.display = enabled ? 'block' : 'none';
   }
   if(advancedModeToggle){
-    advancedModeToggle.addEventListener('change', applyAdvancedVisibility);
+    advancedModeToggle.addEventListener('change', ()=>{ applyAdvancedVisibility(); try{ saveGeneratorState(); }catch{} });
     applyAdvancedVisibility();
   }
+  // Persist Advanced inputs and LoRA changes
+  const promptEl = document.getElementById('prompt'); if(promptEl){ promptEl.addEventListener('input', ()=>{ try{ saveGeneratorState(); }catch{} }); }
+  const stepsEl = document.getElementById('steps'); if(stepsEl){ stepsEl.addEventListener('input', ()=>{ const sv=document.getElementById('stepsValue'); if(sv) sv.textContent=String(stepsEl.value); try{ saveGeneratorState(); }catch{} }); }
+  const outH = document.getElementById('outputHeight'); if(outH){ outH.addEventListener('change', ()=>{ try{ saveGeneratorState(); }catch{} }); }
+  const loraGrid = document.getElementById('loraGrid'); if(loraGrid){
+    loraGrid.addEventListener('change', ()=>{ try{ saveGeneratorState(); }catch{} });
+    loraGrid.addEventListener('click', (e)=>{ if(e.target && e.target.closest('.lora-remove-btn')){ setTimeout(()=>{ try{ saveGeneratorState(); }catch{} },0); } });
+  }
+  const addBtn = document.getElementById('addLoraBtn'); if(addBtn){ addBtn.addEventListener('click', ()=>{ setTimeout(()=>{ try{ saveGeneratorState(); }catch{} },0); }); }
 });
 
 // === Real-time / Polling Status Handling ===
@@ -567,10 +726,12 @@ function updateProgressBar(pct, stage, stagePct){
   // Keep wrapper visible; reset to Idle handled after completion event
   // If completed, label should read Finished when handleProcessingComplete runs
   }
+  try{ saveGeneratorState(); }catch{}
 }
 function updateStatusUI(payload){
   if(payload.status) setStatus(payload.status);
   updateUnifiedStatus(payload);
+  try{ saveGeneratorState(); }catch{}
 }
 // Expose UI update helpers for test harness
 window.__nudeForge = Object.assign(window.__nudeForge||{}, {
@@ -596,6 +757,7 @@ function appendOutputThumb(src, downloadUrl){
   item.appendChild(img);
   item.appendChild(dl);
   outputGrid.appendChild(item);
+  try{ saveGeneratorState(); }catch{}
 }
 function addToLocalLibrary(url, downloadUrl){
   try {
@@ -673,10 +835,11 @@ function initComparisonSlider(){
     let pct = (clientX - rect.left) / rect.width; pct = Math.min(1, Math.max(0, pct));
     after.style.width = (pct*100)+'%';
     slider.style.left = (pct*100)+'%';
+    try { __persist.comparisonSplitPct = Math.round(pct*100); } catch {}
   }
   function start(e){ dragging=true; slider.classList.add('active'); setFromClientX(e.touches? e.touches[0].clientX : e.clientX); e.preventDefault(); }
   function move(e){ if(!dragging) return; setFromClientX(e.touches? e.touches[0].clientX : e.clientX); }
-  function end(){ dragging=false; slider.classList.remove('active'); }
+  function end(){ dragging=false; slider.classList.remove('active'); try{ saveGeneratorState(); }catch{} }
   slider.addEventListener('mousedown', start);
   window.addEventListener('mousemove', move);
   window.addEventListener('mouseup', end);
@@ -703,8 +866,10 @@ function showComparison(beforeSrc, afterSrc){
   // Reset baseline positions
   const after = container && container.querySelector('.comparison-after');
   const slider = container && container.querySelector('.comparison-slider');
-  if(after){ after.style.width='50%'; }
-  if(slider){ slider.style.left='50%'; }
+  const savedPct = (function(){ try{ const raw = localStorage.getItem('nudeforge:generatorState:v1'); if(raw){ const s=JSON.parse(raw); if(typeof s?.comparisonSplitPct === 'number') return s.comparisonSplitPct; } }catch{} return (typeof __persist?.comparisonSplitPct === 'number') ? __persist.comparisonSplitPct : null; })();
+  const pctToApply = (typeof savedPct === 'number') ? savedPct : 50;
+  if(after){ after.style.width=pctToApply+'%'; }
+  if(slider){ slider.style.left=pctToApply+'%'; }
   initComparisonSlider();
 }
 // Expose for debugging
