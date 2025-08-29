@@ -123,7 +123,7 @@ input[type=file]{ display:none; }
 .lora-model-container { margin-top:0; width:100%; flex:1; }
 .lora-row label { font-size:1em; color:#ffb84d; }
 .lora-strength-group { grid-area:strength; display:flex; flex-wrap:wrap; flex-direction:row; align-items:center; gap:.6em .8em; text-align:left; }
-.lora-strength { width:60px; background:#181c24; color:#fff; border:1.5px solid #555; border-radius:6px; padding:.2em .4em; font-size:1em; transition:border .2s, box-shadow .2s; }
+.lora-strength { width:44px; background:#181c24; color:#fff; border:1.5px solid #555; border-radius:6px; padding:.2em .4em; font-size:1em; transition:border .2s, box-shadow .2s; }
 .lora-strength:focus { outline:2px solid #ffb84d; border-color:#ffb84d; box-shadow:0 0 0 2px #ffb84d33; }
 .lora-model-select { width:100%; background:#181c24; color:#fff; border:1.5px solid #555; border-radius:6px; padding:.4em .6em; font-size:.95em; transition:border .2s, box-shadow .2s; cursor:pointer; }
 .lora-model-select:focus { outline:2px solid #ffb84d; border-color:#ffb84d; box-shadow:0 0 0 2px #ffb84d33; }
@@ -136,7 +136,7 @@ input[type=file]{ display:none; }
 .lora-remove-btn:hover { background:#c82333; }
 .lora-remove-btn:disabled { background:#6c757d; cursor:not-allowed; opacity:.6; }
 @media (max-width:1100px){ .main-container{ gap:1.5rem; padding:2rem 1rem;} .comparison-section.main-section{margin:0 auto; max-width:600px;} .settings-section{margin:0 auto; width:100%; max-width:600px;} .main-section{width:100%; min-width:0; margin-bottom:0;} .image-box{max-width:100%;}}
-@media (max-width:600px){ :root{ --box-max-width:calc(100vw - 2rem);} .main-container{flex-direction:column; gap:1.5rem; padding:1rem;} .main-col{width:100%;} .comparison-section.main-section{max-width:100%; margin:0 auto;} .main-section{width:100%; margin-bottom:0;} .settings-section{margin:0 auto; max-width:100%; width:100%; padding:1.5rem;} .settings-box{max-width:100%; padding:1.5rem;} .image-box{max-width:100%;} .lora-row{ grid-template-columns:1fr auto; grid-template-rows:auto auto; } .lora-strength{ width:72px; } }
+@media (max-width:600px){ :root{ --box-max-width:calc(100vw - 2rem);} .main-container{flex-direction:column; gap:1.5rem; padding:1rem;} .main-col{width:100%;} .comparison-section.main-section{max-width:100%; margin:0 auto;} .main-section{width:100%; margin-bottom:0;} .settings-section{margin:0 auto; max-width:100%; width:100%; padding:1.5rem;} .settings-box{max-width:100%; padding:1.5rem;} .image-box{max-width:100%;} .lora-row{ grid-template-columns:1fr auto; grid-template-rows:auto auto; } .lora-strength{ width:48px; } }
 /* === Original Styles End === */
 
 /* Bottom navigation tabs (aligned with NudeFlow) */
