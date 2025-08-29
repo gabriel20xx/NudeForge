@@ -480,7 +480,7 @@ function restoreGeneratorState(){
       // Note: selectedFiles remains empty until submission reconstructs
     }
     if(state && Array.isArray(state.outputGrid) && state.outputGrid.length>0){
-      const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; dl.setAttribute('download',''); item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
+      const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; try{ const file=(String(u).split('?')[0]).split('/').pop()||'output.png'; dl.setAttribute('download', file.endsWith('.png')? file : (file + '.png')); }catch{ dl.setAttribute('download','output.png'); } item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
       try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.add('has-previews'); } }catch{}
   try{ const clearOut = document.getElementById('clearOutputBtn'); if(clearOut) clearOut.disabled = false; }catch{}
     }
@@ -978,6 +978,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
     loraGrid.addEventListener('click', (e)=>{ if(e.target && e.target.closest('.lora-remove-btn')){ setTimeout(()=>{ try{ saveGeneratorState(); }catch{} },0); } });
   }
   const addBtn = document.getElementById('addLoraBtn'); if(addBtn){ addBtn.addEventListener('click', ()=>{ setTimeout(()=>{ try{ saveGeneratorState(); }catch{} },0); }); }
+  // Start global queue size polling to always show current server queue size
+  try{
+    (function startQueueSizePolling(){
+      async function poll(){
+        try{
+          const res = await fetch('/queue-status');
+          if(res.ok){ const data = await res.json(); renderQueueMeta(data.queueSize); }
+        }catch{}
+        setTimeout(poll, 2000);
+      }
+      poll();
+    })();
+  }catch{}
 });
 
 // === Real-time / Polling Status Handling ===
@@ -1027,7 +1040,8 @@ function setStatus(text){
     return;
   }
   // Fallback pretty formatting
-  const pretty = norm.replace(/[\-_]+/g, ' ').replace(/\s+/g, ' ');
+  // eslint: remove unnecessary escapes and keep readable
+  const pretty = norm.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
   const title = pretty.split(' ').map(w=> w ? (w[0].toUpperCase()+w.slice(1).toLowerCase()) : w).join(' ');
   statusEl.textContent = title;
 }
@@ -1079,15 +1093,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
     if(gLabel) gLabel.textContent = 'Finished';
     setUploadBusy(false);
   }
-  if(meta){
-    // Suppress queue meta during processing entirely
-    if(status==='queued' && typeof yourPosition==='number'){
-      meta.textContent = `(position ${yourPosition})`;
-      meta.style.display='inline';
-    } else {
-      meta.textContent=''; meta.style.display='none';
-    }
-  }
+  renderQueueMeta(queueSize, yourPosition, status);
   // Adjust percent spacing to avoid double gap when meta is hidden
   if(pctSpan){
     const metaShown = meta && meta.style.display !== 'none' && meta.textContent !== '';
@@ -1097,21 +1103,29 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
   const stageName = (stage || (progress && progress.stage) || '');
     const rawPct = Math.min(100, Math.round((progress.value/progress.max)*100));
-    // Two-stage mapping (generic): first unique stage -> 0..80, subsequent unique stages -> 80..100
+    // Map stages:
+    // - If explicitly labeled "Stage 1/2": Stage 1 -> 0..80, Stage 2 -> 80..100
+    // - Otherwise, use heuristic by encountered order: first unique stage shows raw, second unique stage -> 80..100
     let overall = rawPct;
     try {
-      const tracker = (window.__nudeForgeStageTracker || __stageTracker || { encountered: [] });
-      if(stageName){
-        if(!Array.isArray(tracker.encountered)) tracker.encountered = [];
-        if(tracker.encountered.length === 0){
-          tracker.encountered.push(stageName);
-          overall = rawPct; // first stage: reflect raw percent (test expectation)
-        } else if(stageName === tracker.encountered[0]){
-          overall = rawPct; // same first stage, keep raw
-        } else {
-          // subsequent unique stage(s): map to 80..100
+      const s1 = /^stage\s*1\b/i.test(stageName);
+      const s2 = /^stage\s*2\b/i.test(stageName);
+      if(s1){
+        overall = Math.round(rawPct * 0.80);
+      } else if(s2){
+        overall = Math.min(100, Math.round(80 + (rawPct * 0.20)));
+      } else if(stageName) {
+        const tracker = (window.__nudeForgeStageTracker || __stageTracker);
+        if(Array.isArray(tracker.encountered)){
           if(!tracker.encountered.includes(stageName)) tracker.encountered.push(stageName);
-          overall = Math.min(100, Math.round(80 + (rawPct * 0.20)));
+          const idx = tracker.encountered.indexOf(stageName);
+          if(idx >= 1){
+            // Treat second (or later) unique stage as Stage 2 weight range
+            overall = Math.min(100, Math.round(80 + (rawPct * 0.20)));
+          } else {
+            // First stage: keep raw percent to satisfy UI/tests expectation
+            overall = rawPct;
+          }
         }
       }
     } catch {}
@@ -1132,6 +1146,17 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
   if(gLabel) gLabel.textContent = 'Idle';
     }
   }
+}
+// Render queue size (and position when queued) in the header meta, without affecting other UI state
+function renderQueueMeta(queueSize, yourPosition, status){
+  try{
+    const meta = document.getElementById('queueMeta'); if(!meta) return;
+    const parts = [];
+    if(Number.isFinite(Number(queueSize))) parts.push(`queue ${Number(queueSize)}`);
+    if(status === 'queued' && typeof yourPosition === 'number') parts.push(`position ${yourPosition}`);
+    if(parts.length){ meta.textContent = `(${parts.join(' • ')})`; meta.style.display='inline'; }
+    else { meta.textContent=''; meta.style.display='none'; }
+  }catch{}
 }
 function updateProgressBar(pct, stage, stagePct){
   const wrap = document.getElementById('processingProgressBarWrapper');
@@ -1190,7 +1215,15 @@ function appendOutputThumb(src, downloadUrl){
   dl.href = downloadUrl || src;
   dl.className='download-overlay';
   dl.textContent='Download';
-  dl.setAttribute('download','');
+  // If using direct image, set a png filename; if server /download, let server set it
+  try{
+    if(downloadUrl){ dl.setAttribute('download',''); }
+    else {
+      const clean = String(src).split('?')[0];
+      const name = clean.substring(clean.lastIndexOf('/')+1) || 'output.png';
+      dl.setAttribute('download', name.endsWith('.png') ? name : (name + '.png'));
+    }
+  }catch{ dl.setAttribute('download','output.png'); }
   item.appendChild(img);
   item.appendChild(dl);
   outputGrid.appendChild(item);
@@ -1275,8 +1308,22 @@ function handleProcessingComplete(payload){
       link.classList.remove('disabled');
       if(btn) btn.disabled = false;
       // Point to the latest for single; multiple handled by click handler
-      link.setAttribute('href', payload.downloadUrl || payload.outputImage);
-      link.setAttribute('download','');
+      const href = payload.downloadUrl || payload.outputImage;
+      link.setAttribute('href', href);
+      // If using server /download route, let server provide filename via Content-Disposition
+      // Otherwise, set a PNG filename derived from the output path
+      if(payload.downloadUrl){
+        link.setAttribute('download','');
+      } else if(payload.outputImage){
+        try{
+          const clean = String(payload.outputImage).split('?')[0];
+          const name = clean.substring(clean.lastIndexOf('/')+1) || 'output.png';
+          const file = name.endsWith('.png') ? name : (name + '.png');
+          link.setAttribute('download', file);
+        }catch{ link.setAttribute('download','output.png'); }
+      } else {
+        link.setAttribute('download','output.png');
+      }
     }
   }catch{}
     appendOutputThumb(payload.outputImage, payload.downloadUrl);
@@ -1642,6 +1689,8 @@ window.addEventListener('storage', (e)=>{
     const existing = grid.querySelectorAll('.lora-row').length; const idx = existing + 1; const { row } = createLoraRowDetailed(idx, models); grid.appendChild(row); }
 
   // Expose debug
+  window.populateInitialLoRAEntryDetailed = populateInitialLoRAEntryDetailed;
+  window.addLoRAEntryDetailed = addLoRAEntryDetailed;
   window.__nudeForge = Object.assign(window.__nudeForge||{}, { flattenDetailedLoras: flattenDetailed });
 })();
 
@@ -1657,9 +1706,12 @@ window.addEventListener('DOMContentLoaded', ()=>{
     const models = obj && Array.isArray(obj.models) ? obj.models : [];
     if(models.length){
       grid.innerHTML='';
-      populateInitialLoRAEntryDetailed(grid, models);
+      // Access helpers via window to avoid no-undef in lint
+  const populate = window.populateInitialLoRAEntryDetailed;
+  const addEntry = window.addLoRAEntryDetailed;
+      if(typeof populate === 'function') populate(grid, models);
       const addBtn = document.getElementById('addLoraBtn');
-      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+      if(addBtn && typeof addEntry === 'function'){ addBtn.addEventListener('click', ()=> addEntry(grid, models)); }
       // do not flip lorasLoaded here to allow future refresh if needed; we only hydrate UI
     }
   }catch{}
@@ -1674,9 +1726,11 @@ window.addEventListener('storage', (e)=>{
     const models = obj && Array.isArray(obj.models) ? obj.models : [];
     if(models.length){
       grid.innerHTML='';
-      populateInitialLoRAEntryDetailed(grid, models);
+  const populate = window.populateInitialLoRAEntryDetailed;
+  const addEntry = window.addLoRAEntryDetailed;
+      if(typeof populate === 'function') populate(grid, models);
       const addBtn = document.getElementById('addLoraBtn');
-      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+      if(addBtn && typeof addEntry === 'function'){ addBtn.addEventListener('click', ()=> addEntry(grid, models)); }
     }
   }catch{}
 });

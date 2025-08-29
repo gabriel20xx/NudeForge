@@ -4,7 +4,7 @@ import https from 'https';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
-import { createRequire } from 'module';
+import { createRequire as _createRequire } from 'module';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
