@@ -11,24 +11,19 @@
           </select>
         </label>
       </div>
-  <div id="libraryGrid" class="output-grid library-grid" style="min-height:50vh;"></div>
-      <p id="libraryEmpty" class="library-empty">No items yet.</p>
+      <section id="libraryGrid" class="results-grid" aria-live="polite" style="min-height:50vh;"></section>
+      <p id="libraryEmpty" class="library-empty" style="display:none;">No items yet.</p>
     </div>
   </div>
 </div>
-<!-- Lightbox / fullscreen viewer -->
-<div id="lightbox" class="lightbox" aria-hidden="true" style="display:none;">
-  <button id="lightboxClose" class="lightbox-close" aria-label="Close">✕</button>
-  <div class="lightbox-inner">
-    <img id="lightboxImg" alt="Preview" />
-    <div class="lightbox-controls">
-      <button id="lightboxPrev" class="lightbox-nav lightbox-prev" aria-label="Previous">◀ Prev</button>
-      <button id="lightboxNext" class="lightbox-nav lightbox-next" aria-label="Next">Next ▶</button>
-    </div>
+<!-- Shared full-view overlay (from theme.css) -->
+<div id="libraryOverlay" class="media-overlay" role="dialog" aria-modal="true" aria-label="Library media viewer">
+  <button class="nav-btn prev-btn" type="button" aria-label="Previous" id="libPrev">&#10094;</button>
+  <div class="media-frame" id="libraryFrame">
+    <button class="close-btn" type="button" aria-label="Close" id="libClose">✕</button>
   </div>
-  <div class="lightbox-backdrop"></div>
-  
-</div>
+  <button class="nav-btn next-btn" type="button" aria-label="Next" id="libNext">&#10095;</button>
+  </div>
 <script>
   (function(){
     const grid = document.getElementById('libraryGrid');
@@ -61,24 +56,36 @@
     }
     function render(){
       grid.innerHTML = '';
-      if(!items.length){ empty.style.display='block'; return; }
+      if(!items.length){
+        empty.style.display='block';
+        return;
+      }
       empty.style.display='none';
       items.forEach((item, idx) => {
-        const div = document.createElement('div');
-        div.className = 'output-item';
+        const card = document.createElement('div');
+        card.className = 'video-item';
+        const thumb = document.createElement('div');
+        thumb.className = 'video-thumbnail media-contain';
+        thumb.setAttribute('role','button');
+        thumb.setAttribute('tabindex','0');
+        thumb.setAttribute('aria-label','Open media');
+        thumb.addEventListener('click', ()=> openOverlay(idx));
+        thumb.addEventListener('keypress', (e)=>{ if(e.key==='Enter') openOverlay(idx); });
         const img = document.createElement('img');
         img.loading = 'lazy';
         img.src = item.url;
-        img.alt = item.url.split('/').pop();
-        img.addEventListener('click', ()=> openLightbox(idx));
-        const a = document.createElement('a');
-        a.href = item.downloadUrl || item.url;
-        a.className = 'download-overlay';
-        a.setAttribute('download','');
-        a.textContent = 'Download';
-        div.appendChild(img);
-        div.appendChild(a);
-        grid.appendChild(div);
+        img.alt = item.url.split('/').pop() || 'Library image';
+        thumb.appendChild(img);
+        const actions = document.createElement('div');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-download';
+        btn.textContent = 'Download';
+        btn.addEventListener('click', (ev)=>{ ev.stopPropagation(); downloadFile(item.downloadUrl||item.url, img.alt); });
+        actions.appendChild(btn);
+        card.appendChild(thumb);
+        card.appendChild(actions);
+        grid.appendChild(card);
       });
     }
     async function load(){
@@ -90,40 +97,58 @@
       render();
     }
 
-    // Lightbox
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightboxImg');
-    const btnPrev = document.getElementById('lightboxPrev');
-    const btnNext = document.getElementById('lightboxNext');
-    const btnClose = document.getElementById('lightboxClose');
-    function openLightbox(idx){
+    // Shared overlay behavior
+    const overlay = document.getElementById('libraryOverlay');
+    const frame = document.getElementById('libraryFrame');
+    const btnPrev = document.getElementById('libPrev');
+    const btnNext = document.getElementById('libNext');
+    const btnClose = document.getElementById('libClose');
+    function openOverlay(idx){
       if(!items.length) return;
       currentIndex = Math.max(0, Math.min(idx, items.length-1));
-      const it = items[currentIndex];
-      lightboxImg.src = it.url;
-      lightbox.style.display = 'block';
-      lightbox.setAttribute('aria-hidden','false');
-      document.body.classList.add('no-scroll');
+      renderOverlay();
     }
-    function closeLightbox(){
-      lightbox.style.display = 'none';
-      lightbox.setAttribute('aria-hidden','true');
-      document.body.classList.remove('no-scroll');
+    function renderOverlay(){
+      const it = items[currentIndex];
+      if(!it){ closeOverlay(); return; }
+      // Clear previous
+      Array.from(frame.querySelectorAll('img,video')).forEach(n=>n.remove());
+      const node = document.createElement('img');
+      node.src = it.url;
+      node.alt = 'Library image';
+      frame.appendChild(node);
+      overlay.classList.add('open');
+      try { document.body.classList.add('no-scroll'); document.documentElement.classList.add('no-scroll'); } catch{}
+      btnPrev.disabled = (currentIndex<=0);
+      btnNext.disabled = (currentIndex>=items.length-1);
+    }
+    function prev(){ if(currentIndex>0){ currentIndex--; renderOverlay(); } }
+    function next(){ if(currentIndex < items.length-1){ currentIndex++; renderOverlay(); } }
+    function closeOverlay(){
+      overlay.classList.remove('open');
+      try { document.body.classList.remove('no-scroll'); document.documentElement.classList.remove('no-scroll'); } catch{}
       currentIndex = -1;
     }
-    function prev(){ if(!items.length) return; openLightbox((currentIndex-1+items.length)%items.length); }
-    function next(){ if(!items.length) return; openLightbox((currentIndex+1)%items.length); }
     btnPrev.addEventListener('click', prev);
     btnNext.addEventListener('click', next);
-    btnClose.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) closeLightbox(); });
+    btnClose.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeOverlay(); });
     window.addEventListener('keydown', (e)=>{
-      if(lightbox.getAttribute('aria-hidden') === 'false'){
-        if(e.key === 'Escape') closeLightbox();
+      if(overlay.classList.contains('open')){
+        if(e.key === 'Escape') closeOverlay();
         else if(e.key === 'ArrowLeft') prev();
         else if(e.key === 'ArrowRight') next();
       }
     });
+
+    // Consistent downloader (handles CORS, falls back to anchor)
+    function downloadFile(url, filename){
+      try{
+        fetch(url, {mode:'cors'}).then(r=>{ if(!r.ok) throw new Error('net'); return r.blob(); })
+        .then(blob=>{ const a=document.createElement('a'); const href=URL.createObjectURL(blob); a.href=href; a.download=filename||'download'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(href),1500); })
+        .catch(()=>{ const a=document.createElement('a'); a.href=url; a.download=filename||''; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); });
+      }catch{ const a=document.createElement('a'); a.href=url; a.download=filename||''; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+    }
 
     // Mode toggle
     modeSel.addEventListener('change', ()=>{ setMode(modeSel.value); load(); });
