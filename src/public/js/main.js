@@ -49,6 +49,7 @@ window.addEventListener('DOMContentLoaded', async function() {
   const headerOptions = document.querySelector('.header-options');
   if(headerOptions) headerOptions.style.display='block';
   restoreGeneratorState();
+  try{ refreshClearInputDisabled(); }catch{}
   // Ensure prompt defaults from template if nothing restored
   try{
   const promptEl = document.getElementById('prompt');
@@ -152,6 +153,9 @@ const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
 let activeRequestIds = []; // track multiple when multi-upload
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
+// Selection versioning to prevent mixing previous selections
+let __selectionVersion = 0;
+let __selectedFilesVersion = 0;
 let multiRunActive = false; // true while a multi-upload batch (>1) is being processed
 let multiRunTotalCount = 0; // total images in current batch
 let multiRunDoneCount = 0;  // completed (success or fail) in current batch
@@ -173,6 +177,7 @@ function setUploadBusy(busy){
   uploadButton.textContent = 'Cancel';
   uploadButton.dataset.mode = 'cancel';
   // toggle removed
+  try{ refreshClearInputDisabled(); }catch{}
   } else {
     uploadButton.disabled = false;
     uploadButton.classList.remove('disabled');
@@ -180,6 +185,7 @@ function setUploadBusy(busy){
   uploadButton.dataset.mode = 'upload';
     try { updateUploadButtonState(); } catch { /* no-op */ }
   // toggle removed
+    try{ refreshClearInputDisabled(); }catch{}
   }
 }
   // Wire clear buttons
@@ -227,6 +233,16 @@ if (inputImage) {
   } catch { /* ignore UA errors */ }
 
   inputImage.addEventListener('change', () => {
+  // Bump selection version to invalidate any previous selection
+  __selectionVersion += 1;
+  __selectedFilesVersion = __selectionVersion;
+  if(uploadForm) uploadForm.dataset.selectionId = String(__selectionVersion);
+    // Clear previous previews and selection immediately
+    try{
+      selectedFiles = [];
+      if (multiPreviewContainer) { multiPreviewContainer.innerHTML = ''; multiPreviewContainer.style.display = 'none'; }
+      if (dropText) { dropText.style.display = ''; }
+    }catch{}
     const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
     // Client-side guard: only allow images
     const allFiles = Array.from(inputImage.files || []);
@@ -243,6 +259,7 @@ if (inputImage) {
       __persist.selectedPreviewSources = []; saveGeneratorState();
   const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = true;
   try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
+  try{ refreshClearInputDisabled(); }catch{}
     } catch {}
     const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
     if (allFiles.length > 0 && imageFiles.length === 0) {
@@ -254,18 +271,19 @@ if (inputImage) {
     if (imageFiles.length > maxFiles) {
       window.toast?.warn?.(`You selected ${imageFiles.length} images. Only the first ${maxFiles} will be uploaded.`);
     }
-    const limitedImages = imageFiles.slice(0, maxFiles);
+  const limitedImages = imageFiles.slice(0, maxFiles);
   const multi = true;
   if (multi) {
     // Collect selected files and let renderer decide single vs multi layout.
     selectedFiles = limitedImages;
+  __selectedFilesVersion = __selectionVersion;
     if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
     if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
       // Initialize persisted preview sources from selectedFiles using data URLs (updated later if copy URL becomes available)
       try {
         __persist.selectedPreviewSources = [];
         const readers = selectedFiles.map(file => new Promise((resolve)=>{ const r=new FileReader(); r.onload=e=>resolve({ src:e.target.result, kind:'data', filename:file.name||'image' }); r.readAsDataURL(file); }));
-        Promise.all(readers).then(list=>{ __persist.selectedPreviewSources = list; saveGeneratorState(); });
+  Promise.all(readers).then(list=>{ __persist.selectedPreviewSources = list; saveGeneratorState(); });
       } catch {}
   }
     // Background: send copy/copies immediately to /upload-copy (non-blocking) so server stores original in /copy
@@ -311,6 +329,18 @@ if (inputImage) {
 function showElement(el){ if(el) el.style.display=''; }
 function hideElement(el){ if(el) el.style.display='none'; }
 function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
+// Keep Clear button disabled while a batch is processing
+function refreshClearInputDisabled(){
+  try{
+    const btn = document.getElementById('clearInputBtn');
+    if(!btn) return;
+    // Disable if we're busy/cancelling or a multi-run is active
+    const busy = (uploadButton && uploadButton.dataset.mode === 'cancel');
+    const hasSelection = !!(multiPreviewContainer && multiPreviewContainer.querySelector('.multi-preview-item'));
+    const allow = !busy && !multiRunActive && hasSelection;
+    btn.disabled = !allow;
+  }catch{}
+}
 // Convert data URL to Blob
 function dataUrlToBlob(dataUrl){
   try{
@@ -370,6 +400,8 @@ async function rehydrateSelectionFromPersisted(reason){
     const files = await reconstructFilesFromPersistedSources(maxFiles);
     if(files && files.length){
       selectedFiles = files;
+  // Treat as a fresh selection
+  __selectionVersion += 1; __selectedFilesVersion = __selectionVersion; if(uploadForm) uploadForm.dataset.selectionId = String(__selectionVersion);
       if(inputImage){ const dt = new DataTransfer(); files.forEach(f=> dt.items.add(f)); inputImage.files = dt.files; }
   updateUploadButtonState();
   try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
@@ -759,7 +791,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       sources.slice(0, maxThumbs).forEach((it, idx)=>{ const wrapper=document.createElement('div'); wrapper.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper); });
     }
   try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
-  try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = false; }catch{}
+  try{ refreshClearInputDisabled(); }catch{}
     // If there is exactly one preview, expand to fill container height with non-cropping fit
     const items = multiPreviewContainer.querySelectorAll('.multi-preview-item');
     if(items.length === 1){
@@ -837,14 +869,23 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         try{
           if(uploadButton.dataset.mode === 'cancel'){
             ev.preventDefault(); ev.stopPropagation();
-            // Call cancel API to clear queue and abort active job
+            // Cancel only the current batch requests (active + pending for this batch)
             try{
-              const rid = activeRequestId || (Array.isArray(activeRequestIds) ? activeRequestIds[0] : null);
-              const url = rid ? `/api/cancel/${encodeURIComponent(rid)}` : '/api/cancel';
-              const res = await fetch(url, { method:'POST' });
-              if(!res.ok){ throw new Error('Cancel failed'); }
-              const data = await res.json().catch(()=>({}));
-              window.toast?.success?.('Cancelled');
+              const ids = Array.isArray(activeRequestIds) && activeRequestIds.length
+                ? Array.from(new Set(activeRequestIds))
+                : (activeRequestId ? [activeRequestId] : []);
+              if(ids.length === 0){
+                // Fallback: nothing tracked, do a no-op
+              } else {
+                for(const id of ids){
+                  try{
+                    const res = await fetch(`/api/cancel/${encodeURIComponent(id)}`, { method:'POST' });
+                    // ignore per-id failures; continue cancelling others
+                    await res.text().catch(()=>{});
+                  }catch{}
+                }
+              }
+              window.toast?.success?.('Batch cancelled');
             } catch(err){ window.toast?.error?.('Cancel failed'); }
             // Reset local state regardless; server will also emit events
             activeRequestId = null; activeRequestIds = []; multiRunActive = false; multiRunTotalCount = 0; multiRunDoneCount = 0;
@@ -852,18 +893,36 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
             setStatus('Failed'); // show a non-success terminal state
             updateUnifiedStatus({ status:'failed' });
             setUploadBusy(false);
+            try{ refreshClearInputDisabled(); }catch{}
             return false;
           }
         } catch{}
       }, true);
     }
-    uploadForm.addEventListener('submit', async (e)=>{
+  uploadForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
       if(!uploadButton || uploadButton.disabled) return;
       if(uploadButton.dataset.mode === 'cancel'){
         // Safety: if somehow submit fires in cancel mode, treat as cancel
-  try{ const rid = activeRequestId || (Array.isArray(activeRequestIds) ? activeRequestIds[0] : null); const url = rid ? `/api/cancel/${encodeURIComponent(rid)}` : '/api/cancel'; const r = await fetch(url, { method:'POST' }); if(!r.ok) throw new Error('Cancel failed'); window.toast?.success?.('Cancelled'); }catch{ window.toast?.error?.('Cancel failed'); }
+  try{
+    const ids = Array.isArray(activeRequestIds) && activeRequestIds.length
+      ? Array.from(new Set(activeRequestIds))
+      : (activeRequestId ? [activeRequestId] : []);
+    if(ids.length){
+      for(const id of ids){
+        try{ const r = await fetch(`/api/cancel/${encodeURIComponent(id)}`, { method:'POST' }); await r.text().catch(()=>{}); }catch{}
+      }
+    }
+    window.toast?.success?.('Batch cancelled');
+  }catch{ window.toast?.error?.('Cancel failed'); }
         activeRequestId = null; activeRequestIds = []; multiRunActive = false; multiRunTotalCount = 0; multiRunDoneCount = 0; __hasLiveProgressForActive = false; __lastOverallPct = null; setStatus('Failed'); updateUnifiedStatus({ status:'failed' }); setUploadBusy(false);
+        try{ refreshClearInputDisabled(); }catch{}
+        return;
+      }
+      // Guard against stale selections: only upload files from the current selection version
+      const currentSel = Number(uploadForm.dataset.selectionId || '0');
+      if(currentSel !== __selectionVersion){
+        window.toast?.warn?.('File selection changed; please click Upload again.');
         return;
       }
       const formData = new FormData(uploadForm);
@@ -880,10 +939,15 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
         window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (selected ${selectedFiles.length}).`);
         selectedFiles = selectedFiles.slice(0, maxFiles);
       }
-      // Always append selected files (multi-upload always on)
-      if(selectedFiles.length>0){
-        formData.delete('image'); // remove potential single
-        selectedFiles.forEach(f=> formData.append('image', f));
+      // Always append selected files (multi-upload always on) strictly from current selection
+      formData.delete('image'); // remove any stale single input value
+      const versionSnapshot = __selectedFilesVersion;
+      const filesToSend = (versionSnapshot === __selectionVersion) ? (selectedFiles || []) : [];
+      if(filesToSend.length > 0){ filesToSend.forEach(f=> formData.append('image', f)); }
+      // If somehow empty, block upload rather than sending previous selection
+      if(!filesToSend || filesToSend.length === 0){
+        window.toast?.error?.('No images selected.');
+        return;
       }
       gatherAndNormalizeSettings(formData);
   const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
@@ -910,6 +974,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
               multiRunDoneCount = 0;
               multiRunActive = multiRunTotalCount > 1;
               __clearedOnFirstComplete = false; // reset for this batch
+              try{ refreshClearInputDisabled(); }catch{}
             joinStatusChannel(activeRequestId);
             updateStatusUI({ status:'queued', yourPosition: data.yourPosition });
             pollStatus();
@@ -923,6 +988,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       } finally {
   // Keep disabled while active request is being processed
   if(!activeRequestId){ setUploadBusy(false); multiRunActive = false; }
+  try{ refreshClearInputDisabled(); }catch{}
       }
     });
   }
@@ -1024,6 +1090,7 @@ function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; 
     // No more items; finalize batch state
     activeRequestId=null; multiRunActive=false;
     updateStatusUI({ status:'failed' });
+  try{ refreshClearInputDisabled(); }catch{}
   });
   s._listenersAdded = true; }
 }
@@ -1293,6 +1360,7 @@ function handleProcessingComplete(payload){
   if(isBatchCompleted){
     setStatus('Finished');
     updateProgressBar(100,'completed');
+  try{ refreshClearInputDisabled(); }catch{}
   }
   if(payload.outputImage){
     const ph=document.getElementById('outputPlaceholder');
@@ -1346,6 +1414,7 @@ function handleProcessingComplete(payload){
     activeRequestId=null;
     // Batch completed
     if(multiRunActive){ multiRunActive = false; }
+  try{ refreshClearInputDisabled(); }catch{}
   }
   __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
