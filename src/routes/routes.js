@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import Logger from '../../../NudeShared/serverLogger.js';
-import { cancelAll } from "../services/queue.js";
+import { cancelAll, cancelRequest } from "../services/queue.js";
 import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
 import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
@@ -135,6 +135,19 @@ router.post('/api/cancel', (req, res) => {
         const result = cancelAll(req.app.get('io'));
         if (result && result.error) return res.status(500).json({ ok: false, error: result.error });
         return res.json({ ok: true, ...result });
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// Cancel a specific requestId: only interrupts ComfyUI if it matches the active one
+router.post('/api/cancel/:requestId', async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        if (!requestId) return res.status(400).json({ ok: false, error: 'requestId required' });
+        const result = await cancelRequest(req.app.get('io'), requestId);
+        if (result && result.error) return res.status(500).json({ ok: false, error: result.error });
+        return res.json({ ok: !!result.ok, ...result, active: getCurrentlyProcessingRequestId() });
     } catch (e) {
         return res.status(500).json({ ok: false, error: e.message });
     }

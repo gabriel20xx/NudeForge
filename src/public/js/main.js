@@ -49,6 +49,13 @@ window.addEventListener('DOMContentLoaded', async function() {
   const headerOptions = document.querySelector('.header-options');
   if(headerOptions) headerOptions.style.display='block';
   restoreGeneratorState();
+  // Ensure prompt defaults from template if nothing restored
+  try{
+  const promptEl = document.getElementById('prompt');
+    if(promptEl && (!promptEl.value || !String(promptEl.value).trim())){
+      promptEl.value = promptEl.defaultValue || promptEl.value || '';
+    }
+  }catch{}
   // Output image overlay (shared design with Library)
   try{
     const grid = document.getElementById('outputGrid');
@@ -462,7 +469,18 @@ function restoreGeneratorState(){
     // Restore Advanced settings values
     if(state && state.settings){
       try{
-        const promptEl = document.getElementById('prompt'); if(promptEl) promptEl.value = state.settings.prompt ?? promptEl.value;
+        const promptEl = document.getElementById('prompt');
+        if(promptEl){
+          const saved = typeof state.settings.prompt === 'string' ? state.settings.prompt : null;
+          if(saved && String(saved).trim()){
+            promptEl.value = saved;
+          } else {
+            // keep existing value; if it's empty, fallback to template default
+            if(!promptEl.value || !String(promptEl.value).trim()){
+              promptEl.value = promptEl.defaultValue || promptEl.value || '';
+            }
+          }
+        }
         const stepsEl = document.getElementById('steps'); if(stepsEl){ stepsEl.value = state.settings.steps ?? stepsEl.value; const sv=document.getElementById('stepsValue'); if(sv) sv.textContent = String(stepsEl.value); }
         const outH = document.getElementById('outputHeight'); if(outH){ outH.value = state.settings.outputHeight ?? outH.value; }
         // Restore LoRA rows
@@ -756,7 +774,11 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     const promptEl = document.getElementById('prompt');
     const stepsEl = document.getElementById('steps');
     const outputHeightEl = document.getElementById('outputHeight');
-    if(promptEl) formData.set('prompt', promptEl.value || '');
+    if(promptEl){
+      const val = String(promptEl.value || '').trim();
+      const fallback = String(promptEl.defaultValue || '').trim();
+      formData.set('prompt', val || fallback || '');
+    }
     if(stepsEl) formData.set('steps', stepsEl.value || '20');
     if(outputHeightEl) formData.set('outputHeight', outputHeightEl.value || '1080');
     return formData;
@@ -771,7 +793,9 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
             ev.preventDefault(); ev.stopPropagation();
             // Call cancel API to clear queue and abort active job
             try{
-              const res = await fetch('/api/cancel', { method:'POST' });
+              const rid = activeRequestId || (Array.isArray(activeRequestIds) ? activeRequestIds[0] : null);
+              const url = rid ? `/api/cancel/${encodeURIComponent(rid)}` : '/api/cancel';
+              const res = await fetch(url, { method:'POST' });
               if(!res.ok){ throw new Error('Cancel failed'); }
               const data = await res.json().catch(()=>({}));
               window.toast?.success?.('Cancelled');
@@ -792,7 +816,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       if(!uploadButton || uploadButton.disabled) return;
       if(uploadButton.dataset.mode === 'cancel'){
         // Safety: if somehow submit fires in cancel mode, treat as cancel
-        try{ const r = await fetch('/api/cancel', { method:'POST' }); if(!r.ok) throw new Error('Cancel failed'); window.toast?.success?.('Cancelled'); }catch{ window.toast?.error?.('Cancel failed'); }
+  try{ const rid = activeRequestId || (Array.isArray(activeRequestIds) ? activeRequestIds[0] : null); const url = rid ? `/api/cancel/${encodeURIComponent(rid)}` : '/api/cancel'; const r = await fetch(url, { method:'POST' }); if(!r.ok) throw new Error('Cancel failed'); window.toast?.success?.('Cancelled'); }catch{ window.toast?.error?.('Cancel failed'); }
         activeRequestId = null; activeRequestIds = []; multiRunActive = false; multiRunTotalCount = 0; multiRunDoneCount = 0; __hasLiveProgressForActive = false; __lastOverallPct = null; setStatus('Failed'); updateUnifiedStatus({ status:'failed' }); setUploadBusy(false);
         return;
       }

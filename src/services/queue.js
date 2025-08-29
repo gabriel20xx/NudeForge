@@ -3,7 +3,7 @@ import path from 'path';
 import axios from 'axios';
 // import { v4 as uuidv4 } from 'uuid'; // (unused) keep commented for potential future use
 import Logger from '../../../NudeShared/serverLogger.js';
-import { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR, INPUT_DIR } from '../config/config.js';
+import { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR, INPUT_DIR, COMFYUI_HOST } from '../config/config.js';
 import crypto from 'crypto';
 
 const processingQueue = [];
@@ -294,11 +294,54 @@ function cancelAll(io) {
     }
 }
 
+// Cancel a specific request: if active, signal loop and call ComfyUI /interrupt; if pending, remove from queue.
+async function cancelRequest(io, requestId) {
+    try {
+        if (!requestId) return { error: 'requestId is required' };
+        // If it's the active request
+        if (currentlyProcessingRequestId && currentlyProcessingRequestId === requestId) {
+            cancelRequestedFor = requestId; // signal active loop to abort
+            // Best-effort ComfyUI interrupt
+            try {
+                const url = `http://${COMFYUI_HOST}/interrupt`;
+                await axios.post(url, {}, { timeout: 5000 });
+                Logger.info('QUEUE', `Sent ComfyUI /interrupt for active requestId=${requestId}`);
+            } catch (e) {
+                Logger.warn('QUEUE', `ComfyUI /interrupt failed or unavailable: ${e.message}`);
+            }
+            try { io && io.to(requestId).emit('processingFailed', { error: 'Cancelled by user' }); } catch {}
+            if (requestStatus[requestId]) {
+                requestStatus[requestId].status = 'cancelled';
+                requestStatus[requestId].data = { error: 'Cancelled by user' };
+            }
+            return { ok: true, cancelledActive: true };
+        }
+        // If it's pending in the queue, remove it
+        const idx = processingQueue.findIndex(item => item.requestId === requestId);
+        if (idx !== -1) {
+            const [removed] = processingQueue.splice(idx, 1);
+            try { io && io.to(requestId).emit('processingFailed', { error: 'Cancelled by user (pending)' }); } catch {}
+            if (requestStatus[requestId]) {
+                requestStatus[requestId].status = 'cancelled';
+                requestStatus[requestId].data = { error: 'Cancelled by user' };
+            }
+            Logger.warn('QUEUE', `Cancelled pending requestId=${requestId} (file=${removed?.uploadedFilename || 'n/a'})`);
+            return { ok: true, cancelledPending: true };
+        }
+        // Not found
+        return { ok: false, notFound: true };
+    } catch (e) {
+        Logger.error('QUEUE', 'cancelRequest failed', e);
+        return { error: e.message };
+    }
+}
+
 export {
     getProcessingQueue,
     getRequestStatus,
     getCurrentlyProcessingRequestId,
     getIsProcessing,
     processQueue,
-    cancelAll
+    cancelAll,
+    cancelRequest
 };
