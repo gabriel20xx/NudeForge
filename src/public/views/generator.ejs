@@ -26,12 +26,15 @@
         <h2>Image Output</h2>
         <div id="outputArea" class="image-box">
           <p id="outputPlaceholder" class="placeholder">Your processed image will appear here.</p>
-          <div id="outputGrid" class="output-grid" style="display:none;"></div>
+          <div id="outputGrid" class="multi-preview-container output-grid" style="display:none;"></div>
         </div>
-        <!-- Lightbox for viewing output images full-size -->
-        <div id="lightboxOverlay" class="lightbox-overlay" style="display:none;">
-          <button id="lightboxClose" type="button" class="lightbox-close" aria-label="Close">×</button>
-          <img id="lightboxImage" alt="Full view" />
+        <!-- Shared media overlay for viewing outputs (matches Library design) -->
+        <div id="outputOverlay" class="media-overlay" role="dialog" aria-modal="true" aria-label="Output media viewer">
+          <button class="nav-btn prev-btn" type="button" aria-label="Previous" id="outPrev">&#10094;</button>
+          <div class="media-frame" id="outputFrame">
+            <button class="close-btn" type="button" aria-label="Close" id="outClose">✕</button>
+          </div>
+          <button class="nav-btn next-btn" type="button" aria-label="Next" id="outNext">&#10095;</button>
         </div>
         <a id="downloadLink" href="#" download class="disabled">
           <button class="btn download-btn" type="button" disabled>Download</button>
