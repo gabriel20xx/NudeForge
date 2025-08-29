@@ -773,8 +773,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     }
   // Always grid of thumbnails
   multiPreviewContainer.style.display = '';
-    // Reset to default multi layout first
-    multiPreviewContainer.style.gridTemplateColumns = 'repeat(auto-fit,minmax(120px,1fr))';
+  // Reset to default multi layout first (fixed 4 columns to show 16 tiles per view)
+  multiPreviewContainer.style.gridTemplateColumns = 'repeat(4,1fr)';
     multiPreviewContainer.style.height = '100%';
     multiPreviewContainer.style.maxHeight = '';
     try{ const box = document.getElementById('dropArea'); if(box){ box.classList.add('has-previews'); } }catch{}
