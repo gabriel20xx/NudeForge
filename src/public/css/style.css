@@ -61,11 +61,7 @@ input[type=file]{ display:none; }
 .image-box { width:100%; aspect-ratio:1; background:var(--color-dropzone-bg); border:2.5px dashed var(--color-accent-glow); border-radius:12px; position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:1rem; box-sizing:border-box; min-width:0; }
 .image-box img { max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:none; border-radius:8px; background:#181c24; }
 /* #outputImage removed in favor of grid-only output */
-/* Lightbox overlay */
-.lightbox-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:1000; }
-.lightbox-overlay img { max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
-.lightbox-close { position:absolute; top:16px; right:16px; background:rgba(0,0,0,0.7); border:none; color:#fff; font-size:24px; width:40px; height:40px; border-radius:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.lightbox-close:hover { background:rgba(0,0,0,0.9); }
+/* Lightbox overlay styles removed in favor of shared .media-overlay in theme.css */
 .multi-preview-container { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:100%; height:100%; max-height:none; overflow-y:auto; overflow-x:hidden; padding:10px; background:var(--color-bg-alt); border-radius:8px; margin: 0; box-sizing:border-box; grid-auto-rows: 1fr; align-content:start; }
 .image-box.has-previews { justify-content:flex-start; align-items:stretch; }
 .image-box.has-previews .multi-preview-container { height:100%; max-height:none; flex:1 1 auto; grid-auto-rows: 1fr; }
@@ -85,31 +81,9 @@ input[type=file]{ display:none; }
 .mode-toggle { display:inline-flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--color-text-dim); }
 .mode-toggle select { background:#181c24; color:#fff; border:1px solid #444; border-radius:6px; padding:.25rem .5rem; }
 
-/* Results grid & tile styles (reused by categories and library folders) */
-.results-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width:100%; padding: 10px; box-sizing:border-box; }
-.video-item { display:flex; flex-direction:column; gap:.4rem; background: var(--color-panel-bg); border:1px solid var(--color-border); border-radius:10px; overflow:hidden; box-shadow: var(--shadow-sm); cursor:pointer; }
-.video-item:hover { box-shadow: var(--shadow-md); }
-.video-thumbnail { width:100%; aspect-ratio: 1.6 / 1; background: var(--color-bg-alt); display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.video-thumbnail img { width:100%; height:100%; object-fit:cover; display:block; }
-.category-title { padding:.4rem .6rem .6rem; font-size:.95rem; font-weight:600; color: var(--color-text); text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Results grid & tiles come from shared theme.css */
 
-@media (max-width: 900px) {
-	.results-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 600px) {
-	.results-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-/* Lightbox */
 .no-scroll { overflow:hidden; }
-.lightbox { position:fixed; inset:0; display:none; z-index:1000; }
-.lightbox-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.85); }
-.lightbox-inner { position:relative; z-index:1; height:100%; width:100%; display:flex; align-items:center; justify-content:center; padding:3.5rem 1rem 4.5rem; box-sizing:border-box; }
-.lightbox-inner img { max-width:95vw; max-height:80vh; width:auto; height:auto; object-fit:contain; border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,.6); background:#000; }
-.lightbox-close { position:absolute; top:12px; right:12px; z-index:2; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
-.lightbox-controls { position:absolute; bottom:12px; left:0; right:0; display:flex; gap:1rem; justify-content:center; z-index:2; }
-.lightbox-nav { background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:8px; padding:.6rem 1rem; cursor:pointer; font-size:.95rem; }
-.lightbox-nav:hover, .lightbox-close:hover { background:rgba(0,0,0,.75); }
 .output-grid .download-overlay, .multi-preview-container .download-overlay { position:absolute; inset:auto 6px 6px auto; background:rgba(0,0,0,.6); border-radius:6px; padding:4px 8px; color:#fff; font-size:.75rem; text-decoration:none; }
 .btn { padding:.7em 1.5em; border:none; border-radius:8px; font-size:1em; margin-top:1em; color:#23272f; cursor:pointer; font-weight:500; letter-spacing:.5px; box-shadow:var(--shadow-sm); transition:background .2s,color .2s,box-shadow .2s; }
 .btn:hover { color:#fff; }

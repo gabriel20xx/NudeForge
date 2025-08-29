@@ -124,8 +124,8 @@ router.get('/api/library-images', async (req, res) => {
             return candidate;
         })();
 
-        const entries = await fs.promises.readdir(baseDir, { withFileTypes: true });
-        const files = entries.filter(d => d.isFile()).map(d => d.name);
+    const entries = await fs.promises.readdir(baseDir, { withFileTypes: true });
+    const files = entries.filter(d => d.isFile() && !d.name.startsWith('.')).map(d => d.name);
         const images = files
             .filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f))
             .sort((a, b) => fs.statSync(path.join(baseDir, b)).mtimeMs - fs.statSync(path.join(baseDir, a)).mtimeMs)
@@ -167,8 +167,8 @@ router.get('/api/library-folders', async (req, res) => {
             return candidate;
         })();
 
-        const entries = await fs.promises.readdir(targetDir, { withFileTypes: true });
-        const subdirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    const entries = await fs.promises.readdir(targetDir, { withFileTypes: true });
+    const subdirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name);
 
         // For each subdir, attempt to find one image file for preview and count images
         const results = [];
@@ -180,7 +180,7 @@ router.get('/api/library-folders', async (req, res) => {
             } catch {
                 continue;
             }
-            const imageFiles = files.filter(f => f.isFile() && /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name)).map(f => f.name);
+            const imageFiles = files.filter(f => f.isFile() && !f.name.startsWith('.') && /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name)).map(f => f.name);
             if (imageFiles.length === 0) {
                 // Still include folder but without preview (optional: skip empty)
                 results.push({

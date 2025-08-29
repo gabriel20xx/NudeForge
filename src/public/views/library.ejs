@@ -136,7 +136,7 @@
           back.setAttribute('tabindex', '0');
           back.setAttribute('aria-label', 'Go up');
           const preview = document.createElement('div');
-          preview.className = 'video-thumbnail';
+          preview.className = 'video-thumbnail media-contain';
           const icon = document.createElement('div');
           icon.style.display = 'flex'; icon.style.height = '100%'; icon.style.alignItems = 'center'; icon.style.justifyContent = 'center';
           icon.innerHTML = '<i class="fa fa-level-up-alt" style="font-size:2rem; opacity:.7;"></i>';
@@ -158,7 +158,7 @@
           item.setAttribute('role','button');
           item.setAttribute('tabindex','0');
           const preview = document.createElement('div');
-          preview.className = 'video-thumbnail';
+          preview.className = 'video-thumbnail media-contain';
           if (f.preview) {
             const img = document.createElement('img');
             img.loading = 'lazy';
