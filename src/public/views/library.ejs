@@ -1,160 +1,150 @@
 <%- include('partials/header', { title: 'Library' }) %>
-<div class="main-container" style="padding-top:var(--topbar-height);">
-  <div class="main-col">
-    <div class="main-section" style="padding-top:.75rem;">
-      <div class="library-controls">
-        <label class="mode-toggle">
-          <span>Source:</span>
-          <select id="libraryMode">
-            <option value="local">This browser</option>
-            <option value="api">Server (API)</option>
-          </select>
-        </label>
-      </div>
+  <div class="main-container" style="padding-top:var(--topbar-height);">
+    <div class="main-col">
+  <!-- Mode toggle moved to header via showLibraryModeToggle -->
       <section id="libraryGrid" class="results-grid" aria-live="polite" style="min-height:50vh;"></section>
-      <p id="libraryEmpty" class="library-empty" style="display:none;">No items yet.</p>
+      <p id="libraryEmpty" class="library-empty" style="display:none;">No items yet.</p>W
     </div>
   </div>
-</div>
-<!-- Shared full-view overlay (from theme.css) -->
-<div id="libraryOverlay" class="media-overlay" role="dialog" aria-modal="true" aria-label="Library media viewer">
-  <button class="nav-btn prev-btn" type="button" aria-label="Previous" id="libPrev">&#10094;</button>
-  <div class="media-frame" id="libraryFrame">
-    <button class="close-btn" type="button" aria-label="Close" id="libClose">✕</button>
+  <!-- Shared full-view overlay (from theme.css) -->
+  <div id="libraryOverlay" class="media-overlay" role="dialog" aria-modal="true" aria-label="Library media viewer">
+    <button class="nav-btn prev-btn" type="button" aria-label="Previous" id="libPrev">&#10094;</button>
+    <div class="media-frame" id="libraryFrame">
+      <button class="close-btn" type="button" aria-label="Close" id="libClose">✕</button>
+    </div>
+    <button class="nav-btn next-btn" type="button" aria-label="Next" id="libNext">&#10095;</button>
   </div>
-  <button class="nav-btn next-btn" type="button" aria-label="Next" id="libNext">&#10095;</button>
-  </div>
-<script>
-  (function(){
-    const grid = document.getElementById('libraryGrid');
-    const empty = document.getElementById('libraryEmpty');
+  <script>
+    (function () {
+      const grid = document.getElementById('libraryGrid');
+      const empty = document.getElementById('libraryEmpty');
     const modeSel = document.getElementById('libraryMode');
-    const key = 'nudeforge:library:v1';
-    const modeKey = 'nudeforge:library:mode';
-    let items = [];
-    let currentIndex = -1;
+      const key = 'nudeforge:library:v1';
+      const modeKey = 'nudeforge:library:mode';
+      let items = [];
+      let currentIndex = -1;
 
-    function getMode(){
-      const stored = localStorage.getItem(modeKey);
-      return (stored === 'api' || stored === 'local') ? stored : 'local';
-    }
-    function setMode(m){ localStorage.setItem(modeKey, m); }
-
-    async function fetchFromApi(){
-      const res = await fetch('/api/library-images');
-      if(!res.ok) throw new Error('API failed');
-      const data = await res.json();
-      const arr = (data && data.images) || [];
-      return arr.map(x => ({ url: x.url, downloadUrl: x.url }));
-    }
-    function fetchFromLocal(){
-      try {
-        const raw = localStorage.getItem(key);
-        const list = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-        return list.map(x => ({ url: x.url, downloadUrl: x.downloadUrl || x.url }));
-      } catch { return []; }
-    }
-    function render(){
-      grid.innerHTML = '';
-      if(!items.length){
-        empty.style.display='block';
-        return;
+      function getMode() {
+        const stored = localStorage.getItem(modeKey);
+        return (stored === 'api' || stored === 'local') ? stored : 'local';
       }
-      empty.style.display='none';
-      items.forEach((item, idx) => {
-        const card = document.createElement('div');
-        card.className = 'video-item';
-        const thumb = document.createElement('div');
-        thumb.className = 'video-thumbnail media-contain';
-        thumb.setAttribute('role','button');
-        thumb.setAttribute('tabindex','0');
-        thumb.setAttribute('aria-label','Open media');
-        thumb.addEventListener('click', ()=> openOverlay(idx));
-        thumb.addEventListener('keypress', (e)=>{ if(e.key==='Enter') openOverlay(idx); });
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.src = item.url;
-        img.alt = item.url.split('/').pop() || 'Library image';
-        thumb.appendChild(img);
-        const actions = document.createElement('div');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn-download';
-        btn.textContent = 'Download';
-        btn.addEventListener('click', (ev)=>{ ev.stopPropagation(); downloadFile(item.downloadUrl||item.url, img.alt); });
-        actions.appendChild(btn);
-        card.appendChild(thumb);
-        card.appendChild(actions);
-        grid.appendChild(card);
+      function setMode(m) { localStorage.setItem(modeKey, m); }
+
+      async function fetchFromApi() {
+        const res = await fetch('/api/library-images');
+        if (!res.ok) throw new Error('API failed');
+        const data = await res.json();
+        const arr = (data && data.images) || [];
+        return arr.map(x => ({ url: x.url, downloadUrl: x.url }));
+      }
+      function fetchFromLocal() {
+        try {
+          const raw = localStorage.getItem(key);
+          const list = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+          return list.map(x => ({ url: x.url, downloadUrl: x.downloadUrl || x.url }));
+        } catch { return []; }
+      }
+      function render() {
+        grid.innerHTML = '';
+        if (!items.length) {
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        items.forEach((item, idx) => {
+          const card = document.createElement('div');
+          card.className = 'video-item';
+          const thumb = document.createElement('div');
+          thumb.className = 'video-thumbnail media-contain';
+          thumb.setAttribute('role', 'button');
+          thumb.setAttribute('tabindex', '0');
+          thumb.setAttribute('aria-label', 'Open media');
+          thumb.addEventListener('click', () => openOverlay(idx));
+          thumb.addEventListener('keypress', (e) => { if (e.key === 'Enter') openOverlay(idx); });
+          const img = document.createElement('img');
+          img.loading = 'lazy';
+          img.src = item.url;
+          img.alt = item.url.split('/').pop() || 'Library image';
+          thumb.appendChild(img);
+          const actions = document.createElement('div');
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn-download';
+          btn.textContent = 'Download';
+          btn.addEventListener('click', (ev) => { ev.stopPropagation(); downloadFile(item.downloadUrl || item.url, img.alt); });
+          actions.appendChild(btn);
+          card.appendChild(thumb);
+          card.appendChild(actions);
+          grid.appendChild(card);
+        });
+      }
+      async function load() {
+        const mode = getMode();
+        modeSel.value = mode;
+        try {
+          items = mode === 'api' ? await fetchFromApi() : fetchFromLocal();
+        } catch { items = []; }
+        render();
+      }
+
+      // Shared overlay behavior
+      const overlay = document.getElementById('libraryOverlay');
+      const frame = document.getElementById('libraryFrame');
+      const btnPrev = document.getElementById('libPrev');
+      const btnNext = document.getElementById('libNext');
+      const btnClose = document.getElementById('libClose');
+      function openOverlay(idx) {
+        if (!items.length) return;
+        currentIndex = Math.max(0, Math.min(idx, items.length - 1));
+        renderOverlay();
+      }
+      function renderOverlay() {
+        const it = items[currentIndex];
+        if (!it) { closeOverlay(); return; }
+        // Clear previous
+        Array.from(frame.querySelectorAll('img,video')).forEach(n => n.remove());
+        const node = document.createElement('img');
+        node.src = it.url;
+        node.alt = 'Library image';
+        frame.appendChild(node);
+        overlay.classList.add('open');
+        try { document.body.classList.add('no-scroll'); document.documentElement.classList.add('no-scroll'); } catch { }
+        btnPrev.disabled = (currentIndex <= 0);
+        btnNext.disabled = (currentIndex >= items.length - 1);
+      }
+      function prev() { if (currentIndex > 0) { currentIndex--; renderOverlay(); } }
+      function next() { if (currentIndex < items.length - 1) { currentIndex++; renderOverlay(); } }
+      function closeOverlay() {
+        overlay.classList.remove('open');
+        try { document.body.classList.remove('no-scroll'); document.documentElement.classList.remove('no-scroll'); } catch { }
+        currentIndex = -1;
+      }
+      btnPrev.addEventListener('click', prev);
+      btnNext.addEventListener('click', next);
+      btnClose.addEventListener('click', closeOverlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
+      window.addEventListener('keydown', (e) => {
+        if (overlay.classList.contains('open')) {
+          if (e.key === 'Escape') closeOverlay();
+          else if (e.key === 'ArrowLeft') prev();
+          else if (e.key === 'ArrowRight') next();
+        }
       });
-    }
-    async function load(){
-      const mode = getMode();
-      modeSel.value = mode;
-      try {
-        items = mode === 'api' ? await fetchFromApi() : fetchFromLocal();
-      } catch { items = []; }
-      render();
-    }
 
-    // Shared overlay behavior
-    const overlay = document.getElementById('libraryOverlay');
-    const frame = document.getElementById('libraryFrame');
-    const btnPrev = document.getElementById('libPrev');
-    const btnNext = document.getElementById('libNext');
-    const btnClose = document.getElementById('libClose');
-    function openOverlay(idx){
-      if(!items.length) return;
-      currentIndex = Math.max(0, Math.min(idx, items.length-1));
-      renderOverlay();
-    }
-    function renderOverlay(){
-      const it = items[currentIndex];
-      if(!it){ closeOverlay(); return; }
-      // Clear previous
-      Array.from(frame.querySelectorAll('img,video')).forEach(n=>n.remove());
-      const node = document.createElement('img');
-      node.src = it.url;
-      node.alt = 'Library image';
-      frame.appendChild(node);
-      overlay.classList.add('open');
-      try { document.body.classList.add('no-scroll'); document.documentElement.classList.add('no-scroll'); } catch{}
-      btnPrev.disabled = (currentIndex<=0);
-      btnNext.disabled = (currentIndex>=items.length-1);
-    }
-    function prev(){ if(currentIndex>0){ currentIndex--; renderOverlay(); } }
-    function next(){ if(currentIndex < items.length-1){ currentIndex++; renderOverlay(); } }
-    function closeOverlay(){
-      overlay.classList.remove('open');
-      try { document.body.classList.remove('no-scroll'); document.documentElement.classList.remove('no-scroll'); } catch{}
-      currentIndex = -1;
-    }
-    btnPrev.addEventListener('click', prev);
-    btnNext.addEventListener('click', next);
-    btnClose.addEventListener('click', closeOverlay);
-    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeOverlay(); });
-    window.addEventListener('keydown', (e)=>{
-      if(overlay.classList.contains('open')){
-        if(e.key === 'Escape') closeOverlay();
-        else if(e.key === 'ArrowLeft') prev();
-        else if(e.key === 'ArrowRight') next();
+      // Consistent downloader (handles CORS, falls back to anchor)
+      function downloadFile(url, filename) {
+        try {
+          fetch(url, { mode: 'cors' }).then(r => { if (!r.ok) throw new Error('net'); return r.blob(); })
+            .then(blob => { const a = document.createElement('a'); const href = URL.createObjectURL(blob); a.href = href; a.download = filename || 'download'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(href), 1500); })
+            .catch(() => { const a = document.createElement('a'); a.href = url; a.download = filename || ''; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); });
+        } catch { const a = document.createElement('a'); a.href = url; a.download = filename || ''; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
       }
-    });
 
-    // Consistent downloader (handles CORS, falls back to anchor)
-    function downloadFile(url, filename){
-      try{
-        fetch(url, {mode:'cors'}).then(r=>{ if(!r.ok) throw new Error('net'); return r.blob(); })
-        .then(blob=>{ const a=document.createElement('a'); const href=URL.createObjectURL(blob); a.href=href; a.download=filename||'download'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(href),1500); })
-        .catch(()=>{ const a=document.createElement('a'); a.href=url; a.download=filename||''; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); });
-      }catch{ const a=document.createElement('a'); a.href=url; a.download=filename||''; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); }
-    }
-
-    // Mode toggle
-    modeSel.addEventListener('change', ()=>{ setMode(modeSel.value); load(); });
-    // Auto-load and listen for local library changes
-    load();
-    window.addEventListener('storage', (ev)=>{ if(ev.key === key && getMode()==='local') load(); });
-  })();
-</script>
-<%- include('partials/navbar', { active: 'library' }) %>
+      // Mode toggle
+      modeSel.addEventListener('change', () => { setMode(modeSel.value); load(); });
+      // Auto-load and listen for local library changes
+      load();
+      window.addEventListener('storage', (ev) => { if (ev.key === key && getMode() === 'local') load(); });
+    })();
+  </script>
+  <%- include('partials/navbar', { active: 'library' }) %>

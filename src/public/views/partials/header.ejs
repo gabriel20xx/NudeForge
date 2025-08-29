@@ -48,6 +48,15 @@
             <input type="checkbox" id="advancedModeToggle" class="header-option-checkbox" />
             Advanced
           </label>
+            <% if (typeof showLibraryModeToggle !== 'undefined' && showLibraryModeToggle) { %>
+            <label class="header-option-label" style="gap:.35rem;">
+              <span>Source:</span>
+              <select id="libraryMode" class="ui-select" style="height:28px; padding:.2rem .6rem;">
+                <option value="local">This browser</option>
+                <option value="api">Server (API)</option>
+              </select>
+            </label>
+            <% } %>
         </div>
         <div class="theme-toggle">
           <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark / light theme">🌙</button>

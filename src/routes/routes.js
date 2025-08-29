@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
 router.get('/library', (req, res) => {
-    res.render('library', { title: 'Library', siteTitle: SITE_TITLE });
+    res.render('library', { title: 'Library', siteTitle: SITE_TITLE, showLibraryModeToggle: true });
 });
 
 router.get('/profile', (req, res) => {
