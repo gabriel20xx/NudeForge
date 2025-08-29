@@ -2,6 +2,10 @@
 <main id="library-container" class="page-wrapper" aria-label="Library media">
   <!-- Mode toggle moved to header via showLibraryModeToggle -->
   <section id="libraryGrid" class="results-grid" aria-live="polite"></section>
+  <div class="toolbar" style="margin: .5rem 0 0; display:flex; gap:.5rem; align-items:center;">
+    <label for="preloadRadius" style="font-size:.9rem; color:var(--fg-500)">Preload radius</label>
+    <input id="preloadRadius" type="number" min="0" max="10" step="1" value="2" style="width:80px" />
+  </div>
   <p id="libraryEmpty" class="library-empty" style="display:none;">No items yet.</p>
   <div id="libraryOverlay" class="media-overlay" role="dialog" aria-modal="true" aria-label="Library media viewer">
     <button class="nav-btn prev-btn" type="button" aria-label="Previous" id="libPrev">&#10094;</button>
@@ -32,13 +36,13 @@
         if (!res.ok) throw new Error('API failed');
         const data = await res.json();
         const arr = (data && data.images) || [];
-        return arr.map(x => ({ url: x.url, downloadUrl: x.url }));
+        return arr.map(x => ({ url: x.url, thumbnail: x.thumbnail || x.url, downloadUrl: x.url }));
       }
-      function fetchFromLocal() {
+    function fetchFromLocal() {
         try {
           const raw = localStorage.getItem(key);
           const list = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-          return list.map(x => ({ url: x.url, downloadUrl: x.downloadUrl || x.url }));
+      return list.map(x => ({ url: x.url, thumbnail: x.thumbnail || x.url, downloadUrl: x.downloadUrl || x.url }));
         } catch { return []; }
       }
       function render() {
@@ -60,7 +64,7 @@
           thumb.addEventListener('keypress', (e) => { if (e.key === 'Enter') openOverlay(idx); });
           const img = document.createElement('img');
           img.loading = 'lazy';
-          img.src = item.url;
+          img.src = item.thumbnail || item.url;
           img.alt = item.url.split('/').pop() || 'Library image';
           thumb.appendChild(img);
           const actions = document.createElement('div');
@@ -90,6 +94,26 @@
       const btnPrev = document.getElementById('libPrev');
       const btnNext = document.getElementById('libNext');
       const btnClose = document.getElementById('libClose');
+      const preloadInput = document.getElementById('preloadRadius');
+      const PRELOAD_KEY = 'nudeforge:library:preloadRadius';
+      // persist radius
+      try { const saved = localStorage.getItem(PRELOAD_KEY); if(saved!=null) preloadInput.value = String(Math.max(0, Math.min(10, Number(saved) || 0))); } catch {}
+      preloadInput.addEventListener('change', ()=>{ try{ localStorage.setItem(PRELOAD_KEY, String(Math.max(0, Math.min(10, Number(preloadInput.value)||0)))); }catch{} });
+
+      const preloadCache = new Map(); // url -> Promise<HTMLImageElement>
+
+      function loadFull(url){
+        if(!url) return Promise.reject(new Error('no url'));
+        if(preloadCache.has(url)) return preloadCache.get(url);
+        const p = new Promise((resolve, reject)=>{
+          const im = new Image();
+          im.onload = ()=> resolve(im);
+          im.onerror = reject;
+          im.src = url;
+        });
+        preloadCache.set(url, p);
+        return p;
+      }
       function openOverlay(idx) {
         if (!items.length) return;
         currentIndex = Math.max(0, Math.min(idx, items.length - 1));
@@ -101,9 +125,24 @@
         // Clear previous
         Array.from(frame.querySelectorAll('img,video')).forEach(n => n.remove());
         const node = document.createElement('img');
-        node.src = it.url;
         node.alt = 'Library image';
         frame.appendChild(node);
+        // First show thumbnail (quick), then swap to full-res when loaded
+        if (it.thumbnail) {
+          node.src = it.thumbnail;
+        }
+        loadFull(it.url)
+          .then(()=>{ node.src = it.url; })
+          .catch(()=>{ node.src = it.url; })
+          .finally(()=>{
+            // Preload neighbors after current is loaded
+            const radius = Math.max(0, Math.min(10, Number(preloadInput.value)||0));
+            for(let d=1; d<=radius; d++){
+              const li = currentIndex - d; const ri = currentIndex + d;
+              if(li>=0 && items[li]) loadFull(items[li].url).catch(()=>{});
+              if(ri<items.length && items[ri]) loadFull(items[ri].url).catch(()=>{});
+            }
+          });
         overlay.classList.add('open');
         try { document.body.classList.add('no-scroll'); document.documentElement.classList.add('no-scroll'); } catch { }
         btnPrev.disabled = (currentIndex <= 0);

@@ -18,7 +18,10 @@
           <div id="multiPreviewContainer" class="multi-preview-container" style="display:none;"></div>
           <input id="inputImage" type="file" name="image" accept="image/*" multiple />
         </div>
-  <button class="btn upload-btn" type="submit">Upload</button>
+  <div style="display:flex; gap:.5rem; align-items:center; margin-top:.75rem;">
+    <button class="btn upload-btn" type="submit">Upload</button>
+    <button class="btn btn-danger-solid" type="button" id="clearInputBtn">Clear</button>
+  </div>
       </div>
     </div>
     <div class="main-col">
@@ -36,9 +39,12 @@
           </div>
           <button class="nav-btn next-btn" type="button" aria-label="Next" id="outNext">&#10095;</button>
         </div>
-        <a id="downloadLink" href="#" download class="disabled">
-          <button class="btn download-btn" type="button" disabled>Download</button>
-        </a>
+        <div style="display:flex; gap:.5rem; align-items:center; margin-top:.75rem;">
+          <a id="downloadLink" href="#" download class="disabled">
+            <button class="btn download-btn" type="button" disabled>Download</button>
+          </a>
+          <button class="btn btn-danger-solid" type="button" id="clearOutputBtn">Clear</button>
+        </div>
       </div>
     </div>
   </div>

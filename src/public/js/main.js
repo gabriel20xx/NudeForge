@@ -123,6 +123,7 @@ let selectedFiles = []; // ensure declared (used in multi-upload logic)
 let multiRunActive = false; // true while a multi-upload batch (>1) is being processed
 let multiRunTotalCount = 0; // total images in current batch
 let multiRunDoneCount = 0;  // completed (success or fail) in current batch
+let __clearedOnFirstComplete = false; // ensures output cleared at first item of new batch
 let __persist = { selectedPreviewSources: [], comparisonSplitPct: null }; // fallback sources for previews and comparison slider
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
@@ -145,6 +146,28 @@ function setUploadBusy(busy){
   // toggle removed
   }
 }
+  // Wire clear buttons
+  try{
+    const clearIn = document.getElementById('clearInputBtn');
+    if(clearIn){ clearIn.addEventListener('click', ()=>{
+      selectedFiles = [];
+      if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
+      if(dropText){ dropText.style.display=''; }
+      if(inputImage){ inputImage.value=''; }
+      updateUploadButtonState();
+      try{ const box = document.getElementById('dropArea'); if(box){ box.classList.remove('has-previews'); } }catch{}
+      // Persist
+      try{ __persist.selectedPreviewSources = []; saveGeneratorState(); }catch{}
+    }); }
+    const clearOut = document.getElementById('clearOutputBtn');
+    if(clearOut){ clearOut.addEventListener('click', ()=>{
+      if(outputGrid){ outputGrid.innerHTML=''; outputGrid.style.display='none'; }
+      const ph = document.getElementById('outputPlaceholder'); if(ph){ ph.style.display=''; }
+      enableDownload(''); // resets button state
+      try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.remove('has-previews'); } }catch{}
+      try{ saveGeneratorState(); }catch{}
+    }); }
+  }catch{}
 
 // Immediate preview handler (ensures image becomes visible on selection before later enhancements run)
 // On Android, force the standard Files picker instead of the Photos picker by loosening the accept type.
@@ -731,7 +754,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     if(typeof _disableDownload === 'function'){ _disableDownload(); }
   }catch{}
   setUploadBusy(true);
-      try {
+  try {
         const res = await fetch('/upload', { method:'POST', body: formData });
         if(!res.ok){
           const txt = await res.text();
@@ -745,6 +768,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
               multiRunTotalCount = activeRequestIds.length;
               multiRunDoneCount = 0;
               multiRunActive = multiRunTotalCount > 1;
+              __clearedOnFirstComplete = false; // reset for this batch
             joinStatusChannel(activeRequestId);
             updateStatusUI({ status:'queued', yourPosition: data.yourPosition });
             pollStatus();
@@ -993,6 +1017,14 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, {
 async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch { /* silent poll failure */ } if(activeRequestId){ setTimeout(pollStatus, 1500); } }
 function appendOutputThumb(src, downloadUrl){
   if(!outputGrid) return;
+  // Auto-clear output grid on first completion of a new batch
+  try{
+    if(multiRunTotalCount > 0 && !__clearedOnFirstComplete){
+      outputGrid.innerHTML='';
+      const ph=document.getElementById('outputPlaceholder'); if(ph){ ph.style.display='none'; }
+      __clearedOnFirstComplete = true;
+    }
+  }catch{}
   outputGrid.style.display='grid';
   const item = document.createElement('div');
   item.className='output-item';
@@ -1043,7 +1075,11 @@ function addToLocalLibrary(url, downloadUrl){
     const cleanUrl = String(url||'').split('?')[0];
     const exists = list.some(it => (it && String(it.url||'').split('?')[0] === cleanUrl));
     if(!exists){
-      list.unshift({ url: cleanUrl, downloadUrl: downloadUrl||cleanUrl, ts: Date.now() });
+  // Derive filename from /output/<name>
+  let filename = cleanUrl;
+  try{ const u=new URL(cleanUrl, location.origin); filename = decodeURIComponent(u.pathname.replace(/^\/output\//,'')); }catch{}
+  const thumb = `/thumbs/output/${encodeURIComponent(filename)}?w=360`;
+  list.unshift({ url: cleanUrl, thumbnail: thumb, downloadUrl: downloadUrl||cleanUrl, ts: Date.now() });
       // Cap to last 500 entries
       while(list.length > 500) list.pop();
       localStorage.setItem(key, JSON.stringify(list));

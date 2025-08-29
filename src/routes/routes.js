@@ -8,6 +8,7 @@ import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
 import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
 import { /* generateAllCarouselThumbnails, */ getThumbnailPath, getOriginalPath } from '../services/carousel.js';
+import { getOrCreateOutputThumbnail } from '../services/thumbnails.js';
 import { getAvailableLoRAs, getAvailableLoRAsWithSubdirs } from '../services/loras.js';
 
 // __dirname shim for ESM (this file uses __dirname for file system paths)
@@ -105,12 +106,33 @@ router.get('/api/library-images', async (req, res) => {
             .filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f))
             .sort((a,b) => fs.statSync(path.join(OUTPUT_DIR,b)).mtimeMs - fs.statSync(path.join(OUTPUT_DIR,a)).mtimeMs)
             .slice(0, 500);
-        // Return paths relative to /output static mount
-        const items = images.map(name => ({ name, url: `/output/${encodeURIComponent(name)}` }));
+        // Return paths relative to /output static mount and include thumbnail endpoint
+        const items = images.map(name => ({
+            name,
+            url: `/output/${encodeURIComponent(name)}`,
+            thumbnail: `/thumbs/output/${encodeURIComponent(name)}`
+        }));
         res.json({ success: true, images: items });
     } catch (err) {
         Logger.error('LIBRARY', 'Failed to list output images:', err);
         res.status(500).json({ success: false, error: 'Failed to list library images' });
+    }
+});
+
+// Output thumbnails route (serves cached resized JPEGs)
+router.get('/thumbs/output/:filename', async (req, res) => {
+    try {
+        const { OUTPUT_DIR } = await import('../config/config.js');
+        const filename = req.params.filename;
+        // Optional query params for size
+        const w = Number(req.query.w) || undefined;
+        const h = Number(req.query.h) || undefined;
+        const filePath = await getOrCreateOutputThumbnail(OUTPUT_DIR, filename, { w, h });
+        res.set({ 'Cache-Control': 'public, max-age=86400', 'Content-Type': 'image/jpeg' });
+        return res.sendFile(filePath);
+    } catch (e) {
+        Logger.error('THUMBS', 'Error serving output thumbnail:', e);
+        return res.status(404).send('Thumbnail not available');
     }
 });
 
