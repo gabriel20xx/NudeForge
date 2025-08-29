@@ -1430,6 +1430,8 @@ window.addEventListener('storage', (e)=>{
 
 // Replace LoRA initialization block to support subdirectories
 (function upgradeLoraLoader(){
+  const DEFAULT_LORA_PATH = 'fluxkontext/change_clothes_to_nothing_000011200.safetensors';
+  const DEFAULT_LORA_REGEX = /change\s*clothes\s*to\s*nothing/i;
   // (original createLoraRow preserved implicitly if needed)
   function flattenDetailed(result){
     const out=[];
@@ -1497,7 +1499,7 @@ window.addEventListener('storage', (e)=>{
   };
 
   // New row creators using relativePath
-  function createLoraRowDetailed(index, models){
+  function createLoraRowDetailed(index, models, opts={}){
     const row = document.createElement('div'); row.className='lora-row';
     const main = document.createElement('div'); main.className='lora-main';
     const modelContainer = document.createElement('div'); modelContainer.className='lora-model-container';
@@ -1508,23 +1510,47 @@ window.addEventListener('storage', (e)=>{
     const enableLabel = document.createElement('label'); enableLabel.style.display='flex'; enableLabel.style.alignItems='center'; enableLabel.style.gap='.3em';
     const enableCheckbox = document.createElement('input'); enableCheckbox.type='checkbox'; enableCheckbox.name=`lora_${index}_on`;
     enableLabel.appendChild(enableCheckbox); enableLabel.appendChild(document.createTextNode('Enable'));
+    // Second line group: enable + strength controls side by side
     const strengthGroup = document.createElement('div'); strengthGroup.className='lora-strength-group';
     const strengthLabel = document.createElement('label'); strengthLabel.textContent='Strength:'; strengthLabel.style.fontSize='.8em';
     const strengthInput = document.createElement('input'); strengthInput.type='number'; strengthInput.step='0.05'; strengthInput.min='0'; strengthInput.max='2'; strengthInput.value='1.0'; strengthInput.name=`lora_${index}_strength`; strengthInput.className='lora-strength';
-    strengthGroup.appendChild(strengthLabel); strengthGroup.appendChild(strengthInput);
-    main.appendChild(modelContainer); main.appendChild(enableLabel); main.appendChild(strengthGroup);
+    // Order: Enable | Strength label | Strength input
+    strengthGroup.appendChild(enableLabel);
+    strengthGroup.appendChild(strengthLabel);
+    strengthGroup.appendChild(strengthInput);
+    // First line: dropdown only
+    main.appendChild(modelContainer);
     const controls = document.createElement('div'); controls.className='lora-row-controls';
     const removeBtn = document.createElement('button'); removeBtn.type='button'; removeBtn.textContent='×'; removeBtn.className='lora-remove-btn';
     removeBtn.addEventListener('click', ()=> row.remove());
     controls.appendChild(removeBtn);
-    row.appendChild(main); row.appendChild(controls);
+    // Append to grid areas: main (row 1), strength (row 2), controls (both rows)
+    row.appendChild(main);
+    row.appendChild(strengthGroup);
+    row.appendChild(controls);
+    // Optionally lock this row as the required default LoRA
+    if(opts && opts.lockDefault === true){
+      // Try to find default LoRA option
+      let defaultValue = DEFAULT_LORA_PATH;
+      try{
+        const match = (models||[]).find(m => DEFAULT_LORA_REGEX.test(m.displayName) || (m.relativePath||m.filename||'').includes('change_clothes_to_nothing'));
+        if(match){ defaultValue = match.relativePath || match.filename || DEFAULT_LORA_PATH; }
+      }catch{}
+      // Apply and lock selection and enablement
+  select.value = defaultValue;
+  enableCheckbox.checked = true;
+  // Make them non-editable by user
+  select.disabled = true;
+  enableCheckbox.disabled = true;
+      // Prevent row removal
+      removeBtn.disabled = true;
+      removeBtn.title = 'Required';
+    }
     return { row, select, enableCheckbox };
   }
   function populateInitialLoRAEntryDetailed(grid, models){
-    const { row, select, enableCheckbox } = createLoraRowDetailed(1, models);
+    const { row } = createLoraRowDetailed(1, models, { lockDefault: true });
     grid.appendChild(row);
-    const target = models.find(m => /change\s*clothes\s*to\s*nothing/i.test(m.displayName));
-    if(target){ select.value = target.relativePath||target.filename; enableCheckbox.checked = true; }
   }
   function addLoRAEntryDetailed(grid, models){
     const existing = grid.querySelectorAll('.lora-row').length; const idx = existing + 1; const { row } = createLoraRowDetailed(idx, models); grid.appendChild(row); }
