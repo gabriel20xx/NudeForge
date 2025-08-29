@@ -22,7 +22,8 @@ function enableDownload(url) {
     try {
       const imgs = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
       if (btn) btn.textContent = (imgs.length > 1) ? 'Download All' : 'Download';
-      downloadLink.setAttribute('download','');
+      // Always handle click for ZIP download to avoid browser treating link as HTML
+      downloadLink.removeAttribute('download');
       downloadLink.removeAttribute('title');
     } catch {}
 	}
@@ -161,6 +162,9 @@ let multiRunTotalCount = 0; // total images in current batch
 let multiRunDoneCount = 0;  // completed (success or fail) in current batch
 let __clearedOnFirstComplete = false; // ensures output cleared at first item of new batch
 let __persist = { selectedPreviewSources: [], comparisonSplitPct: null }; // fallback sources for previews and comparison slider
+// Track last completed output for better single-file download UX
+let __lastDownloadUrl = null;
+let __lastOutputImage = null;
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
 window.__nudeForgeStageTracker = __stageTracker;
@@ -1172,7 +1176,7 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
   // Adjust percent spacing to avoid double gap when meta is hidden
   if(pctSpan){
     const metaShown = meta && meta.style.display !== 'none' && meta.textContent !== '';
-    pctSpan.style.marginLeft = metaShown ? '.5em' : '.25em';
+  pctSpan.style.marginRight = metaShown ? '.5em' : '.25em';
   }
   // Progress percentage (numeric) and header mirroring
   if(progress && typeof progress.value==='number' && typeof progress.max==='number' && progress.max>0){
@@ -1383,23 +1387,36 @@ function handleProcessingComplete(payload){
       if(btn) btn.textContent = (total > 1) ? 'Download All' : 'Download';
       link.classList.remove('disabled');
       if(btn) btn.disabled = false;
-      // Point to the latest for single; multiple handled by click handler
-      const href = payload.downloadUrl || payload.outputImage;
-      link.setAttribute('href', href);
-      // If using server /download route, let server provide filename via Content-Disposition
-      // Otherwise, set a PNG filename derived from the output path
-      if(payload.downloadUrl){
-        link.setAttribute('download','');
-      } else if(payload.outputImage){
-        try{
-          const clean = String(payload.outputImage).split('?')[0];
-          const name = clean.substring(clean.lastIndexOf('/')+1) || 'output.png';
-          const file = name.endsWith('.png') ? name : (name + '.png');
-          link.setAttribute('download', file);
-        }catch{ link.setAttribute('download','output.png'); }
-      } else {
-        link.setAttribute('download','output.png');
+      // Build ZIP URL dynamically on click using current grid
+      if(!link._dlHandlerAttached){
+        link._dlHandlerAttached = true;
+        link.addEventListener('click', (ev)=>{ 
+          try{
+            ev.preventDefault(); ev.stopPropagation();
+            const imgsNow = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
+            // Collect basenames from /output/<name>
+            const names = imgsNow.map(img=>{ try{ const u=new URL(img.src, location.origin); const parts=u.pathname.split('/'); return parts[parts.length-1]; }catch{ const s=String(img.src).split('?')[0]; return s.substring(s.lastIndexOf('/')+1); } }).filter(Boolean);
+            // Fallback to latest single if none found
+            if(names.length===0 && __lastOutputImage){
+              try{ const s=String(__lastOutputImage).split('?')[0]; names.push(s.substring(s.lastIndexOf('/')+1)); }catch{}
+            }
+            if(names.length===0){ return; }
+            if(names.length === 1){
+              // Single image -> prefer server /download route when available
+              const a = document.createElement('a');
+              if(__lastDownloadUrl){ a.href = __lastDownloadUrl; a.download = ''; }
+              else { const fname = names[0]; a.href = '/output/' + encodeURIComponent(fname); const out = fname.toLowerCase().endsWith('.png') ? fname : (fname + '.png'); a.download = out; }
+              document.body.appendChild(a); a.click(); a.remove();
+            } else {
+              const params = names.map(n=> 'files='+encodeURIComponent(n)).join('&');
+              const zipUrl = '/download-zip' + (params ? ('?'+params) : '');
+              const a = document.createElement('a'); a.href = zipUrl; a.download = ''; document.body.appendChild(a); a.click(); a.remove();
+            }
+          }catch{}
+        });
       }
+  // Remember last download targets for single-file download UX
+  try{ __lastDownloadUrl = payload && payload.downloadUrl ? payload.downloadUrl : null; __lastOutputImage = payload && payload.outputImage ? payload.outputImage : null; }catch{}
     }
   }catch{}
     appendOutputThumb(payload.outputImage, payload.downloadUrl);

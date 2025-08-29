@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import Logger from '../../../NudeShared/serverLogger.js';
+import archiver from 'archiver';
 import { cancelAll, cancelRequest } from "../services/queue.js";
 import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
@@ -111,21 +112,106 @@ router.get('/api/carousel-images', (req, res) => {
 router.get('/api/library-images', async (req, res) => {
     try {
         const { OUTPUT_DIR } = await import('../config/config.js');
-        const files = await fs.promises.readdir(OUTPUT_DIR);
+        const folderParam = (req.query.folder || '').toString();
+
+        // Resolve base directory safely within OUTPUT_DIR
+        const baseDir = (() => {
+            if (!folderParam) return OUTPUT_DIR;
+            const normalized = path.normalize(folderParam).replace(/^\.+[\\/]?/, ''); // strip leading dots
+            const candidate = path.join(OUTPUT_DIR, normalized);
+            const rel = path.relative(OUTPUT_DIR, candidate);
+            if (rel.startsWith('..') || path.isAbsolute(rel)) return OUTPUT_DIR; // fallback if outside
+            return candidate;
+        })();
+
+        const entries = await fs.promises.readdir(baseDir, { withFileTypes: true });
+        const files = entries.filter(d => d.isFile()).map(d => d.name);
         const images = files
             .filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f))
-            .sort((a,b) => fs.statSync(path.join(OUTPUT_DIR,b)).mtimeMs - fs.statSync(path.join(OUTPUT_DIR,a)).mtimeMs)
-            .slice(0, 500);
-        // Return paths relative to /output static mount and include thumbnail endpoint
-        const items = images.map(name => ({
-            name,
-            url: `/output/${encodeURIComponent(name)}`,
-            thumbnail: `/thumbs/output/${encodeURIComponent(name)}`
-        }));
-        res.json({ success: true, images: items });
+            .sort((a, b) => fs.statSync(path.join(baseDir, b)).mtimeMs - fs.statSync(path.join(baseDir, a)).mtimeMs)
+            .slice(0, 1000);
+
+        // Build URL-safe relative path under /output (encode each segment individually)
+        const folderSegments = (path.relative(OUTPUT_DIR, baseDir) || '').split(path.sep).filter(Boolean);
+        const encodedFolder = folderSegments.map(encodeURIComponent).join('/');
+
+        const items = images.map(name => {
+            const encodedName = encodeURIComponent(name);
+            const relUrl = encodedFolder ? `${encodedFolder}/${encodedName}` : encodedName;
+            return {
+                name,
+                url: `/output/${relUrl}`,
+                thumbnail: `/thumbs/output/${relUrl}?w=480`
+            };
+        });
+        res.json({ success: true, images: items, folder: folderParam || '' });
     } catch (err) {
         Logger.error('LIBRARY', 'Failed to list output images:', err);
         res.status(500).json({ success: false, error: 'Failed to list library images' });
+    }
+});
+
+// API: list subfolders in OUTPUT_DIR (or within provided folder). Includes a preview image if available.
+router.get('/api/library-folders', async (req, res) => {
+    try {
+        const { OUTPUT_DIR } = await import('../config/config.js');
+        const dirParam = (req.query.folder || '').toString();
+
+        // Resolve target directory safely within OUTPUT_DIR
+        const targetDir = (() => {
+            if (!dirParam) return OUTPUT_DIR;
+            const normalized = path.normalize(dirParam).replace(/^\.+[\\/]?/, '');
+            const candidate = path.join(OUTPUT_DIR, normalized);
+            const rel = path.relative(OUTPUT_DIR, candidate);
+            if (rel.startsWith('..') || path.isAbsolute(rel)) return OUTPUT_DIR;
+            return candidate;
+        })();
+
+        const entries = await fs.promises.readdir(targetDir, { withFileTypes: true });
+        const subdirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+        // For each subdir, attempt to find one image file for preview and count images
+        const results = [];
+        for (const name of subdirs) {
+            const abs = path.join(targetDir, name);
+            let files;
+            try {
+                files = await fs.promises.readdir(abs, { withFileTypes: true });
+            } catch {
+                continue;
+            }
+            const imageFiles = files.filter(f => f.isFile() && /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name)).map(f => f.name);
+            if (imageFiles.length === 0) {
+                // Still include folder but without preview (optional: skip empty)
+                results.push({
+                    path: path.relative(OUTPUT_DIR, abs).split(path.sep).join('/'),
+                    name,
+                    displayName: name,
+                    count: 0,
+                    preview: null
+                });
+                continue;
+            }
+            // Choose the newest file for preview
+            const newest = imageFiles.sort((a, b) => fs.statSync(path.join(abs, b)).mtimeMs - fs.statSync(path.join(abs, a)).mtimeMs)[0];
+            const relFolder = path.relative(OUTPUT_DIR, abs).split(path.sep).join('/');
+            const relFile = `${relFolder}/${newest}`;
+            const encodedRel = relFile.split('/').map(encodeURIComponent).join('/');
+            results.push({
+                path: relFolder,
+                name,
+                displayName: name,
+                count: imageFiles.length,
+                preview: `/thumbs/output/${encodedRel}?w=360`
+            });
+        }
+
+        // Sort folders by name (natural-ish)
+        results.sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base', numeric: true }));
+        res.json({ success: true, folders: results, folder: dirParam || '' });
+    } catch (err) {
+        Logger.error('LIBRARY', 'Failed to list library folders:', err);
+        res.status(500).json({ success: false, error: 'Failed to list library folders' });
     }
 });
 
@@ -154,14 +240,22 @@ router.post('/api/cancel/:requestId', async (req, res) => {
 });
 
 // Output thumbnails route (serves cached resized JPEGs)
-router.get('/thumbs/output/:filename', async (req, res) => {
+// Support nested thumbnails under OUTPUT_DIR (e.g., /thumbs/output/sub/dir/file.png)
+router.get('/thumbs/output/:rest(*)', async (req, res) => {
     try {
         const { OUTPUT_DIR } = await import('../config/config.js');
-        const filename = req.params.filename;
+        const rest = (req.params.rest || '').toString();
+        // Security: ensure requested path resolves within OUTPUT_DIR
+        const normalized = path.normalize(rest).replace(/^\.+[\\/]?/, '');
+        const candidateAbs = path.join(OUTPUT_DIR, normalized);
+        const rel = path.relative(OUTPUT_DIR, candidateAbs);
+        if (rel.startsWith('..') || path.isAbsolute(rel)) {
+            return res.status(400).send('Invalid path');
+        }
         // Optional query params for size
         const w = Number(req.query.w) || undefined;
         const h = Number(req.query.h) || undefined;
-        const filePath = await getOrCreateOutputThumbnail(OUTPUT_DIR, filename, { w, h });
+        const filePath = await getOrCreateOutputThumbnail(OUTPUT_DIR, normalized, { w, h });
         res.set({ 'Cache-Control': 'public, max-age=86400', 'Content-Type': 'image/jpeg' });
         return res.sendFile(filePath);
     } catch (e) {
@@ -417,6 +511,48 @@ router.get('/download/:requestId', async (req, res) => {
     } catch (_downloadErr) {
         Logger.error('DOWNLOAD', 'Error serving download:', _downloadErr);
         res.status(500).send('Error serving download');
+    }
+});
+
+// ZIP download route: bundles one or more output images into a .zip
+router.get('/download-zip', async (req, res) => {
+    try {
+        // Accept multiple files via repeated query params: /download-zip?files=name1.png&files=name2.png
+        // Validate strictly: only basenames without path separators and existing in OUTPUT_DIR
+        const { OUTPUT_DIR } = await import('../config/config.js');
+        let files = req.query.files;
+        if (!files) {
+            return res.status(400).send('No files specified');
+        }
+        if (!Array.isArray(files)) files = [files];
+        // Normalize and validate
+        const safeFiles = [];
+        for (const f of files) {
+            if (typeof f !== 'string') continue;
+            const base = path.basename(f);
+            if (base !== f) continue; // reject paths
+            // basic extension allowlist
+            if (!/\.(png|jpg|jpeg|webp|gif)$/i.test(base)) continue;
+            const abs = path.join(OUTPUT_DIR, base);
+            try { await fs.promises.access(abs); safeFiles.push({ base, abs }); } catch { /* skip missing */ }
+        }
+        if (safeFiles.length === 0) {
+            return res.status(404).send('No valid files to download');
+        }
+        const zipName = safeFiles.length === 1 ? `${path.parse(safeFiles[0].base).name}.zip` : `nudeforge-outputs-${safeFiles.length}.zip`;
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        archive.on('error', (err) => { Logger.error('DOWNLOAD_ZIP', 'Archiver error:', err); try { res.status(500).end(); } catch {}; });
+        archive.pipe(res);
+        for (const { base, abs } of safeFiles) {
+            // Name inside ZIP: base filename
+            archive.file(abs, { name: base });
+        }
+        await archive.finalize();
+    } catch (e) {
+        Logger.error('DOWNLOAD_ZIP', 'Error creating ZIP:', e);
+        try { res.status(500).send('Error creating ZIP'); } catch {}
     }
 });
 

@@ -22,6 +22,8 @@
       const modeKey = 'nudeforge:library:mode';
       let items = [];
       let currentIndex = -1;
+      // API mode folder navigation state
+      let currentFolder = '';
 
       function getMode() {
         const stored = localStorage.getItem(modeKey);
@@ -29,8 +31,9 @@
       }
       function setMode(m) { localStorage.setItem(modeKey, m); }
 
-      async function fetchFromApi() {
-        const res = await fetch('/api/library-images');
+      async function fetchFromApi(folder) {
+        const url = folder ? `/api/library-images?folder=${encodeURIComponent(folder)}` : '/api/library-images';
+        const res = await fetch(url);
         if (!res.ok) throw new Error('API failed');
         const data = await res.json();
         const arr = (data && data.images) || [];
@@ -43,14 +46,14 @@
       return list.map(x => ({ url: x.url, thumbnail: x.thumbnail || x.url, downloadUrl: x.downloadUrl || x.url }));
         } catch { return []; }
       }
-      function render() {
+      function renderImageCards(list) {
         grid.innerHTML = '';
-        if (!items.length) {
+        if (!list.length) {
           empty.style.display = 'block';
           return;
         }
         empty.style.display = 'none';
-        items.forEach((item, idx) => {
+        list.forEach((item, idx) => {
           const card = document.createElement('div');
           card.className = 'video-item';
           const thumb = document.createElement('div');
@@ -77,13 +80,115 @@
           grid.appendChild(card);
         });
       }
+
+      function renderLocal() {
+        grid.innerHTML = '';
+        if (!items.length) {
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        renderImageCards(items);
+      }
+
+      async function renderApi() {
+        // When no folder chosen, show subfolders tiles (categories-like)
+        grid.innerHTML = '';
+        const folder = currentFolder || '';
+        const foldersResp = await fetch(`/api/library-folders${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`);
+        let folders = [];
+        if (foldersResp.ok) {
+          const data = await foldersResp.json();
+          folders = Array.isArray(data.folders) ? data.folders : [];
+        }
+
+        if (!folder) {
+          // Top-level: show only folders; if none, fall back to images in root
+          if (folders.length) {
+            empty.style.display = 'none';
+            renderFolderTiles(folders);
+            return;
+          }
+        }
+
+        // In a folder, show optional subfolders first (if any), then images from that folder
+        if (folders.length) {
+          renderFolderTiles(folders, true /* append */);
+        }
+        const list = await fetchFromApi(folder);
+        items = list; // keep for overlay navigation
+        if (list.length === 0 && folders.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        renderImageCards(list);
+        // If subfolders exist, they were already appended above; ensure images follow after
+      }
+
+      function renderFolderTiles(folders, append = false) {
+        if (!append) grid.innerHTML = '';
+        // Back tile if inside a folder
+        if (currentFolder) {
+          const back = document.createElement('div');
+          back.className = 'video-item';
+          back.setAttribute('role', 'button');
+          back.setAttribute('tabindex', '0');
+          back.setAttribute('aria-label', 'Go up');
+          const preview = document.createElement('div');
+          preview.className = 'video-thumbnail';
+          const icon = document.createElement('div');
+          icon.style.display = 'flex'; icon.style.height = '100%'; icon.style.alignItems = 'center'; icon.style.justifyContent = 'center';
+          icon.innerHTML = '<i class="fa fa-level-up-alt" style="font-size:2rem; opacity:.7;"></i>';
+          preview.appendChild(icon);
+          const title = document.createElement('div');
+          title.className = 'category-title';
+          title.textContent = 'Up one level';
+          back.appendChild(preview);
+          back.appendChild(title);
+          const goUp = () => { const parent = currentFolder.split('/').filter(Boolean); parent.pop(); currentFolder = parent.join('/'); renderApi(); };
+          back.addEventListener('click', goUp);
+          back.addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ goUp(); }});
+          grid.appendChild(back);
+        }
+
+        folders.forEach(f => {
+          const item = document.createElement('div');
+          item.className = 'video-item';
+          item.setAttribute('role','button');
+          item.setAttribute('tabindex','0');
+          const preview = document.createElement('div');
+          preview.className = 'video-thumbnail';
+          if (f.preview) {
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.src = f.preview;
+            img.alt = f.displayName || f.name;
+            preview.appendChild(img);
+          }
+          const title = document.createElement('div');
+          title.className = 'category-title';
+          title.textContent = f.displayName || f.name;
+          item.appendChild(preview);
+          item.appendChild(title);
+          const go = () => { currentFolder = (f.path || f.name); renderApi(); };
+          item.addEventListener('click', go);
+          item.addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ go(); }});
+          grid.appendChild(item);
+        });
+      }
       async function load() {
         const mode = getMode();
         modeSel.value = mode;
         try {
-          items = mode === 'api' ? await fetchFromApi() : fetchFromLocal();
+          if (mode === 'api') {
+            await renderApi();
+            return;
+          } else {
+            items = fetchFromLocal();
+          }
         } catch { items = []; }
-        render();
+        renderLocal();
       }
 
       // Shared overlay behavior
@@ -172,7 +277,7 @@
       }
 
       // Mode toggle
-      modeSel.addEventListener('change', () => { setMode(modeSel.value); load(); });
+  modeSel.addEventListener('change', () => { setMode(modeSel.value); currentFolder = ''; load(); });
       // Auto-load and listen for local library changes
       load();
       window.addEventListener('storage', (ev) => { if (ev.key === key && getMode() === 'local') load(); });
