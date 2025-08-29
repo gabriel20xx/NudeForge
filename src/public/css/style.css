@@ -136,6 +136,13 @@ input[type=file]{ display:none; }
 /* Bottom navigation tabs (aligned with NudeFlow) */
 /* bottom-nav styles centralized in theme.css */
 
+/* Library: keep floating Up button above bottom navbar */
+#libFloatControls.floating-controls {
+	position: fixed;
+	right: calc(env(safe-area-inset-right, 0px) + .85rem);
+	bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + .85rem);
+}
+
 /* Light theme bottom-nav and header overrides are centralized in theme.css */
 /* Light theme overrides for settings & panels (ensure white backgrounds) */
 :root[data-theme='light'] .main-section.settings-section { background:#ffffff; }
