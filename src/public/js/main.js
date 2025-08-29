@@ -770,10 +770,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   const singleMode = false; // always multi mode
   // Determine multi run state for output box behavior
   multiRunActive = !singleMode && selectedFiles && selectedFiles.length > 1;
-  // Clean output placeholder and disable download on start
+  // Disable download on start (keep output placeholder visible until first image actually appears)
   try{
-    const ph=document.getElementById('outputPlaceholder');
-    if(ph){ ph.style.display='none'; }
     if(typeof _disableDownload === 'function'){ _disableDownload(); }
   }catch{}
   setUploadBusy(true);
