@@ -136,7 +136,7 @@ input[type=file]{ display:none; }
 .lora-remove-btn:hover { background:#c82333; }
 .lora-remove-btn:disabled { background:#6c757d; cursor:not-allowed; opacity:.6; }
 @media (max-width:1100px){ .main-container{ gap:1.5rem; padding:2rem 1rem;} .comparison-section.main-section{margin:0 auto; max-width:600px;} .settings-section{margin:0 auto; width:100%; max-width:600px;} .main-section{width:100%; min-width:0; margin-bottom:0;} .image-box{max-width:100%;}}
-@media (max-width:600px){ :root{ --box-max-width:calc(100vw - 2rem);} .main-container{flex-direction:column; gap:1.5rem; padding:1rem;} .main-col{width:100%;} .comparison-section.main-section{max-width:100%; margin:0 auto;} .main-section{width:100%; margin-bottom:0;} .settings-section{margin:0 auto; max-width:100%; width:100%; padding:1.5rem;} .settings-box{max-width:100%; padding:1.5rem;} .image-box{max-width:100%;} .lora-row{ grid-template-columns:1fr auto; grid-template-rows:auto auto; } .lora-strength{ width:3.2ch; } }
+@media (max-width:600px){ :root{ --box-max-width:calc(100vw - 2rem);} .main-container{flex-direction:column; gap:1.5rem; padding:1rem;} .main-col{width:100%;} .comparison-section.main-section{max-width:100%; margin:0 auto;} .main-section{width:100%; margin-bottom:0;} .settings-section{margin:0 auto; max-width:100%; width:100%; padding:1.5rem;} .settings-box{max-width:100%; padding:1.5rem;} .image-box{max-width:100%;} .lora-row{ grid-template-columns:1fr auto; grid-template-rows:auto auto; } .lora-strength-group{ flex-wrap:nowrap; gap:.4em .5em; } .lora-strength-group label{ white-space:nowrap; display:inline-flex; align-items:center; } .lora-strength{ width:3.2ch; flex:0 0 auto; } }
 /* === Original Styles End === */
 
 /* Bottom navigation tabs (aligned with NudeFlow) */

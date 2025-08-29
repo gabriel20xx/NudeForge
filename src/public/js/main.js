@@ -166,6 +166,7 @@ function setUploadBusy(busy){
       // Persist
       try{ __persist.selectedPreviewSources = []; saveGeneratorState(); }catch{}
       clearIn.disabled = true;
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
     }); }
     const clearOut = document.getElementById('clearOutputBtn');
     if(clearOut){
@@ -209,6 +210,7 @@ if (inputImage) {
       const box = document.getElementById('dropArea'); if (box) { box.classList.remove('has-previews'); }
       __persist.selectedPreviewSources = []; saveGeneratorState();
   const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = true;
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
     } catch {}
     const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
     if (allFiles.length > 0 && imageFiles.length === 0) {
@@ -337,7 +339,8 @@ async function rehydrateSelectionFromPersisted(reason){
     if(files && files.length){
       selectedFiles = files;
       if(inputImage){ const dt = new DataTransfer(); files.forEach(f=> dt.items.add(f)); inputImage.files = dt.files; }
-      updateUploadButtonState();
+  updateUploadButtonState();
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
     }
   } catch(err){ window.ClientLogger?.warn('rehydrateSelectionFromPersisted failed', { reason, err }); }
 }
@@ -427,8 +430,8 @@ function restoreGeneratorState(){
       });
       if(dropText) dropText.style.display='none';
   try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = false; }catch{}
-      // Ensure Upload button is enabled based on persisted selection
-      try{ if(uploadButton){ uploadButton.disabled = false; uploadButton.classList.remove('disabled'); uploadButton.textContent = `Upload All (${state.selectedPreviewSources.length})`; } }catch{}
+  // Let unified updater decide enablement based on grid content
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
       // Optionally reconstruct FileList for the input asynchronously to keep system state consistent
       try{
         const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
@@ -689,7 +692,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       multiPreviewContainer.style.display='none';
       try{ const box = document.getElementById('dropArea'); if(box){ box.classList.remove('has-previews'); } }catch{}
   try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = true; }catch{}
-      return;
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
+  return;
     }
   // Always grid of thumbnails
   multiPreviewContainer.style.display = '';
@@ -710,6 +714,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     } else if (Array.isArray(sources) && sources.length>0){
       sources.slice(0, maxThumbs).forEach((it, idx)=>{ const wrapper=document.createElement('div'); wrapper.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper); });
     }
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
   try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = false; }catch{}
     // If there is exactly one preview, expand to fill container height with non-cropping fit
     const items = multiPreviewContainer.querySelectorAll('.multi-preview-item');
@@ -723,11 +728,22 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       const img = only.querySelector('img');
       if(img){ img.style.height='100%'; img.style.width='auto'; img.style.objectFit='contain'; }
     }
+  try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
   }
   function updateUploadButtonState(){
     if(!uploadButton) return;
-  uploadButton.disabled = selectedFiles.length === 0;
-  uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+    // If in Cancel mode, keep enabled to allow cancelling
+    if(uploadButton.dataset.mode === 'cancel'){
+      uploadButton.disabled = false;
+      uploadButton.classList.remove('disabled');
+      return;
+    }
+    const gridCount = multiPreviewContainer ? multiPreviewContainer.querySelectorAll('.multi-preview-item').length : 0;
+    const count = gridCount;
+    const enable = count > 0;
+    uploadButton.disabled = !enable;
+    uploadButton.classList.toggle('disabled', !enable);
+    uploadButton.textContent = count > 1 ? `Upload All (${count})` : 'Upload';
   }
   // Expose for earlier references
   window.clearSelectedFiles = clearSelectedFiles;
@@ -1603,8 +1619,16 @@ function clearSelectedFiles(){
 }
 function updateUploadButtonState(){
   if(!uploadButton) return;
-  uploadButton.disabled = selectedFiles.length === 0;
-  uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-  uploadButton.classList.toggle('disabled', !!uploadButton.disabled);
+  if(uploadButton.dataset.mode === 'cancel'){
+    uploadButton.disabled = false;
+    uploadButton.classList.remove('disabled');
+    return;
+  }
+  const gridCount = multiPreviewContainer ? multiPreviewContainer.querySelectorAll('.multi-preview-item').length : 0;
+  const count = gridCount;
+  const enable = count > 0;
+  uploadButton.disabled = !enable;
+  uploadButton.textContent = count > 1 ? `Upload All (${count})` : 'Upload';
+  uploadButton.classList.toggle('disabled', !enable);
 }
 // --- END ORIGINAL CONTENT ---
