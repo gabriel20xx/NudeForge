@@ -605,14 +605,16 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     const count = hasFiles ? files.length : (Array.isArray(sources) ? sources.length : 0);
     if(count === 0){
       multiPreviewContainer.style.display='none';
+      try{ const box = document.getElementById('dropArea'); if(box){ box.classList.remove('has-previews'); } }catch{}
       return;
     }
   // Always grid of thumbnails
   multiPreviewContainer.style.display = '';
     // Reset to default multi layout first
     multiPreviewContainer.style.gridTemplateColumns = 'repeat(auto-fit,minmax(120px,1fr))';
-    multiPreviewContainer.style.height = '';
-    multiPreviewContainer.style.maxHeight = '300px';
+    multiPreviewContainer.style.height = '100%';
+    multiPreviewContainer.style.maxHeight = '';
+    try{ const box = document.getElementById('dropArea'); if(box){ box.classList.add('has-previews'); } }catch{}
     const maxThumbs = 12; // safety cap
     if(hasFiles){
       files.slice(0, maxThumbs).forEach((file, idx)=>{
