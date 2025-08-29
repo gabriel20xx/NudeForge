@@ -898,6 +898,17 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
     if(gLabel) gLabel.textContent = 'Failed';
   setUploadBusy(false);
   }
+  // Explicitly handle completion -> turn bars green
+  if(status === 'completed' || status === 'finished' || status === 'done'){
+    wrap?.classList.remove('idle');
+    if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
+    if(label) label.textContent = 'Finished';
+    if(pctSpan) pctSpan.textContent = '100%';
+    gWrap?.classList.remove('idle');
+    if(gBar){ gBar.style.width='100%'; gBar.classList.add('success'); gBar.classList.remove('error'); }
+    if(gLabel) gLabel.textContent = 'Finished';
+    setUploadBusy(false);
+  }
   if(meta){
     // Suppress queue meta during processing entirely
     if(status==='queued' && typeof yourPosition==='number'){
