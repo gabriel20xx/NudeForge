@@ -18,7 +18,13 @@ function enableDownload(url) {
 		downloadLink.classList.remove('disabled');
 		const btn = downloadLink.querySelector('button');
 		if (btn) btn.disabled = false;
-		if (url) downloadLink.setAttribute('href', url);
+    if (url) downloadLink.setAttribute('href', url);
+    try {
+      const imgs = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
+      if (btn) btn.textContent = (imgs.length > 1) ? 'Download All' : 'Download';
+      downloadLink.setAttribute('download','');
+      downloadLink.removeAttribute('title');
+    } catch {}
 	}
 }
 window.addEventListener('DOMContentLoaded', async function() {
@@ -33,7 +39,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     const bar = document.getElementById('processingProgressBar');
     const label = document.getElementById('processingProgressLabel');
     if(bar) bar.style.width = '0%';
-  if(label) label.textContent = 'Idle';
+    if(label) label.textContent = 'Idle';
     progressWrap?.classList.add('idle');
   } catch {}
   showElement(comparisonPlaceholder);
@@ -42,21 +48,49 @@ window.addEventListener('DOMContentLoaded', async function() {
   initializeCarousel();
   const headerOptions = document.querySelector('.header-options');
   if(headerOptions) headerOptions.style.display='block';
+  restoreGeneratorState();
+  // Output image lightbox hookup
+  try{
+    const grid = document.getElementById('outputGrid');
+    const overlay = document.getElementById('lightboxOverlay');
+    const img = document.getElementById('lightboxImage');
+    const closeBtn = document.getElementById('lightboxClose');
+    const close = ()=>{ if(overlay){ overlay.style.display='none'; if(img){ img.removeAttribute('src'); } } };
+    if(grid && overlay && img){
+      grid.addEventListener('click', (e)=>{
+        const target = e.target && e.target.closest('.output-item img');
+        if(!target) return;
+        e.preventDefault();
+        img.src = target.src.split('?')[0];
+        overlay.style.display = 'flex';
+      });
+    }
+    if(closeBtn){ closeBtn.addEventListener('click', close); }
+    if(overlay){ overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); }); }
+    window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+  }catch{}
 });
 // --- DOM Elements (single query, reused everywhere) ---
 const inputImage = document.getElementById('inputImage');
-const previewImage = document.getElementById('previewImage');
+// previewImage element was removed; keep placeholder null for legacy checks
+const previewImage = null;
 const dropArea = document.getElementById('dropArea');
 const dropText = document.getElementById('dropText');
 const uploadForm = document.getElementById('uploadForm');
 const downloadLink = document.getElementById('downloadLink');
+const outputGrid = document.getElementById('outputGrid');
 // Removed unused NodeList assignment (was triggering eslint no-unused-vars)
-const uploadButton = uploadForm.querySelector('.upload-btn');
-const allowConcurrentUploadCheckbox = document.getElementById('allowConcurrentUpload');
+const uploadButton = uploadForm ? uploadForm.querySelector('.upload-btn') : null;
+const allowConcurrentUploadCheckbox = null; // toggle removed: always multi-upload
 const advancedModeToggle = document.getElementById('advancedModeToggle');
 const multiPreviewContainer = document.getElementById('multiPreviewContainer');
 let activeRequestId = null; // track current processing request
+let activeRequestIds = []; // track multiple when multi-upload
 let selectedFiles = []; // ensure declared (used in multi-upload logic)
+let multiRunActive = false; // true while a multi-upload batch (>1) is being processed
+let multiRunTotalCount = 0; // total images in current batch
+let multiRunDoneCount = 0;  // completed (success or fail) in current batch
+let __persist = { selectedPreviewSources: [], comparisonSplitPct: null }; // fallback sources for previews and comparison slider
 // Stage weighting tracker (client-side heuristic). Each unique progress.stage encountered becomes a stage.
 const __stageTracker = { encountered: [], lastOverall: 0 };
 window.__nudeForgeStageTracker = __stageTracker;
@@ -70,38 +104,64 @@ function setUploadBusy(busy){
     uploadButton.classList.add('disabled');
     if(!uploadButton.dataset.originalText){ uploadButton.dataset.originalText = uploadButton.textContent || 'Upload'; }
     uploadButton.textContent = 'Processing...';
+  // toggle removed
   } else {
     uploadButton.disabled = false;
     uploadButton.classList.remove('disabled');
     try { updateUploadButtonState(); } catch { /* no-op */ }
+  // toggle removed
   }
 }
 
 // Immediate preview handler (ensures image becomes visible on selection before later enhancements run)
+// On Android, force the standard Files picker instead of the Photos picker by loosening the accept type.
+// We'll still validate and only allow images on the client side.
 if (inputImage) {
-  inputImage.addEventListener('change', () => {
-    const multi = allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked;
-    if (multi) {
-      // Collect selected files (multi mode) but don't render thumbnails here (handled later); just hide placeholder.
-      selectedFiles = Array.from(inputImage.files || []);
-      if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
-    } else {
-      const file = inputImage.files && inputImage.files[0];
-      if (file && previewImage) {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          previewImage.src = ev.target.result;
-          previewImage.style.display = 'block';
-          if (dropText) dropText.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-      }
+  try {
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    if (isAndroid) {
+      inputImage.setAttribute('accept', '*/*');
     }
+  } catch { /* ignore UA errors */ }
+
+  inputImage.addEventListener('change', () => {
+    const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+    // Client-side guard: only allow images
+    const allFiles = Array.from(inputImage.files || []);
+    // If user cancels the picker, keep previous selection and previews
+    if (allFiles.length === 0) {
+      return;
+    }
+    const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
+    if (allFiles.length > 0 && imageFiles.length === 0) {
+      window.toast?.error('Please select an image file.');
+      inputImage.value = '';
+      return;
+    }
+    // Enforce max file limit client-side
+    if (imageFiles.length > maxFiles) {
+      window.toast?.warn?.(`You selected ${imageFiles.length} images. Only the first ${maxFiles} will be uploaded.`);
+    }
+    const limitedImages = imageFiles.slice(0, maxFiles);
+  const multi = true;
+  if (multi) {
+    // Collect selected files and let renderer decide single vs multi layout.
+    selectedFiles = limitedImages;
+    if (selectedFiles.length > 0 && dropText) dropText.style.display = 'none';
+    if (window.renderMultiPreviews) { try { window.renderMultiPreviews(); } catch {} }
+      // Initialize persisted preview sources from selectedFiles using data URLs (updated later if copy URL becomes available)
+      try {
+        __persist.selectedPreviewSources = [];
+        const readers = selectedFiles.map(file => new Promise((resolve)=>{ const r=new FileReader(); r.onload=e=>resolve({ src:e.target.result, kind:'data', filename:file.name||'image' }); r.readAsDataURL(file); }));
+        Promise.all(readers).then(list=>{ __persist.selectedPreviewSources = list; saveGeneratorState(); });
+      } catch {}
+  }
     // Background: send copy/copies immediately to /upload-copy (non-blocking) so server stores original in /copy
     // Do NOT await to avoid delaying UI preview.
     (async () => {
       try {
-        const filesToSend = multi ? selectedFiles : (inputImage.files ? [inputImage.files[0]] : []);
+  const filesToSend = selectedFiles;
         if (!filesToSend || filesToSend.length === 0) return;
         // Endpoint currently expects single 'image', so send sequentially.
         for (const f of filesToSend) {
@@ -110,7 +170,13 @@ if (inputImage) {
             fd.append('image', f, f.name);
           fetch('/upload-copy', { method: 'POST', body: fd })
             .then(r => { if(!r.ok) throw new Error('copy upload failed'); return r.json().catch(()=>({})); })
-    .then(() => { /* optional success handling; keep silent to reduce noise */ })
+    .then((resp) => { if(resp && resp.filename){
+      // Update persisted preview source to use copy url if available for same name
+      const url = `/copy/${encodeURIComponent(resp.filename)}`;
+      const base = (f.name||'image');
+      const idx = (__persist.selectedPreviewSources||[]).findIndex(it=> it && it.filename===base);
+      if(idx>=0){ __persist.selectedPreviewSources[idx] = { src:url, kind:'copy', filename: base }; saveGeneratorState(); }
+    } })
             .catch(err => { window.ClientLogger?.warn('Copy upload failed', { name: f.name, err }); });
         }
   } catch(err){ window.ClientLogger?.error('Copy upload dispatch error', err); }
@@ -126,34 +192,239 @@ if (inputImage) {
 }
 
 // Multi-upload mode toggle listener (guard for element existing)
-if(allowConcurrentUploadCheckbox){
-  allowConcurrentUploadCheckbox.addEventListener('change', function() {
-    if (this.checked) {
-      inputImage.setAttribute('multiple', 'multiple');
-      dropText.textContent = 'Drag & drop or click to upload (multiple files allowed)';
-      uploadButton.textContent = 'Upload All';
-    } else {
-      inputImage.removeAttribute('multiple');
-      dropText.textContent = 'Drag & drop or click to upload';
-      uploadButton.textContent = 'Upload';
-    }
-    clearSelectedFiles();
-    updateUploadButtonState();
-  });
-}
+// toggle removed
 
 // --- Utilities & Helpers ---
 function showElement(el){ if(el) el.style.display=''; }
 function hideElement(el){ if(el) el.style.display='none'; }
 function createEl(tag, opts={}){ const el=document.createElement(tag); Object.assign(el, opts); return el; }
+// Convert data URL to Blob
+function dataUrlToBlob(dataUrl){
+  try{
+    const parts = dataUrl.split(',');
+    const header = parts[0];
+    const data = parts[1] || '';
+    const isBase64 = /;base64/i.test(header);
+    const mimeMatch = /^data:([^;]+)(;|,)/i.exec(header);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    if(isBase64){
+      const byteStr = atob(data);
+      const len = byteStr.length;
+      const bytes = new Uint8Array(len);
+      for(let i=0;i<len;i++){ bytes[i] = byteStr.charCodeAt(i); }
+      return new Blob([bytes], { type: mime });
+    } else {
+      const decoded = decodeURIComponent(data);
+      return new Blob([decoded], { type: mime });
+    }
+  } catch { return null; }
+}
+async function getBlobFromSrc(src){
+  try{
+    if(typeof src === 'string' && src.startsWith('data:')){
+      const b = dataUrlToBlob(src); if(b) return b; throw new Error('Invalid data URL');
+    }
+    const res = await fetch(src, { cache: 'no-cache' });
+    if(!res.ok) throw new Error('fetch failed');
+    return await res.blob();
+  } catch(err){ window.ClientLogger?.error('getBlobFromSrc failed', { src, err }); throw err; }
+}
+async function reconstructFilesFromPersistedSources(maxFiles){
+  const sources = Array.isArray(__persist?.selectedPreviewSources) ? __persist.selectedPreviewSources : [];
+  const slice = sources.slice(0, Math.max(1, Number(maxFiles||sources.length)));
+  const out = [];
+  for(const it of slice){
+    try{
+      const blob = await getBlobFromSrc(it.src);
+      const fname = (it && it.filename) ? it.filename : 'image';
+      const type = blob && blob.type ? blob.type : 'image/png';
+      out.push(new File([blob], fname, { type }));
+    } catch(e){ /* skip failed */ }
+  }
+  return out;
+}
+async function rehydrateSelectionFromPersisted(reason){
+  try{
+    const sources = Array.isArray(__persist?.selectedPreviewSources) ? __persist.selectedPreviewSources : [];
+    if(!sources.length) return;
+    // Render previews if missing: always grid
+    if(multiPreviewContainer && multiPreviewContainer.children.length===0){
+      multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='';
+      sources.forEach((it, idx)=>{ const wrap=document.createElement('div'); wrap.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrap.appendChild(img); multiPreviewContainer.appendChild(wrap); });
+    }
+    if(dropText) dropText.style.display='none';
+    const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+    const files = await reconstructFilesFromPersistedSources(maxFiles);
+    if(files && files.length){
+      selectedFiles = files;
+      if(inputImage){ const dt = new DataTransfer(); files.forEach(f=> dt.items.add(f)); inputImage.files = dt.files; }
+      updateUploadButtonState();
+    }
+  } catch(err){ window.ClientLogger?.warn('rehydrateSelectionFromPersisted failed', { reason, err }); }
+}
+function saveGeneratorState(){
+  try{
+    const key='nudeforge:generatorState:v1';
+    const imgGrid = Array.from(document.querySelectorAll('#outputGrid .output-item img')).map(img=> img && img.src ? String(img.src).split('?')[0] : null).filter(Boolean);
+    // Helpers to capture UI state
+    const getComparisonSplitPct = () => {
+      try {
+        const container = document.getElementById('comparisonContainer');
+        if(!container) return null;
+        const after = container.querySelector('.comparison-after');
+        const slider = container.querySelector('.comparison-slider');
+        let pct = null;
+        if(after && after.style.width && after.style.width.endsWith('%')) pct = parseFloat(after.style.width);
+        else if(slider && slider.style.left && slider.style.left.endsWith('%')) pct = parseFloat(slider.style.left);
+        if(Number.isFinite(pct)) return Math.max(0, Math.min(100, pct));
+      } catch {}
+      return typeof __persist?.comparisonSplitPct === 'number' ? __persist.comparisonSplitPct : null;
+    };
+    const applyBool = v => !!v;
+    // Capture Advanced settings values
+    const promptVal = (document.getElementById('prompt')?.value) ?? '';
+    const stepsEl = document.getElementById('steps');
+    const stepsVal = stepsEl ? String(stepsEl.value ?? '20') : '20';
+    const outputHeightVal = (document.getElementById('outputHeight')?.value) ?? '1080';
+    const loraRows = Array.from(document.querySelectorAll('#loraGrid .lora-row')).map(row => {
+      try{
+        const model = row.querySelector('select.lora-model-select')?.value || '';
+        const enable = !!row.querySelector('input[type="checkbox"]')?.checked;
+        const strength = row.querySelector('input.lora-strength')?.value || '1.0';
+        return { model, enable, strength };
+      } catch { return { model:'', enable:false, strength:'1.0' }; }
+    });
+    const state = {
+      selectedPreviewSources: __persist.selectedPreviewSources||[],
+      outputGrid: imgGrid,
+      activeRequestId,
+      activeRequestIds,
+      advancedMode: applyBool(advancedModeToggle && advancedModeToggle.checked),
+      comparisonSplitPct: getComparisonSplitPct(),
+      settings: {
+        prompt: String(promptVal),
+        steps: String(stepsVal),
+        outputHeight: String(outputHeightVal),
+        loras: loraRows
+      },
+      // Derived UI flags for placeholder visibility
+      ui: {
+        inputHasSelection: Array.isArray(__persist.selectedPreviewSources) && __persist.selectedPreviewSources.length > 0,
+        outputHasImages: Array.isArray(imgGrid) && imgGrid.length > 0
+      },
+      statusText: (document.getElementById('processingStatus')?.textContent)||'',
+      progress: {
+        pct: (function(){ const s=document.getElementById('processingProgressBar'); if(!s) return null; const w=s.style.width||''; const m=/^(\d+)%$/.exec(w); return m? Number(m[1]) : null; })(),
+        label: (document.getElementById('processingProgressLabel')?.textContent)||''
+      }
+    };
+    localStorage.setItem(key, JSON.stringify(state));
+  }catch{}
+}
+function restoreGeneratorState(){
+  try{
+    const key='nudeforge:generatorState:v1';
+    const raw = localStorage.getItem(key);
+    if(!raw) return;
+    const state = JSON.parse(raw);
+    // Restore Advanced/settings visibility first so subsequent UI respects it
+    if(typeof state?.advancedMode === 'boolean' && advancedModeToggle){
+      try { advancedModeToggle.checked = !!state.advancedMode; } catch {}
+      try {
+        const settingsSection = document.getElementById('settingsSection');
+        const comparisonSection = document.getElementById('comparisonSection');
+        if(settingsSection) settingsSection.style.display = state.advancedMode ? 'block' : 'none';
+        if(comparisonSection) comparisonSection.style.display = state.advancedMode ? 'block' : 'none';
+      } catch {}
+    }
+    if(state && Array.isArray(state.selectedPreviewSources) && state.selectedPreviewSources.length>0){
+      __persist.selectedPreviewSources = state.selectedPreviewSources;
+      // Render previews from sources (always grid)
+      if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display=''; }
+      state.selectedPreviewSources.forEach((it, idx)=>{
+        const wrap=document.createElement('div'); wrap.className='multi-preview-item';
+        const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src;
+        wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
+      });
+      if(dropText) dropText.style.display='none';
+      // Ensure Upload button is enabled based on persisted selection
+      try{ if(uploadButton){ uploadButton.disabled = false; uploadButton.classList.remove('disabled'); uploadButton.textContent = `Upload All (${state.selectedPreviewSources.length})`; } }catch{}
+      // Optionally reconstruct FileList for the input asynchronously to keep system state consistent
+      try{
+        const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+        reconstructFilesFromPersistedSources(maxFiles).then(files=>{
+          if(files && files.length){
+            selectedFiles = files;
+            // Best-effort: reflect into <input type="file"> using a DataTransfer
+            if(inputImage){ const dt = new DataTransfer(); files.forEach(f=> dt.items.add(f)); inputImage.files = dt.files; }
+            updateUploadButtonState();
+          }
+        }).catch(()=>{});
+      }catch{}
+      // Note: selectedFiles remains empty until submission reconstructs
+    }
+    if(state && Array.isArray(state.outputGrid) && state.outputGrid.length>0){
+      const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; dl.setAttribute('download',''); item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
+    }
+    // Restore placeholder visibility based on derived UI flags
+    try{
+      const ui = state.ui || {};
+      const inputPh = document.getElementById('dropText');
+      if(inputPh){ inputPh.style.display = ui.inputHasSelection ? 'none' : ''; }
+      const outPh = document.getElementById('outputPlaceholder');
+      if(outPh){ outPh.style.display = (Array.isArray(state.outputGrid) && state.outputGrid.length>0) ? 'none' : ''; }
+    }catch{}
+    // Restore Advanced settings values
+    if(state && state.settings){
+      try{
+        const promptEl = document.getElementById('prompt'); if(promptEl) promptEl.value = state.settings.prompt ?? promptEl.value;
+        const stepsEl = document.getElementById('steps'); if(stepsEl){ stepsEl.value = state.settings.steps ?? stepsEl.value; const sv=document.getElementById('stepsValue'); if(sv) sv.textContent = String(stepsEl.value); }
+        const outH = document.getElementById('outputHeight'); if(outH){ outH.value = state.settings.outputHeight ?? outH.value; }
+        // Restore LoRA rows
+        const loraGrid = document.getElementById('loraGrid');
+        const addBtn = document.getElementById('addLoraBtn');
+        if(loraGrid && Array.isArray(state.settings.loras)){
+          // Ensure row count matches
+          const target = state.settings.loras.length;
+          let current = loraGrid.querySelectorAll('.lora-row').length;
+          while(current < target && addBtn){ addBtn.click(); current++; }
+          while(current > target){ const rows = loraGrid.querySelectorAll('.lora-row'); const last = rows[rows.length-1]; if(last) last.remove(); current--; }
+          // Apply values
+          const rows = loraGrid.querySelectorAll('.lora-row');
+          state.settings.loras.forEach((conf, i) => {
+            const row = rows[i]; if(!row) return;
+            const sel = row.querySelector('select.lora-model-select'); if(sel && typeof conf.model === 'string'){ sel.value = conf.model; }
+            const chk = row.querySelector('input[type="checkbox"]'); if(chk){ chk.checked = !!conf.enable; }
+            const str = row.querySelector('input.lora-strength'); if(str && typeof conf.strength === 'string'){ str.value = conf.strength; }
+          });
+        }
+      } catch {}
+    }
+    // Restore comparison slider position if available
+    if(typeof state?.comparisonSplitPct === 'number'){
+      __persist.comparisonSplitPct = state.comparisonSplitPct;
+      try{
+        const container = document.getElementById('comparisonContainer');
+        if(container){
+          const after = container.querySelector('.comparison-after');
+          const slider = container.querySelector('.comparison-slider');
+          if(after) after.style.width = state.comparisonSplitPct + '%';
+          if(slider) slider.style.left = state.comparisonSplitPct + '%';
+        }
+      }catch{}
+    }
+    if(typeof state?.statusText==='string'){ const sEl=document.getElementById('processingStatus'); if(sEl){ sEl.textContent=state.statusText; } }
+    if(state && state.progress){ const bar=document.getElementById('processingProgressBar'); const label=document.getElementById('processingProgressLabel'); if(bar && typeof state.progress.pct==='number'){ bar.style.width=state.progress.pct+'%'; } if(label && state.progress.label){ label.textContent=state.progress.label; } }
+    if(state && (state.activeRequestId || (Array.isArray(state.activeRequestIds) && state.activeRequestIds.length))){
+      activeRequestId = state.activeRequestId || null;
+      activeRequestIds = Array.isArray(state.activeRequestIds) ? state.activeRequestIds : (activeRequestId? [activeRequestId] : []);
+      if(activeRequestId){ joinStatusChannel(activeRequestId); pollStatus(); }
+    }
+  }catch{}
+}
 function updateDropPlaceholder(){
   if(!dropText) return;
-  if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-    if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
-  } else {
-    const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-    dropText.style.display = hasFile ? 'none' : '';
-  }
+  if(selectedFiles.length>0){ dropText.style.display='none'; } else { dropText.style.display=''; }
 }
 // initial invocation to mark helper utilized
 updateDropPlaceholder();
@@ -164,17 +435,16 @@ async function initializeCarousel(){
   if(carouselInitialized) return;
   const slideContainer = document.querySelector('.carousel-slide');
   if(!slideContainer) return;
-  try {
-    const res = await fetch('/api/carousel-images');
-    if(!res.ok) throw new Error('Failed to fetch carousel images');
-    let images = await res.json();
+  const cacheKey = 'nudeforge:carousel-images:v1';
+  function getCached(){ try{ const raw=localStorage.getItem(cacheKey); const arr=JSON.parse(raw); return Array.isArray(arr)? arr : []; }catch{ return []; } }
+  function setCached(arr){ try{ localStorage.setItem(cacheKey, JSON.stringify(Array.isArray(arr)? arr: [])); }catch{} }
+  async function render(images){
     if(!Array.isArray(images) || images.length===0){
-      // Fallback: attempt to probe a known original folder (first few static examples) if available in markup
-  window.ClientLogger?.warn('No carousel images returned from API');
+      window.ClientLogger?.warn('No carousel images (cache or API)');
       if(slideContainer && !slideContainer.querySelector('.carousel-empty')){
         slideContainer.innerHTML = '<div class="carousel-empty" style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--color-text-dim);font-size:.75rem;">No carousel images available</div>';
       }
-      return; // keep retry logic outside
+      return false;
     }
     slideContainer.innerHTML='';
     images.forEach(name => {
@@ -234,8 +504,28 @@ async function initializeCarousel(){
     function _tick(){ /* replaced by startScroll */ }
     // previous tick logic replaced with seamless clone-based scrolling
     carouselInitialized = true;
+    return true;
+  }
+  try {
+    const cached = getCached();
+    if(Array.isArray(cached) && cached.length){
+      const ok = await render(cached);
+      if(ok) return; // rendered from cache, avoid fetch
+    }
+    const res = await fetch('/api/carousel-images');
+    if(!res.ok) throw new Error('Failed to fetch carousel images');
+    let images = await res.json();
+    if(!Array.isArray(images) || images.length===0){
+      window.ClientLogger?.warn('No carousel images returned from API');
+      if(slideContainer && !slideContainer.querySelector('.carousel-empty')){
+        slideContainer.innerHTML = '<div class="carousel-empty" style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--color-text-dim);font-size:.75rem;">No carousel images available</div>';
+      }
+      return;
+    }
+    setCached(images);
+    await render(images);
   } catch(err){
-  window.ClientLogger?.error('Carousel init failed', err);
+    window.ClientLogger?.error('Carousel init failed', err);
   }
 }
 
@@ -305,22 +595,58 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   function clearSelectedFiles(){
     selectedFiles = [];
     if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
-    if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
+  }
+  function renderMultiPreviews(){
+    if(!multiPreviewContainer) return;
+    multiPreviewContainer.innerHTML = '';
+    const files = selectedFiles || [];
+    const hasFiles = Array.isArray(files) && files.length>0;
+    const sources = __persist.selectedPreviewSources || [];
+    const count = hasFiles ? files.length : (Array.isArray(sources) ? sources.length : 0);
+    if(count === 0){
+      multiPreviewContainer.style.display='none';
+      return;
+    }
+  // Always grid of thumbnails
+  multiPreviewContainer.style.display = '';
+    // Reset to default multi layout first
+    multiPreviewContainer.style.gridTemplateColumns = 'repeat(auto-fit,minmax(120px,1fr))';
+    multiPreviewContainer.style.height = '';
+    multiPreviewContainer.style.maxHeight = '300px';
+    const maxThumbs = 12; // safety cap
+    if(hasFiles){
+      files.slice(0, maxThumbs).forEach((file, idx)=>{
+        if(!file) return;
+        const wrapper = document.createElement('div'); wrapper.className = 'multi-preview-item';
+        const img = document.createElement('img'); img.alt = file.name || ('image ' + (idx+1)); img.loading = 'lazy'; img.className = 'multi-preview-img';
+        const reader = new FileReader(); reader.onload = ev => { img.src = ev.target.result; }; reader.readAsDataURL(file);
+        wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper);
+      });
+    } else if (Array.isArray(sources) && sources.length>0){
+      sources.slice(0, maxThumbs).forEach((it, idx)=>{ const wrapper=document.createElement('div'); wrapper.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper); });
+    }
+    // If there is exactly one preview, expand to fill container height with non-cropping fit
+    const items = multiPreviewContainer.querySelectorAll('.multi-preview-item');
+    if(items.length === 1){
+      multiPreviewContainer.style.gridTemplateColumns = '1fr';
+      multiPreviewContainer.style.maxHeight = 'none';
+      multiPreviewContainer.style.height = '100%';
+      const only = items[0];
+      only.style.aspectRatio = 'auto';
+      only.style.height = '100%';
+      const img = only.querySelector('img');
+      if(img){ img.style.height='100%'; img.style.width='auto'; img.style.objectFit='contain'; }
+    }
   }
   function updateUploadButtonState(){
     if(!uploadButton) return;
-    if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-      uploadButton.disabled = selectedFiles.length === 0;
-      uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-    } else {
-      const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-      uploadButton.disabled = !hasFile;
-      uploadButton.textContent = 'Upload';
-    }
+  uploadButton.disabled = selectedFiles.length === 0;
+  uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
   }
   // Expose for earlier references
   window.clearSelectedFiles = clearSelectedFiles;
   window.updateUploadButtonState = updateUploadButtonState;
+  window.renderMultiPreviews = renderMultiPreviews;
 
   // Input file change logic
   function gatherAndNormalizeSettings(formData){
@@ -339,14 +665,35 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       e.preventDefault();
       if(!uploadButton || uploadButton.disabled) return;
       const formData = new FormData(uploadForm);
-      // Append selected multi files explicitly if multi-upload enabled
-      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked && selectedFiles.length>0){
+      // If no live selectedFiles but we have persisted previews (after tab switch), reconstruct File objects
+      if((!selectedFiles || selectedFiles.length===0) && Array.isArray(__persist?.selectedPreviewSources) && __persist.selectedPreviewSources.length>0){
+        try{
+          const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+          selectedFiles = await reconstructFilesFromPersistedSources(maxFiles);
+        } catch {}
+      }
+      // Enforce server limit as final guard before appending
+      const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+      if (selectedFiles.length > maxFiles) {
+        window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (selected ${selectedFiles.length}).`);
+        selectedFiles = selectedFiles.slice(0, maxFiles);
+      }
+      // Always append selected files (multi-upload always on)
+      if(selectedFiles.length>0){
         formData.delete('image'); // remove potential single
         selectedFiles.forEach(f=> formData.append('image', f));
       }
       gatherAndNormalizeSettings(formData);
   const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
-  const singleMode = !(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked);
+  const singleMode = false; // always multi mode
+  // Determine multi run state for output box behavior
+  multiRunActive = !singleMode && selectedFiles && selectedFiles.length > 1;
+  // Clean output placeholder and disable download on start
+  try{
+    const ph=document.getElementById('outputPlaceholder');
+    if(ph){ ph.style.display='none'; }
+    if(typeof _disableDownload === 'function'){ _disableDownload(); }
+  }catch{}
   setUploadBusy(true);
       try {
         const res = await fetch('/upload', { method:'POST', body: formData });
@@ -357,19 +704,24 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
           const data = await res.json().catch(()=>({}));
           if(data.requestId){
             activeRequestId = data.requestId;
+            activeRequestIds = Array.isArray(data.requestIds) ? data.requestIds.slice() : [activeRequestId];
+              // initialize batch counters
+              multiRunTotalCount = activeRequestIds.length;
+              multiRunDoneCount = 0;
+              multiRunActive = multiRunTotalCount > 1;
             joinStatusChannel(activeRequestId);
             updateStatusUI({ status:'queued', yourPosition: data.yourPosition });
             pollStatus();
-            window.toast?.success('Queued (position '+(data.yourPosition||'?')+')');
+            window.toast?.success('Queued '+(data.queued||1)+' item(s) (first position '+(data.yourPosition||'?')+')');
           } else {
-            window.toast?.success('Added to queue. Position '+ (data.yourPosition||'?'));
+            window.toast?.success('Added to queue.');
           }
         }
   } catch{
         window.toast?.error('Upload error');
       } finally {
   // Keep disabled while active request is being processed
-  if(!activeRequestId){ setUploadBusy(false); }
+  if(!activeRequestId){ setUploadBusy(false); multiRunActive = false; }
       }
     });
   }
@@ -384,26 +736,18 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     ;['dragleave','dragend'].forEach(evt=> dropArea.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over'); }));
     dropArea.addEventListener('drop', e=>{
       e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over');
-      const files = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
+  const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  const all = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
+  if(all.length > maxFiles){ window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (dropped ${all.length}).`); }
+  const files = all.slice(0, maxFiles);
       if(files.length===0) return;
       const dt = new DataTransfer();
-      if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-        files.forEach(f=> dt.items.add(f));
-      } else {
-        dt.items.add(files[0]);
-      }
+  // Always multi-upload: add all files
+  files.forEach(f=> dt.items.add(f));
       inputImage.files = dt.files; // triggers change event programmatically below
       const changeEvt = new Event('change');
       inputImage.dispatchEvent(changeEvt);
-      if(!allowConcurrentUploadCheckbox || !allowConcurrentUploadCheckbox.checked){
-        // show immediate preview using FileReader (in case change async)
-        const first = dt.files[0];
-        if(first && previewImage){
-          const reader = new FileReader();
-          reader.onload = ev => { previewImage.src = ev.target.result; previewImage.style.display='block'; if(dropText) dropText.style.display='none'; };
-          reader.readAsDataURL(first);
-        }
-      }
+  // Always multi: previews handled by change event -> renderMultiPreviews()
     });
   }
 })();
@@ -418,9 +762,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(comparisonSection) comparisonSection.style.display = enabled ? 'block' : 'none';
   }
   if(advancedModeToggle){
-    advancedModeToggle.addEventListener('change', applyAdvancedVisibility);
+    advancedModeToggle.addEventListener('change', ()=>{ applyAdvancedVisibility(); try{ saveGeneratorState(); }catch{} });
     applyAdvancedVisibility();
   }
+  // Rehydrate selection when page regains visibility/focus (covers browser tab switches)
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible'){ rehydrateSelectionFromPersisted('visibilitychange'); } });
+  window.addEventListener('focus', ()=>{ rehydrateSelectionFromPersisted('focus'); });
+  // Persist Advanced inputs and LoRA changes
+  const promptEl = document.getElementById('prompt'); if(promptEl){ promptEl.addEventListener('input', ()=>{ try{ saveGeneratorState(); }catch{} }); }
+  const stepsEl = document.getElementById('steps'); if(stepsEl){ stepsEl.addEventListener('input', ()=>{ const sv=document.getElementById('stepsValue'); if(sv) sv.textContent=String(stepsEl.value); try{ saveGeneratorState(); }catch{} }); }
+  const outH = document.getElementById('outputHeight'); if(outH){ outH.addEventListener('change', ()=>{ try{ saveGeneratorState(); }catch{} }); }
+  const loraGrid = document.getElementById('loraGrid'); if(loraGrid){
+    loraGrid.addEventListener('change', ()=>{ try{ saveGeneratorState(); }catch{} });
+    loraGrid.addEventListener('click', (e)=>{ if(e.target && e.target.closest('.lora-remove-btn')){ setTimeout(()=>{ try{ saveGeneratorState(); }catch{} },0); } });
+  }
+  const addBtn = document.getElementById('addLoraBtn'); if(addBtn){ addBtn.addEventListener('click', ()=>{ setTimeout(()=>{ try{ saveGeneratorState(); }catch{} },0); }); }
 });
 
 // === Real-time / Polling Status Handling ===
@@ -440,7 +796,21 @@ function joinStatusChannel(requestId){ const s = ensureSocket(); if(!s) return; 
   updateStatusUI({ status:'processing', progress, stage: payload?.stage });
   });
   s.on('processingComplete', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; handleProcessingComplete(payload); });
-  s.on('processingFailed', payload=>{ if(payload.requestId && payload.requestId!==activeRequestId) return; window.toast?.error(payload.error||'Processing failed'); updateStatusUI({ status:'failed' }); activeRequestId=null; });
+  s.on('processingFailed', payload=>{
+    if(payload.requestId && payload.requestId!==activeRequestId) return;
+    window.toast?.error(payload.error||'Processing failed');
+    // Count as done for batch tracking
+    if(multiRunTotalCount > 1){ multiRunDoneCount = Math.min(multiRunTotalCount, multiRunDoneCount + 1); }
+    // Advance to next ID if present
+    if(Array.isArray(activeRequestIds) && activeRequestIds.length>1 && payload.requestId){
+      activeRequestIds = activeRequestIds.filter(id=> id!==payload.requestId);
+      const nextId = activeRequestIds[0];
+      if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); updateStatusUI({ status:'processing' }); return; }
+    }
+    // No more items; finalize batch state
+    activeRequestId=null; multiRunActive=false;
+    updateStatusUI({ status:'failed' });
+  });
   s._listenersAdded = true; }
 }
 function setStatus(text){
@@ -460,24 +830,36 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
   const wrap = document.getElementById('processingProgressBarWrapper');
   const bar = document.getElementById('processingProgressBar');
   const label = document.getElementById('processingProgressLabel');
+  // Global bar (always present in header on all pages)
+  const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+  const gBar = document.getElementById('globalProcessingProgressBar');
+  const gLabel = document.getElementById('globalProcessingProgressLabel');
   const pctSpan = document.getElementById('progressPct');
   // Idle/active visuals and end states
   if(status === 'processing' || __hasLiveProgressForActive){
     wrap?.classList.remove('idle');
     if(bar){ bar.classList.remove('success'); bar.classList.remove('error'); }
+    gWrap?.classList.remove('idle');
+    if(gBar){ gBar.classList.remove('success'); gBar.classList.remove('error'); }
   setUploadBusy(true);
   } else if(status === 'queued' || status === 'idle' || !status){
     // Do not force reset to Idle on 'completed' here; completion flow handles it
     wrap?.classList.add('idle');
+    gWrap?.classList.add('idle');
     if(typeof progress?.value !== 'number' || typeof progress?.max !== 'number' || progress.max === 0){
       if(bar) bar.style.width = '0%';
       if(label) label.textContent = 'Idle';
+      if(gBar) gBar.style.width = '0%';
+      if(gLabel) gLabel.textContent = 'Idle';
     }
   if(status === 'queued'){ setUploadBusy(true); } else { setUploadBusy(false); }
   } else if(status === 'failed'){
     wrap?.classList.remove('idle');
     if(bar){ bar.style.width='100%'; bar.classList.add('error'); bar.classList.remove('success'); }
     if(label) label.textContent = 'Failed';
+    gWrap?.classList.remove('idle');
+    if(gBar){ gBar.style.width='100%'; gBar.classList.add('error'); gBar.classList.remove('success'); }
+    if(gLabel) gLabel.textContent = 'Failed';
   setUploadBusy(false);
   }
   if(meta){
@@ -509,13 +891,18 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
     __lastOverallPct = overall;
     if(pctSpan) pctSpan.textContent = overall + '%';
   updateProgressBar(overall, stageName, rawPct);
+  // Mirror to global bar
+  if(gBar){ gBar.style.width = overall + '%'; gBar.classList.remove('complete'); }
+  if(gLabel){ gLabel.textContent = (overall||0) + '%'; }
   } else {
     // No numeric progress in this update
     if(status === 'processing' || __hasLiveProgressForActive){
       // Stick to last known percent during processing updates without progress
-      if(pctSpan && typeof __lastOverallPct === 'number') pctSpan.textContent = __lastOverallPct + '%';
+  if(pctSpan && typeof __lastOverallPct === 'number') pctSpan.textContent = __lastOverallPct + '%';
+  if(gLabel && typeof __lastOverallPct === 'number') gLabel.textContent = __lastOverallPct + '%';
     } else if(pctSpan){
       pctSpan.textContent = '';
+  if(gLabel) gLabel.textContent = 'Idle';
     }
   }
 }
@@ -543,10 +930,12 @@ function updateProgressBar(pct, stage, stagePct){
   // Keep wrapper visible; reset to Idle handled after completion event
   // If completed, label should read Finished when handleProcessingComplete runs
   }
+  try{ saveGeneratorState(); }catch{}
 }
 function updateStatusUI(payload){
   if(payload.status) setStatus(payload.status);
   updateUnifiedStatus(payload);
+  try{ saveGeneratorState(); }catch{}
 }
 // Expose UI update helpers for test harness
 window.__nudeForge = Object.assign(window.__nudeForge||{}, {
@@ -555,34 +944,200 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, {
   updateProgressBar
 });
 async function pollStatus(){ if(!activeRequestId) return; try { const res = await fetch(`/queue-status?requestId=${encodeURIComponent(activeRequestId)}`); if(res.ok){ const data = await res.json(); updateStatusUI(data); if(data.status==='completed' && data.result && data.result.outputImage){ handleProcessingComplete({ outputImage:data.result.outputImage, downloadUrl:data.result.downloadUrl, requestId: activeRequestId }); return; } if(data.status==='failed'){ window.toast?.error('Processing failed'); activeRequestId=null; return; } } } catch { /* silent poll failure */ } if(activeRequestId){ setTimeout(pollStatus, 1500); } }
-function handleProcessingComplete(payload){
-  setStatus('Finished');
-  updateProgressBar(100,'completed');
-  if(payload.outputImage){
-    const img=document.getElementById('outputImage');
-    const ph=document.getElementById('outputPlaceholder');
-    if(img){ img.src = payload.outputImage + `?t=${Date.now()}`; img.style.display='block'; }
-    if(ph){ ph.style.display='none'; }
-    enableDownload(payload.downloadUrl || payload.outputImage);
-    // Show comparison (single mode only or if preview available)
-    if(previewImage && previewImage.src){
-      showComparison(previewImage.src, payload.outputImage);
+function appendOutputThumb(src, downloadUrl){
+  if(!outputGrid) return;
+  outputGrid.style.display='grid';
+  const item = document.createElement('div');
+  item.className='output-item';
+  const img = document.createElement('img');
+  img.src = src + `?t=${Date.now()}`;
+  const dl = document.createElement('a');
+  dl.href = downloadUrl || src;
+  dl.className='download-overlay';
+  dl.textContent='Download';
+  dl.setAttribute('download','');
+  item.appendChild(img);
+  item.appendChild(dl);
+  outputGrid.appendChild(item);
+  // Adjust grid when only one image -> use full space (single cell spanning)
+  try{
+    const count = outputGrid.querySelectorAll('.output-item').length;
+    if(count === 1){
+      outputGrid.style.gridTemplateColumns = '1fr';
+  outputGrid.style.height = '100%';
+  outputGrid.style.maxHeight = 'none';
+      item.style.aspectRatio = 'auto';
+  item.style.height = '100%';
+  const i = item.querySelector('img'); if(i){ i.style.height='100%'; i.style.width='auto'; i.style.objectFit='contain'; }
+    } else {
+      outputGrid.style.gridTemplateColumns = '';
+  outputGrid.style.height = '';
+  outputGrid.style.maxHeight = '';
+      const imgs = outputGrid.querySelectorAll('.output-item img'); imgs.forEach(it=>{ it.style.height='100%'; it.style.objectFit='cover'; });
     }
+  }catch{}
+  // Ensure placeholder is hidden when an output exists
+  try{ const ph=document.getElementById('outputPlaceholder'); if(ph){ ph.style.display='none'; } }catch{}
+  try{ saveGeneratorState(); }catch{}
+}
+function addToLocalLibrary(url, downloadUrl){
+  try {
+    const key = 'nudeforge:library:v1';
+    const raw = localStorage.getItem(key);
+    const list = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+    const cleanUrl = String(url||'').split('?')[0];
+    const exists = list.some(it => (it && String(it.url||'').split('?')[0] === cleanUrl));
+    if(!exists){
+      list.unshift({ url: cleanUrl, downloadUrl: downloadUrl||cleanUrl, ts: Date.now() });
+      // Cap to last 500 entries
+      while(list.length > 500) list.pop();
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  } catch { /* ignore storage errors */ }
+}
+function handleProcessingComplete(payload){
+  // Batch-aware completion: only mark Finished globally when all done
+  if(multiRunTotalCount > 1){
+    multiRunDoneCount = Math.min(multiRunTotalCount, multiRunDoneCount + 1);
+    // reflect per-item completion but keep global state processing until batch completes
+    const remaining = multiRunTotalCount - multiRunDoneCount;
+    if(remaining > 0){
+      // Keep status as Processing and show percent based on items done
+      const pctByItems = Math.round((multiRunDoneCount / multiRunTotalCount) * 100);
+      updateUnifiedStatus({ status:'processing', progress: { value: pctByItems, max: 100, type:'global_steps' }, stage: 'Batch progress' });
+    }
+  }
+  const isBatchCompleted = multiRunTotalCount <= 1 ? true : (multiRunDoneCount >= multiRunTotalCount);
+  if(isBatchCompleted){
+    setStatus('Finished');
+    updateProgressBar(100,'completed');
+  }
+  if(payload.outputImage){
+    const ph=document.getElementById('outputPlaceholder');
+    if(ph){ ph.style.display='none'; }
+  // Update download control based on how many outputs are visible
+  try{
+    const gridImgs = Array.from(document.querySelectorAll('#outputGrid .output-item img'));
+    const total = gridImgs.length + 1; // include the one being added
+    const link = document.getElementById('downloadLink');
+    if(link){
+      const btn = link.querySelector('button');
+      if(btn) btn.textContent = (total > 1) ? 'Download All' : 'Download';
+      link.classList.remove('disabled');
+      if(btn) btn.disabled = false;
+      // Point to the latest for single; multiple handled by click handler
+      link.setAttribute('href', payload.downloadUrl || payload.outputImage);
+      link.setAttribute('download','');
+    }
+  }catch{}
+    appendOutputThumb(payload.outputImage, payload.downloadUrl);
+  addToLocalLibrary(payload.outputImage, payload.downloadUrl);
+  // Show comparison if a preview source is available and advanced mode enabled
+  try {
+    const beforeSrc = (__persist && Array.isArray(__persist.selectedPreviewSources) && __persist.selectedPreviewSources[0] && __persist.selectedPreviewSources[0].src)
+      || (document.querySelector('#multiPreviewContainer .multi-preview-item img')?.src);
+    if(beforeSrc){ showComparison(beforeSrc, payload.outputImage); }
+  } catch {}
     window.toast?.success('Processing complete');
   }
-  activeRequestId=null;
+  // If multiple were queued, remove completed ID and keep polling next
+  if(Array.isArray(activeRequestIds) && activeRequestIds.length>1 && payload.requestId){
+    activeRequestIds = activeRequestIds.filter(id=> id!==payload.requestId);
+    // Advance to next request id for live updates
+    const nextId = activeRequestIds[0];
+    if(nextId){ activeRequestId = nextId; joinStatusChannel(activeRequestId); pollStatus(); updateStatusUI({ status:'processing' }); }
+  } else {
+    activeRequestId=null;
+    // Batch completed
+    if(multiRunActive){ multiRunActive = false; }
+  }
   __hasLiveProgressForActive = false;
   // Reset progress display to Idle shortly after finish
   try {
-  const wrap = document.getElementById('processingProgressBarWrapper');
-  const bar = document.getElementById('processingProgressBar');
-  const label = document.getElementById('processingProgressLabel');
-  if(wrap) wrap.classList.remove('idle');
-  if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
-  if(label) label.textContent='Finished';
-  setUploadBusy(false);
+    // Only mark success visuals if entire batch is complete
+    if(isBatchCompleted){
+      const wrap = document.getElementById('processingProgressBarWrapper');
+      const bar = document.getElementById('processingProgressBar');
+      const label = document.getElementById('processingProgressLabel');
+      if(wrap) wrap.classList.remove('idle');
+      if(bar){ bar.style.width='100%'; bar.classList.add('success'); bar.classList.remove('error'); }
+      if(label) label.textContent='Finished';
+      // Global bar success state
+      try{
+        const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+        const gBar = document.getElementById('globalProcessingProgressBar');
+        const gLabel = document.getElementById('globalProcessingProgressLabel');
+        if(gWrap) gWrap.classList.remove('idle');
+        if(gBar){ gBar.style.width='100%'; gBar.classList.add('success'); gBar.classList.remove('error'); }
+        if(gLabel) gLabel.textContent='Finished';
+      }catch{}
+      setUploadBusy(false);
+      try{ if(allowConcurrentUploadCheckbox){ allowConcurrentUploadCheckbox.disabled = false; allowConcurrentUploadCheckbox.removeAttribute('title'); } }catch{}
+    }
   } catch {}
 }
+
+// Cross-tab status sync: write compact progress into localStorage so other tabs update
+(function setupCrossTabSync(){
+  const key = 'nudeforge:status:v1';
+  let lastStr = '';
+  function publish(payload){
+    try{
+      const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+      const gBar = document.getElementById('globalProcessingProgressBar');
+      // Determine visual variant from current classes/state
+      let variant = 'processing';
+      if(gBar && gBar.classList.contains('error')) variant = 'error';
+      else if(gBar && gBar.classList.contains('success')) variant = 'success';
+      else if((gWrap && gWrap.classList.contains('idle'))) variant = 'idle';
+      const obj = {
+        ts: Date.now(),
+        status: document.getElementById('processingStatus')?.textContent || '',
+        pct: (function(){ const s=document.getElementById('globalProcessingProgressBar'); if(!s) return null; const w=s.style.width||''; const m=/^(\d+)%$/.exec(w); return m? Number(m[1]) : null; })(),
+        variant,
+        complete: !!(gBar && gBar.classList.contains('complete'))
+      };
+      const str = JSON.stringify(obj);
+      if(str !== lastStr){ localStorage.setItem(key, str); lastStr = str; }
+    }catch{}
+  }
+  // Hook into our existing update points
+  const _origUpdateStatus = window.__nudeForge?.updateStatusUI || updateStatusUI;
+  window.__nudeForge = Object.assign(window.__nudeForge||{}, {
+    updateStatusUI: (p)=>{ _origUpdateStatus(p); try{ publish(p); }catch{} }
+  });
+  function applyFromData(data){
+    try{
+      const gWrap = document.getElementById('globalProcessingProgressBarWrapper');
+      const gBar = document.getElementById('globalProcessingProgressBar');
+      const gLabel = document.getElementById('globalProcessingProgressLabel');
+      const statusEl = document.getElementById('processingStatus');
+      if(statusEl && typeof data.status === 'string'){ statusEl.textContent = data.status; }
+      if(typeof data.pct === 'number'){
+        if(gBar){ gBar.style.width = data.pct + '%'; }
+        if(gLabel){ gLabel.textContent = data.pct + '%'; }
+        if(gWrap){ gWrap.classList.toggle('idle', data.pct === 0 || data.variant === 'idle'); }
+      }
+      // Apply color variant
+      if(gBar){
+        gBar.classList.remove('success','error');
+        if(data.variant === 'success') gBar.classList.add('success');
+        else if(data.variant === 'error') gBar.classList.add('error');
+        // maintain/reflect completion state
+        gBar.classList.toggle('complete', !!data.complete);
+      }
+    } catch {}
+  }
+  window.addEventListener('storage', (e)=>{
+    if(e.key !== key || !e.newValue) return;
+    try{ applyFromData(JSON.parse(e.newValue)); } catch {}
+  });
+  // Hydrate on load for newly opened tabs
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw){ applyFromData(JSON.parse(raw)); }
+  }catch{}
+})();
 
 // === Comparison Slider Logic ===
 let comparisonSliderInitialized = false;
@@ -598,10 +1153,11 @@ function initComparisonSlider(){
     let pct = (clientX - rect.left) / rect.width; pct = Math.min(1, Math.max(0, pct));
     after.style.width = (pct*100)+'%';
     slider.style.left = (pct*100)+'%';
+    try { __persist.comparisonSplitPct = Math.round(pct*100); } catch {}
   }
   function start(e){ dragging=true; slider.classList.add('active'); setFromClientX(e.touches? e.touches[0].clientX : e.clientX); e.preventDefault(); }
   function move(e){ if(!dragging) return; setFromClientX(e.touches? e.touches[0].clientX : e.clientX); }
-  function end(){ dragging=false; slider.classList.remove('active'); }
+  function end(){ dragging=false; slider.classList.remove('active'); try{ saveGeneratorState(); }catch{} }
   slider.addEventListener('mousedown', start);
   window.addEventListener('mousemove', move);
   window.addEventListener('mouseup', end);
@@ -628,8 +1184,10 @@ function showComparison(beforeSrc, afterSrc){
   // Reset baseline positions
   const after = container && container.querySelector('.comparison-after');
   const slider = container && container.querySelector('.comparison-slider');
-  if(after){ after.style.width='50%'; }
-  if(slider){ slider.style.left='50%'; }
+  const savedPct = (function(){ try{ const raw = localStorage.getItem('nudeforge:generatorState:v1'); if(raw){ const s=JSON.parse(raw); if(typeof s?.comparisonSplitPct === 'number') return s.comparisonSplitPct; } }catch{} return (typeof __persist?.comparisonSplitPct === 'number') ? __persist.comparisonSplitPct : null; })();
+  const pctToApply = (typeof savedPct === 'number') ? savedPct : 50;
+  if(after){ after.style.width=pctToApply+'%'; }
+  if(slider){ slider.style.left=pctToApply+'%'; }
   initComparisonSlider();
 }
 // Expose for debugging
@@ -655,6 +1213,40 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
     window.ClientLogger?.error('Carousel failed to load images after retries');
   };
 })();
+
+// Cross-tab carousel sync: if another tab updates image list in cache, render without fetching
+window.addEventListener('storage', (e)=>{
+  try{
+    if(e.key !== 'nudeforge:carousel-images:v1' || !e.newValue) return;
+    const slideContainer = document.querySelector('.carousel-slide');
+    if(!slideContainer) return;
+    if(slideContainer.children.length>0) return; // already rendered
+    const arr = JSON.parse(e.newValue);
+    if(Array.isArray(arr) && arr.length){
+      // Ensure our initializer runs again to render from cache
+      if(typeof initializeCarousel === 'function'){
+        // give DOM a tick
+        setTimeout(()=>{ try{ carouselInitialized = false; initializeCarousel(); }catch{} }, 0);
+      }
+    }
+  }catch{}
+});
+
+// Cross-tab carousel sync: if another tab updates image list in cache, render without fetching
+window.addEventListener('storage', (e)=>{
+  try{
+    if(e.key !== 'nudeforge:carousel-images:v1' || !e.newValue) return;
+    const slideContainer = document.querySelector('.carousel-slide');
+    if(!slideContainer) return;
+    if(slideContainer.children.length>0) return; // already rendered
+    const arr = JSON.parse(e.newValue);
+    if(Array.isArray(arr) && arr.length){
+      // render quickly using initializeCarousel's cache path next tick
+      carouselInitialized = false; // force re-run
+      setTimeout(()=> initializeCarousel(), 0);
+    }
+  }catch{}
+});
 
 // Enhance LoRA initialization with loading / empty states
 (function patchLoras(){
@@ -707,7 +1299,20 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
     const addBtn = document.getElementById('addLoraBtn');
     if(!grid) return;
     try {
-      // show loading state
+      // Cache-first: use localStorage to avoid re-scanning across tabs
+      const cacheKey = 'nudeforge:loras:v1';
+      const getCached = () => { try{ const raw = localStorage.getItem(cacheKey); if(!raw) return null; const obj = JSON.parse(raw); if(obj && Array.isArray(obj.models) && obj.models.length){ return obj.models; } }catch{} return null; };
+      const setCached = (models) => { try{ localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), models })); }catch{} };
+      const cached = getCached();
+      if(Array.isArray(cached) && cached.length){
+        grid.innerHTML='';
+        populateInitialLoRAEntryDetailed(grid, cached);
+        if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, cached)); }
+        lorasLoaded = true;
+        window.ClientLogger?.info('Loaded LoRAs from cache', { count: cached.length });
+        return;
+      }
+      // show loading state then fetch once
       grid.innerHTML = '<div class="lora-status" style="font-size:.8em;color:var(--color-text-dim);padding:.25rem .4rem;">Loading LoRAs...</div>';
       const res = await fetch('/api/loras/detailed');
       if(!res.ok) throw new Error('Failed to fetch detailed LoRAs');
@@ -717,11 +1322,12 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
       if(models.length===0){
         grid.innerHTML = '<div class="lora-status empty" style="font-size:.8em;color:var(--color-danger);padding:.3rem .4rem;">No LoRA models found.</div>';
         lorasLoaded = true; return; }
+      setCached(models);
       grid.innerHTML='';
       populateInitialLoRAEntryDetailed(grid, models);
       if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
       lorasLoaded = true;
-  window.ClientLogger?.info('Loaded LoRAs (with subdirs)', { count: models.length });
+      window.ClientLogger?.info('Loaded LoRAs (with subdirs)', { count: models.length });
     } catch(e){
   window.ClientLogger?.error('Failed to initialize detailed LoRAs', e);
     }
@@ -764,22 +1370,52 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { showComparison });
   window.__nudeForge = Object.assign(window.__nudeForge||{}, { flattenDetailedLoras: flattenDetailed });
 })();
 
+// Cross-tab LoRA cache hydration: render from cached list if present and grid is empty
+window.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const grid = document.getElementById('loraGrid');
+    if(!grid) return;
+    if(grid.querySelector('.lora-row')) return; // already populated
+    const raw = localStorage.getItem('nudeforge:loras:v1');
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    const models = obj && Array.isArray(obj.models) ? obj.models : [];
+    if(models.length){
+      grid.innerHTML='';
+      populateInitialLoRAEntryDetailed(grid, models);
+      const addBtn = document.getElementById('addLoraBtn');
+      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+      // do not flip lorasLoaded here to allow future refresh if needed; we only hydrate UI
+    }
+  }catch{}
+});
+
+window.addEventListener('storage', (e)=>{
+  try{
+    if(e.key !== 'nudeforge:loras:v1' || !e.newValue) return;
+    const grid = document.getElementById('loraGrid'); if(!grid) return;
+    if(grid.querySelector('.lora-row')) return; // already filled
+    const obj = JSON.parse(e.newValue);
+    const models = obj && Array.isArray(obj.models) ? obj.models : [];
+    if(models.length){
+      grid.innerHTML='';
+      populateInitialLoRAEntryDetailed(grid, models);
+      const addBtn = document.getElementById('addLoraBtn');
+      if(addBtn){ addBtn.addEventListener('click', ()=> addLoRAEntryDetailed(grid, models)); }
+    }
+  }catch{}
+});
+
 // Define globally referenced helpers (previously inside IIFE)
 function clearSelectedFiles(){
   selectedFiles = [];
   if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
-  if(previewImage){ previewImage.removeAttribute('src'); previewImage.style.display='none'; }
   updateDropPlaceholder();
 }
 function updateUploadButtonState(){
   if(!uploadButton) return;
-  if(allowConcurrentUploadCheckbox && allowConcurrentUploadCheckbox.checked){
-    uploadButton.disabled = selectedFiles.length === 0;
-    uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
-  } else {
-    const hasFile = inputImage && inputImage.files && inputImage.files.length>0;
-    uploadButton.disabled = !hasFile;
-    uploadButton.textContent = 'Upload';
-  }
+  uploadButton.disabled = selectedFiles.length === 0;
+  uploadButton.textContent = selectedFiles.length > 1 ? `Upload All (${selectedFiles.length})` : 'Upload';
+  uploadButton.classList.toggle('disabled', !!uploadButton.disabled);
 }
 // --- END ORIGINAL CONTENT ---

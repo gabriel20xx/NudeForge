@@ -45,10 +45,6 @@
       <div class="app-topbar-right">
         <div class="header-options">
           <label class="header-option-label">
-            <input type="checkbox" id="allowConcurrentUpload" class="header-option-checkbox" />
-            Multi-upload
-          </label>
-          <label class="header-option-label">
             <input type="checkbox" id="advancedModeToggle" class="header-option-checkbox" />
             Advanced
           </label>
@@ -58,3 +54,10 @@
         </div>
       </div>
     </header>
+    <!-- Global progress bar (visible on every page) -->
+  <div id="globalProcessingProgressBarWrapper" class="processing-progress-wrapper idle" style="margin: 6px auto 0; max-width: 900px;">
+      <div class="processing-progress-track" style="height:16px;">
+        <div id="globalProcessingProgressBar" class="processing-progress-bar"></div>
+        <div id="globalProcessingProgressLabel" class="processing-progress-label">Idle</div>
+      </div>
+    </div>
