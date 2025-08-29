@@ -43,6 +43,10 @@ const PORT = process.env.PORT || 8080;
 // Max number of images accepted per upload request
 const MAX_UPLOAD_FILES = Number(process.env.MAX_UPLOAD_FILES || process.env.UPLOAD_MAX_FILES || 12);
 
+// Overlay neighbor preload radius for viewers (used in Library/Saved overlays)
+function clamp(num, min, max){ try{ num = Number(num); }catch{} return Math.max(min, Math.min(max, Number.isFinite(num)? num : min)); }
+const PRELOAD_RADIUS = clamp(process.env.PRELOAD_RADIUS ?? process.env.PRELOAD_NEIGHBOR_RADIUS ?? 2, 0, 10);
+
 // Detect if running in Docker container
 const isDocker = process.env.DOCKER === 'true' || 
                  process.env.LORAS_DIR || 
@@ -99,4 +103,5 @@ export {
   ENABLE_HTTPS,
   SSL_KEY_PATH,
   SSL_CERT_PATH
+  , PRELOAD_RADIUS
 };

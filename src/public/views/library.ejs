@@ -1,11 +1,9 @@
 <%- include('partials/header', { title: 'Library' }) %>
 <main id="library-container" class="page-wrapper" aria-label="Library media">
+  <div id="libConfig" data-preload-radius="<%= typeof preloadRadius !== 'undefined' ? preloadRadius : 2 %>" style="display:none"></div>
   <!-- Mode toggle moved to header via showLibraryModeToggle -->
   <section id="libraryGrid" class="results-grid" aria-live="polite"></section>
-  <div class="toolbar" style="margin: .5rem 0 0; display:flex; gap:.5rem; align-items:center;">
-    <label for="preloadRadius" style="font-size:.9rem; color:var(--fg-500)">Preload radius</label>
-    <input id="preloadRadius" type="number" min="0" max="10" step="1" value="2" style="width:80px" />
-  </div>
+  <!-- Preload radius controlled via server env; no visible control in UI -->
   <p id="libraryEmpty" class="library-empty" style="display:none;">No items yet.</p>
   <div id="libraryOverlay" class="media-overlay" role="dialog" aria-modal="true" aria-label="Library media viewer">
     <button class="nav-btn prev-btn" type="button" aria-label="Previous" id="libPrev">&#10094;</button>
@@ -94,11 +92,8 @@
       const btnPrev = document.getElementById('libPrev');
       const btnNext = document.getElementById('libNext');
       const btnClose = document.getElementById('libClose');
-      const preloadInput = document.getElementById('preloadRadius');
-      const PRELOAD_KEY = 'nudeforge:library:preloadRadius';
-      // persist radius
-      try { const saved = localStorage.getItem(PRELOAD_KEY); if(saved!=null) preloadInput.value = String(Math.max(0, Math.min(10, Number(saved) || 0))); } catch {}
-      preloadInput.addEventListener('change', ()=>{ try{ localStorage.setItem(PRELOAD_KEY, String(Math.max(0, Math.min(10, Number(preloadInput.value)||0)))); }catch{} });
+  // Preload radius comes from server-configured env
+  const PRELOAD_RADIUS = Number(document.getElementById('libConfig')?.dataset?.preloadRadius || 2);
 
       const preloadCache = new Map(); // url -> Promise<HTMLImageElement>
 
@@ -136,7 +131,7 @@
           .catch(()=>{ node.src = it.url; })
           .finally(()=>{
             // Preload neighbors after current is loaded
-            const radius = Math.max(0, Math.min(10, Number(preloadInput.value)||0));
+            const radius = Math.max(0, Math.min(10, Number(PRELOAD_RADIUS)||0));
             for(let d=1; d<=radius; d++){
               const li = currentIndex - d; const ri = currentIndex + d;
               if(li>=0 && items[li]) loadFull(items[li].url).catch(()=>{});

@@ -149,7 +149,10 @@ function setUploadBusy(busy){
   // Wire clear buttons
   try{
     const clearIn = document.getElementById('clearInputBtn');
-    if(clearIn){ clearIn.addEventListener('click', ()=>{
+    if(clearIn){
+      // initialize disabled state
+      clearIn.disabled = !(Array.isArray(selectedFiles) && selectedFiles.length>0) && !(multiPreviewContainer && multiPreviewContainer.children.length>0);
+      clearIn.addEventListener('click', ()=>{
       selectedFiles = [];
       if(multiPreviewContainer){ multiPreviewContainer.innerHTML=''; multiPreviewContainer.style.display='none'; }
       if(dropText){ dropText.style.display=''; }
@@ -158,14 +161,19 @@ function setUploadBusy(busy){
       try{ const box = document.getElementById('dropArea'); if(box){ box.classList.remove('has-previews'); } }catch{}
       // Persist
       try{ __persist.selectedPreviewSources = []; saveGeneratorState(); }catch{}
+      clearIn.disabled = true;
     }); }
     const clearOut = document.getElementById('clearOutputBtn');
-    if(clearOut){ clearOut.addEventListener('click', ()=>{
+    if(clearOut){
+      // initialize disabled state
+      clearOut.disabled = !(outputGrid && outputGrid.querySelector('.output-item'));
+      clearOut.addEventListener('click', ()=>{
       if(outputGrid){ outputGrid.innerHTML=''; outputGrid.style.display='none'; }
       const ph = document.getElementById('outputPlaceholder'); if(ph){ ph.style.display=''; }
       enableDownload(''); // resets button state
       try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.remove('has-previews'); } }catch{}
       try{ saveGeneratorState(); }catch{}
+      clearOut.disabled = true;
     }); }
   }catch{}
 
@@ -189,6 +197,15 @@ if (inputImage) {
     if (allFiles.length === 0) {
       return;
     }
+    // New media selected: clear current previews/state first to avoid mixing items
+    try {
+      selectedFiles = [];
+      if (multiPreviewContainer) { multiPreviewContainer.innerHTML = ''; multiPreviewContainer.style.display = 'none'; }
+      if (dropText) { dropText.style.display = ''; }
+      const box = document.getElementById('dropArea'); if (box) { box.classList.remove('has-previews'); }
+      __persist.selectedPreviewSources = []; saveGeneratorState();
+  const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = true;
+    } catch {}
     const imageFiles = allFiles.filter(f => (f && typeof f.type === 'string' && f.type.startsWith('image/')));
     if (allFiles.length > 0 && imageFiles.length === 0) {
       window.toast?.error('Please select an image file.');
@@ -244,6 +261,8 @@ if (inputImage) {
     } else if (window.updateUploadButtonState) {
   try { window.updateUploadButtonState(); } catch { /* ignore state update error */ }
     }
+  // enable clear input button when files selected
+  try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = !(inputImage.files && inputImage.files.length>0); }catch{}
   });
 }
 
@@ -403,6 +422,7 @@ function restoreGeneratorState(){
         wrap.appendChild(img); multiPreviewContainer.appendChild(wrap);
       });
       if(dropText) dropText.style.display='none';
+  try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = false; }catch{}
       // Ensure Upload button is enabled based on persisted selection
       try{ if(uploadButton){ uploadButton.disabled = false; uploadButton.classList.remove('disabled'); uploadButton.textContent = `Upload All (${state.selectedPreviewSources.length})`; } }catch{}
       // Optionally reconstruct FileList for the input asynchronously to keep system state consistent
@@ -422,6 +442,7 @@ function restoreGeneratorState(){
     if(state && Array.isArray(state.outputGrid) && state.outputGrid.length>0){
       const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; dl.setAttribute('download',''); item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
       try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.add('has-previews'); } }catch{}
+  try{ const clearOut = document.getElementById('clearOutputBtn'); if(clearOut) clearOut.disabled = false; }catch{}
     }
     // Restore placeholder visibility based on derived UI flags
     try{
@@ -663,6 +684,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     if(count === 0){
       multiPreviewContainer.style.display='none';
       try{ const box = document.getElementById('dropArea'); if(box){ box.classList.remove('has-previews'); } }catch{}
+  try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = true; }catch{}
       return;
     }
   // Always grid of thumbnails
@@ -684,6 +706,7 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     } else if (Array.isArray(sources) && sources.length>0){
       sources.slice(0, maxThumbs).forEach((it, idx)=>{ const wrapper=document.createElement('div'); wrapper.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrapper.appendChild(img); multiPreviewContainer.appendChild(wrapper); });
     }
+  try{ const clearIn = document.getElementById('clearInputBtn'); if(clearIn) clearIn.disabled = false; }catch{}
     // If there is exactly one preview, expand to fill container height with non-cropping fit
     const items = multiPreviewContainer.querySelectorAll('.multi-preview-item');
     if(items.length === 1){
@@ -1039,6 +1062,7 @@ function appendOutputThumb(src, downloadUrl){
   item.appendChild(dl);
   outputGrid.appendChild(item);
   try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.add('has-previews'); } }catch{}
+  try{ const clearOut = document.getElementById('clearOutputBtn'); if(clearOut) clearOut.disabled = false; }catch{}
   // Adjust grid when only one image -> use full space (single cell spanning)
   try{
     const count = outputGrid.querySelectorAll('.output-item').length;
@@ -1065,6 +1089,7 @@ function appendOutputThumb(src, downloadUrl){
   }catch{}
   // Ensure placeholder is hidden when an output exists
   try{ const ph=document.getElementById('outputPlaceholder'); if(ph){ ph.style.display='none'; } }catch{}
+  try{ const clearOut = document.getElementById('clearOutputBtn'); if(clearOut) clearOut.disabled = false; }catch{}
   try{ saveGeneratorState(); }catch{}
 }
 function addToLocalLibrary(url, downloadUrl){

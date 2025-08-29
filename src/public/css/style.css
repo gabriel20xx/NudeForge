@@ -103,6 +103,7 @@ input[type=file]{ display:none; }
 .upload-btn:disabled,.upload-btn.disabled { background:#555 !important; color:#888 !important; cursor:not-allowed !important; opacity:.5; box-shadow:none !important; }
 .settings-btn { background:var(--gradient-info); }
 .settings-btn:hover { background:var(--gradient-info-rev); }
+.btn:disabled { opacity:.6; cursor:not-allowed; box-shadow:none; }
 .download-btn { background:var(--gradient-download); }
 .download-btn:hover { background:var(--gradient-download-rev); }
 .download-btn:disabled { background:var(--color-mid-disabled); color:var(--color-text-disabled); cursor:not-allowed; opacity:.5; }

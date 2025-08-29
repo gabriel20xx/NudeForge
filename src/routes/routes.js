@@ -16,6 +16,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+// Inject global locals
+router.use(async (req, res, next) => {
+    try {
+        const { PRELOAD_RADIUS } = await import('../config/config.js');
+        res.locals.preloadRadius = PRELOAD_RADIUS;
+    } catch {}
+    next();
+});
 
 // Lightweight health endpoint (placed early to avoid 404 handling issues)
 router.get('/health', (req, res) => {
@@ -34,8 +42,9 @@ router.get('/', (req, res) => {
 });
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
-router.get('/library', (req, res) => {
-    res.render('library', { title: 'Library', siteTitle: SITE_TITLE, showLibraryModeToggle: true });
+router.get('/library', async (req, res) => {
+    const { PRELOAD_RADIUS } = await import('../config/config.js');
+    res.render('library', { title: 'Library', siteTitle: SITE_TITLE, showLibraryModeToggle: true, preloadRadius: PRELOAD_RADIUS });
 });
 
 router.get('/profile', (req, res) => {
