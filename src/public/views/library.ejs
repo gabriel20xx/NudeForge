@@ -12,12 +12,20 @@
     </div>
     <button class="nav-btn next-btn" type="button" aria-label="Next" id="libNext">&#10095;</button>
   </div>
+  <!-- Floating controls (shared style) -->
+  <div id="libFloatControls" class="floating-controls hidden" aria-hidden="true">
+    <button id="libUpBtn" class="float-btn" type="button" aria-label="Up one level" title="Up one level">
+      <i class="fa fa-level-up-alt"></i>
+    </button>
+  </div>
 </main>
   <script>
     (function () {
       const grid = document.getElementById('libraryGrid');
       const empty = document.getElementById('libraryEmpty');
     const modeSel = document.getElementById('libraryMode');
+      const floatCtrls = document.getElementById('libFloatControls');
+      const btnUp = document.getElementById('libUpBtn');
       const key = 'nudeforge:library:v1';
       const modeKey = 'nudeforge:library:mode';
       let items = [];
@@ -25,11 +33,49 @@
       // API mode folder navigation state
       let currentFolder = '';
 
+      // History & URL helpers
+      function safeDecode(s){ try { return decodeURIComponent(s || ''); } catch { return s || ''; } }
+      function getFolderFromUrl(){
+        try { const sp = new URLSearchParams(location.search); const f = sp.get('folder'); return safeDecode(f||''); } catch { return ''; }
+      }
+      function setFolderInUrl(push){
+        const sp = new URLSearchParams(location.search);
+        if (currentFolder) { sp.set('folder', currentFolder); } else { sp.delete('folder'); }
+        const newUrl = `${location.pathname}${sp.toString() ? `?${sp.toString()}` : ''}`;
+        const state = { folder: currentFolder };
+        try { push ? history.pushState(state, '', newUrl) : history.replaceState(state, '', newUrl); } catch {}
+      }
+
       function getMode() {
         const stored = localStorage.getItem(modeKey);
         return (stored === 'api' || stored === 'local') ? stored : 'local';
       }
       function setMode(m) { localStorage.setItem(modeKey, m); }
+      function goUpOneLevel(){
+        if(!currentFolder) return;
+        const parent = currentFolder.split('/').filter(Boolean);
+        parent.pop();
+        currentFolder = parent.join('/');
+        if (getMode() === 'api') { setFolderInUrl(true); renderApi(); }
+      }
+
+      function updateFloatControlsVisibility(){
+        const inApi = getMode() === 'api';
+        const visible = inApi && !!currentFolder;
+        if(!floatCtrls) return;
+        if(visible){
+          floatCtrls.classList.add('visible');
+          floatCtrls.classList.remove('hidden');
+          floatCtrls.setAttribute('aria-hidden','false');
+        } else {
+          floatCtrls.classList.add('hidden');
+          floatCtrls.classList.remove('visible');
+          floatCtrls.setAttribute('aria-hidden','true');
+        }
+      }
+
+      btnUp && btnUp.addEventListener('click', goUpOneLevel);
+
 
       async function fetchFromApi(folder) {
         const url = folder ? `/api/library-images?folder=${encodeURIComponent(folder)}` : '/api/library-images';
@@ -91,7 +137,7 @@
         renderImageCards(items);
       }
 
-      async function renderApi() {
+  async function renderApi() {
         // When no folder chosen, show subfolders tiles (categories-like)
         grid.innerHTML = '';
         const folder = currentFolder || '';
@@ -107,6 +153,7 @@
           if (folders.length) {
             empty.style.display = 'none';
             renderFolderTiles(folders);
+            updateFloatControlsVisibility();
             return;
           }
         }
@@ -119,11 +166,13 @@
         items = list; // keep for overlay navigation
         if (list.length === 0 && folders.length === 0) {
           empty.style.display = 'block';
+          updateFloatControlsVisibility();
           return;
         }
         empty.style.display = 'none';
         renderImageCards(list);
         // If subfolders exist, they were already appended above; ensure images follow after
+        updateFloatControlsVisibility();
       }
 
       function renderFolderTiles(folders, append = false) {
@@ -146,9 +195,8 @@
           title.textContent = 'Up one level';
           back.appendChild(preview);
           back.appendChild(title);
-          const goUp = () => { const parent = currentFolder.split('/').filter(Boolean); parent.pop(); currentFolder = parent.join('/'); renderApi(); };
-          back.addEventListener('click', goUp);
-          back.addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ goUp(); }});
+          back.addEventListener('click', goUpOneLevel);
+          back.addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ goUpOneLevel(); }});
           grid.appendChild(back);
         }
 
@@ -171,7 +219,7 @@
           title.textContent = f.displayName || f.name;
           item.appendChild(preview);
           item.appendChild(title);
-          const go = () => { currentFolder = (f.path || f.name); renderApi(); };
+          const go = () => { currentFolder = (f.path || f.name); setFolderInUrl(true); renderApi(); };
           item.addEventListener('click', go);
           item.addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ go(); }});
           grid.appendChild(item);
@@ -277,9 +325,20 @@
       }
 
       // Mode toggle
-  modeSel.addEventListener('change', () => { setMode(modeSel.value); currentFolder = ''; load(); });
+      modeSel.addEventListener('change', () => { setMode(modeSel.value); currentFolder = ''; setFolderInUrl(false); updateFloatControlsVisibility(); load(); });
       // Auto-load and listen for local library changes
+      // Initialize folder from URL and set initial history state so back gesture works
+      currentFolder = getFolderFromUrl();
+      setFolderInUrl(false);
       load();
+  updateFloatControlsVisibility();
+      // Handle browser back/forward (mobile back gesture)
+      window.addEventListener('popstate', (ev) => {
+        if (getMode() !== 'api') return;
+        const folder = (ev && ev.state && typeof ev.state.folder === 'string') ? ev.state.folder : getFolderFromUrl();
+        currentFolder = folder || '';
+        renderApi();
+      });
       window.addEventListener('storage', (ev) => { if (ev.key === key && getMode() === 'local') load(); });
     })();
   </script>
