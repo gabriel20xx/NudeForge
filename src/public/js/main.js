@@ -56,6 +56,31 @@ window.addEventListener('DOMContentLoaded', async function() {
       promptEl.value = promptEl.defaultValue || promptEl.value || '';
     }
   }catch{}
+  // Persist settings only when Advanced is enabled; toggle listener
+  try{
+    if(advancedModeToggle){
+      advancedModeToggle.addEventListener('change', ()=>{
+        const settingsSection = document.getElementById('settingsSection');
+        const comparisonSection = document.getElementById('comparisonSection');
+        const on = !!advancedModeToggle.checked;
+        if(settingsSection) settingsSection.style.display = on ? 'block' : 'none';
+        if(comparisonSection) comparisonSection.style.display = on ? 'block' : 'none';
+        // If turning off advanced, wipe persisted settings to avoid restoring them later
+        if(!on){
+          try{
+            const key='nudeforge:generatorState:v1';
+            const raw = localStorage.getItem(key);
+            if(raw){
+              const state = JSON.parse(raw);
+              if(state){ state.settings = null; state.advancedMode = false; localStorage.setItem(key, JSON.stringify(state)); }
+            }
+          }catch{}
+        } else {
+          try{ saveGeneratorState(); }catch{}
+        }
+      });
+    }
+  }catch{}
   // Output image overlay (shared design with Library)
   try{
     const grid = document.getElementById('outputGrid');
@@ -383,19 +408,20 @@ function saveGeneratorState(){
         return { model, enable, strength };
       } catch { return { model:'', enable:false, strength:'1.0' }; }
     });
+    const isAdvancedMode = applyBool(advancedModeToggle && advancedModeToggle.checked);
     const state = {
       selectedPreviewSources: __persist.selectedPreviewSources||[],
       outputGrid: imgGrid,
       activeRequestId,
       activeRequestIds,
-      advancedMode: applyBool(advancedModeToggle && advancedModeToggle.checked),
+      advancedMode: isAdvancedMode,
       comparisonSplitPct: getComparisonSplitPct(),
-      settings: {
+      settings: isAdvancedMode ? {
         prompt: String(promptVal),
         steps: String(stepsVal),
         outputHeight: String(outputHeightVal),
         loras: loraRows
-      },
+      } : null,
       // Derived UI flags for placeholder visibility
       ui: {
         inputHasSelection: Array.isArray(__persist.selectedPreviewSources) && __persist.selectedPreviewSources.length > 0,
@@ -467,7 +493,7 @@ function restoreGeneratorState(){
       if(outPh){ outPh.style.display = (Array.isArray(state.outputGrid) && state.outputGrid.length>0) ? 'none' : ''; }
     }catch{}
     // Restore Advanced settings values
-    if(state && state.settings){
+  if(state && state.advancedMode && state.settings){
       try{
         const promptEl = document.getElementById('prompt');
         if(promptEl){
@@ -774,13 +800,33 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     const promptEl = document.getElementById('prompt');
     const stepsEl = document.getElementById('steps');
     const outputHeightEl = document.getElementById('outputHeight');
-    if(promptEl){
-      const val = String(promptEl.value || '').trim();
-      const fallback = String(promptEl.defaultValue || '').trim();
-      formData.set('prompt', val || fallback || '');
+    const isAdvanced = advancedModeToggle && advancedModeToggle.checked;
+    if(isAdvanced){
+      if(promptEl){
+        const val = String(promptEl.value || '').trim();
+        const fallback = String(promptEl.defaultValue || '').trim();
+        formData.set('prompt', val || fallback || '');
+      }
+      if(stepsEl) formData.set('steps', stepsEl.value || '20');
+      if(outputHeightEl) formData.set('outputHeight', outputHeightEl.value || '1080');
+      // LoRAs are collected server-side from body if present; client keeps defaults unless advanced is on
+    } else {
+      // Use template defaults only (do not persist or override); ensure fields exist with defaults
+      if(promptEl){
+        const fallback = String(promptEl.defaultValue || '').trim();
+        formData.set('prompt', fallback || '');
+      }
+      if(stepsEl){
+        const fallback = String(stepsEl.defaultValue || stepsEl.getAttribute('value') || '20');
+        formData.set('steps', fallback);
+      }
+      if(outputHeightEl){
+        // default selected option
+        const opt = outputHeightEl.querySelector('option[selected]');
+        const fallback = (opt && opt.value) || String(outputHeightEl.defaultValue || '1080');
+        formData.set('outputHeight', fallback);
+      }
     }
-    if(stepsEl) formData.set('steps', stepsEl.value || '20');
-    if(outputHeightEl) formData.set('outputHeight', outputHeightEl.value || '1080');
     return formData;
   }
 
