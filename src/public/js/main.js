@@ -365,6 +365,7 @@ function restoreGeneratorState(){
     }
     if(state && Array.isArray(state.outputGrid) && state.outputGrid.length>0){
       const grid = document.getElementById('outputGrid'); if(grid){ grid.style.display='grid'; grid.innerHTML=''; state.outputGrid.forEach(u=>{ const item=document.createElement('div'); item.className='output-item'; const img=document.createElement('img'); img.src=u; const dl=document.createElement('a'); dl.href=u; dl.className='download-overlay'; dl.textContent='Download'; dl.setAttribute('download',''); item.appendChild(img); item.appendChild(dl); grid.appendChild(item); }); }
+      try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.add('has-previews'); } }catch{}
     }
     // Restore placeholder visibility based on derived UI flags
     try{
@@ -961,21 +962,29 @@ function appendOutputThumb(src, downloadUrl){
   item.appendChild(img);
   item.appendChild(dl);
   outputGrid.appendChild(item);
+  try{ const outBox = document.getElementById('outputArea'); if(outBox){ outBox.classList.add('has-previews'); } }catch{}
   // Adjust grid when only one image -> use full space (single cell spanning)
   try{
     const count = outputGrid.querySelectorAll('.output-item').length;
     if(count === 1){
+      // Single image view should fill container like input single preview
       outputGrid.style.gridTemplateColumns = '1fr';
-  outputGrid.style.height = '100%';
-  outputGrid.style.maxHeight = 'none';
+      outputGrid.style.height = '100%';
+      outputGrid.style.maxHeight = 'none';
       item.style.aspectRatio = 'auto';
-  item.style.height = '100%';
-  const i = item.querySelector('img'); if(i){ i.style.height='100%'; i.style.width='auto'; i.style.objectFit='contain'; }
+      item.style.height = '100%';
+      const i = item.querySelector('img');
+      if(i){ i.style.height='100%'; i.style.width='auto'; i.style.objectFit='contain'; }
     } else {
+      // Multi image view: reset any single-image overrides for uniform tiles
       outputGrid.style.gridTemplateColumns = '';
-  outputGrid.style.height = '';
-  outputGrid.style.maxHeight = '';
-      const imgs = outputGrid.querySelectorAll('.output-item img'); imgs.forEach(it=>{ it.style.height='100%'; it.style.objectFit='cover'; });
+      outputGrid.style.height = '';
+      outputGrid.style.maxHeight = '';
+      // Clear any per-item overrides introduced by single mode
+      const items = outputGrid.querySelectorAll('.output-item');
+      items.forEach(el=>{ el.style.aspectRatio=''; el.style.height=''; });
+      const imgs = outputGrid.querySelectorAll('.output-item img');
+      imgs.forEach(it=>{ it.style.height=''; it.style.width=''; it.style.objectFit=''; });
     }
   }catch{}
   // Ensure placeholder is hidden when an output exists
