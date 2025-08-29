@@ -242,8 +242,9 @@ if (inputImage) {
       selectedFiles = [];
       if (multiPreviewContainer) { multiPreviewContainer.innerHTML = ''; multiPreviewContainer.style.display = 'none'; }
       if (dropText) { dropText.style.display = ''; }
-    }catch{}
-    const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  }catch{}
+  let maxFiles = Number(uploadForm?.dataset?.maxUploadFiles);
+  if (!Number.isFinite(maxFiles) || maxFiles <= 0) { maxFiles = Number.MAX_SAFE_INTEGER; }
     // Client-side guard: only allow images
     const allFiles = Array.from(inputImage.files || []);
     // If user cancels the picker, keep previous selection and previews
@@ -396,7 +397,8 @@ async function rehydrateSelectionFromPersisted(reason){
       sources.forEach((it, idx)=>{ const wrap=document.createElement('div'); wrap.className='multi-preview-item'; const img=document.createElement('img'); img.className='multi-preview-img'; img.loading='lazy'; img.alt=it.filename||('image '+(idx+1)); img.src=it.src; wrap.appendChild(img); multiPreviewContainer.appendChild(wrap); });
     }
     if(dropText) dropText.style.display='none';
-    const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  let maxFiles = Number(uploadForm?.dataset?.maxUploadFiles);
+  if (!Number.isFinite(maxFiles) || maxFiles <= 0) { maxFiles = Number.MAX_SAFE_INTEGER; }
     const files = await reconstructFilesFromPersistedSources(maxFiles);
     if(files && files.length){
       selectedFiles = files;
@@ -499,7 +501,8 @@ function restoreGeneratorState(){
   try{ if(window.updateUploadButtonState) window.updateUploadButtonState(); }catch{}
       // Optionally reconstruct FileList for the input asynchronously to keep system state consistent
       try{
-        const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  let maxFiles = Number(uploadForm?.dataset?.maxUploadFiles);
+  if (!Number.isFinite(maxFiles) || maxFiles <= 0) { maxFiles = Number.MAX_SAFE_INTEGER; }
         reconstructFilesFromPersistedSources(maxFiles).then(files=>{
           if(files && files.length){
             selectedFiles = files;
@@ -777,8 +780,9 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
   multiPreviewContainer.style.gridTemplateColumns = '';
     multiPreviewContainer.style.height = '100%';
     multiPreviewContainer.style.maxHeight = '';
-    try{ const box = document.getElementById('dropArea'); if(box){ box.classList.add('has-previews'); } }catch{}
-    const maxThumbs = 12; // safety cap
+  try{ const box = document.getElementById('dropArea'); if(box){ box.classList.add('has-previews'); } }catch{}
+  let maxThumbs = Number(uploadForm?.dataset?.maxUploadFiles);
+  if (!Number.isFinite(maxThumbs) || maxThumbs <= 0) { maxThumbs = Number.MAX_SAFE_INTEGER; }
     if(hasFiles){
       files.slice(0, maxThumbs).forEach((file, idx)=>{
         if(!file) return;
@@ -814,8 +818,9 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       uploadButton.classList.remove('disabled');
       return;
     }
-    const gridCount = multiPreviewContainer ? multiPreviewContainer.querySelectorAll('.multi-preview-item').length : 0;
-    const count = gridCount;
+  const gridCount = multiPreviewContainer ? multiPreviewContainer.querySelectorAll('.multi-preview-item').length : 0;
+  const fileCount = Array.isArray(selectedFiles) ? selectedFiles.length : 0;
+  const count = fileCount || gridCount;
     const enable = count > 0;
     uploadButton.disabled = !enable;
     uploadButton.classList.toggle('disabled', !enable);
@@ -929,12 +934,14 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
       // If no live selectedFiles but we have persisted previews (after tab switch), reconstruct File objects
       if((!selectedFiles || selectedFiles.length===0) && Array.isArray(__persist?.selectedPreviewSources) && __persist.selectedPreviewSources.length>0){
         try{
-          const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+          let maxFiles = Number(uploadForm?.dataset?.maxUploadFiles);
+          if (!Number.isFinite(maxFiles) || maxFiles <= 0) { maxFiles = Number.MAX_SAFE_INTEGER; }
           selectedFiles = await reconstructFilesFromPersistedSources(maxFiles);
         } catch {}
       }
       // Enforce server limit as final guard before appending
-      const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  let maxFiles = Number(uploadForm?.dataset?.maxUploadFiles);
+  if (!Number.isFinite(maxFiles) || maxFiles <= 0) { maxFiles = Number.MAX_SAFE_INTEGER; }
       if (selectedFiles.length > maxFiles) {
         window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (selected ${selectedFiles.length}).`);
         selectedFiles = selectedFiles.slice(0, maxFiles);
@@ -1003,7 +1010,8 @@ window.__nudeForge = Object.assign(window.__nudeForge||{}, { initializeCarousel,
     ;['dragleave','dragend'].forEach(evt=> dropArea.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over'); }));
     dropArea.addEventListener('drop', e=>{
       e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag-over');
-  const maxFiles = Number(uploadForm?.dataset?.maxUploadFiles || 12);
+  let maxFiles = Number(uploadForm?.dataset?.maxUploadFiles);
+  if (!Number.isFinite(maxFiles) || maxFiles <= 0) { maxFiles = Number.MAX_SAFE_INTEGER; }
   const all = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
   if(all.length > maxFiles){ window.toast?.warn?.(`Limiting to ${maxFiles} images per upload (dropped ${all.length}).`); }
   const files = all.slice(0, maxFiles);
