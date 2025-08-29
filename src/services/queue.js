@@ -10,6 +10,7 @@ const processingQueue = [];
 let isProcessing = false;
 const requestStatus = {};
 let currentlyProcessingRequestId = null;
+let cancelRequestedFor = null; // requestId to cancel (active only)
 
 function getProcessingQueue() {
     return processingQueue;
@@ -182,6 +183,9 @@ async function processQueue(io) {
         const expectedOutputSuffix = `${path.parse(uploadedFilename).name}-nudified_00001.png`;
         let foundOutputFilename = null;
         while (!foundOutputFilename) {
+            if (cancelRequestedFor === requestId) {
+                throw new Error('CANCELLED_BY_USER');
+            }
             const filesInOutputDir = await fs.promises.readdir(OUTPUT_DIR);
             foundOutputFilename = filesInOutputDir.find((file) => file.endsWith(expectedOutputSuffix));
             if (!foundOutputFilename) {
@@ -192,6 +196,9 @@ async function processQueue(io) {
         const outputPath = path.join(OUTPUT_DIR, foundOutputFilename);
         let lastSize = -1, stableCount = 0;
         while (stableCount < 2) {
+            if (cancelRequestedFor === requestId) {
+                throw new Error('CANCELLED_BY_USER');
+            }
             try {
                 const stats = await fs.promises.stat(outputPath);
                 if (stats.size === lastSize && stats.size > 0) {
@@ -239,10 +246,17 @@ async function processQueue(io) {
             requestId: requestId,
         });
     } catch (_err) {
-        Logger.error('PROCESS', `Error during processing for requestId ${requestId}:`, _err);
-        requestStatus[requestId].status = "failed";
-        requestStatus[requestId].data = { error: "Processing failed.", errorMessage: _err.message };
-        io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: _err.message });
+        if (_err && _err.message === 'CANCELLED_BY_USER') {
+            Logger.warn('PROCESS', `Processing cancelled by user for requestId=${requestId}`);
+            requestStatus[requestId].status = "cancelled";
+            requestStatus[requestId].data = { error: "Cancelled by user" };
+            io.to(requestId).emit("processingFailed", { error: "Cancelled by user" });
+        } else {
+            Logger.error('PROCESS', `Error during processing for requestId ${requestId}:`, _err);
+            requestStatus[requestId].status = "failed";
+            requestStatus[requestId].data = { error: "Processing failed.", errorMessage: _err.message };
+            io.to(requestId).emit("processingFailed", { error: "Processing failed.", errorMessage: _err.message });
+        }
     } finally {
         isProcessing = false;
         // Clean up stage tracker - use require here to avoid circular dependency
@@ -253,9 +267,30 @@ async function processQueue(io) {
             Logger.warn('QUEUE', 'Could not cleanup stage tracker:', err.message);
         }
         currentlyProcessingRequestId = null;
+        if (cancelRequestedFor === requestId) {
+            cancelRequestedFor = null;
+        }
         delete requestStatus[requestId];
         Logger.info('QUEUE', `Processing finished. Next in queue: ${processingQueue.length}`);
         processQueue(io);
+    }
+}
+
+function cancelAll(io) {
+    try {
+        // Empty the pending queue
+        processingQueue.splice(0, processingQueue.length);
+        const activeId = currentlyProcessingRequestId;
+        if (activeId) {
+            cancelRequestedFor = activeId; // signal active loop to abort
+            // Also proactively notify client
+            try { io && io.to(activeId).emit('processingFailed', { error: 'Cancelled by user' }); } catch {}
+        }
+        Logger.warn('QUEUE', `Cancellation requested. Cleared pending queue. Active request: ${activeId || 'none'}`);
+        return { cancelledActive: !!activeId, clearedPending: true };
+    } catch (e) {
+        Logger.error('QUEUE', 'Cancellation failed', e);
+        return { error: e.message };
     }
 }
 
@@ -264,5 +299,6 @@ export {
     getRequestStatus,
     getCurrentlyProcessingRequestId,
     getIsProcessing,
-    processQueue
+    processQueue,
+    cancelAll
 };

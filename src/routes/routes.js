@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import Logger from '../../../NudeShared/serverLogger.js';
+import { cancelAll } from "../services/queue.js";
 import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
 import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
@@ -125,6 +126,17 @@ router.get('/api/library-images', async (req, res) => {
     } catch (err) {
         Logger.error('LIBRARY', 'Failed to list output images:', err);
         res.status(500).json({ success: false, error: 'Failed to list library images' });
+    }
+});
+
+// Cancel the active job (if any) and clear pending queue
+router.post('/api/cancel', (req, res) => {
+    try {
+        const result = cancelAll(req.app.get('io'));
+        if (result && result.error) return res.status(500).json({ ok: false, error: result.error });
+        return res.json({ ok: true, ...result });
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message });
     }
 });
 
