@@ -41,7 +41,7 @@ const COMFYUI_WS_URL = `ws://${COMFYUI_HOST}/ws`;
 const PORT = process.env.PORT || 8080;
 
 // Max number of images accepted per upload request
-const MAX_UPLOAD_FILES = Number(process.env.MAX_UPLOAD_FILES || process.env.UPLOAD_MAX_FILES || 12);
+const MAX_UPLOAD_FILES = Number(process.env.MAX_UPLOAD_FILES || process.env.UPLOAD_MAX_FILES || 16);
 
 // Overlay neighbor preload radius for viewers (used in Library/Saved overlays)
 function clamp(num, min, max){ try{ num = Number(num); }catch{} return Math.max(min, Math.min(max, Number.isFinite(num)? num : min)); }
