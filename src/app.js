@@ -123,7 +123,10 @@ app.use('/output', express.static(OUTPUT_DIR));
 app.use('/copy', express.static(UPLOAD_COPY_DIR));
 app.use('/loras', express.static(LORAS_DIR));
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'public', 'views'));
+app.set('views', [
+    path.join(__dirname, 'public', 'views'),
+    path.resolve(__dirname, '..', '..', 'NudeShared', 'views')
+]);
 
 io.on("connection", (socket) => {
     socket.on("joinRoom", (requestId) => {

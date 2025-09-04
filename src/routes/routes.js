@@ -108,6 +108,27 @@ router.get('/api/carousel-images', (req, res) => {
     });
 });
 
+// Basic Profile API (placeholder) for shared profile view
+router.get('/api/profile', (req, res) => {
+    try {
+        const mockProfile = { username: 'Anonymous', email: '', bio: 'This is a mock profile.' };
+        return res.json({ success: true, data: mockProfile });
+    } catch (e) {
+        Logger.error('PROFILE', 'Failed to get profile', e);
+        return res.status(500).json({ success: false, error: 'Failed to get profile' });
+    }
+});
+router.put('/api/profile', (req, res) => {
+    try {
+        // Pretend to update and echo back
+        const { username = 'Anonymous', email = '', bio = '' } = req.body || {};
+        return res.json({ success: true, data: { username, email, bio } });
+    } catch (e) {
+        Logger.error('PROFILE', 'Failed to update profile', e);
+        return res.status(500).json({ success: false, error: 'Failed to update profile' });
+    }
+});
+
 // API: list output images for Library
 router.get('/api/library-images', async (req, res) => {
     try {

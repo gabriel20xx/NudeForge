@@ -1,7 +1,3 @@
-<%- include('partials/header', { title: 'Page Not Found' }) %>
-<main class="status-page" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);display:flex;flex-direction:column;align-items:center;gap:1.2rem;max-width:640px;margin:0 auto;">
-  <h1 style="font-size:2.2rem;line-height:1;font-weight:650;background:var(--gradient-accent);-webkit-background-clip:text;background-clip:text;color:transparent;">404</h1>
-  <p style="font-size:1rem;color:var(--color-text-dim);text-align:center;line-height:1.4;">The page you were looking for doesn't exist or may have been moved.</p>
-  <a href="/" class="btn" style="text-decoration:none;">Return Home</a>
-</main>
+<%- include('partials/header', { title: (typeof title !== 'undefined' ? title : 'Page Not Found') }) %>
+<%- include('shared/404', { message: (typeof message !== 'undefined' ? message : undefined) }) %>
 <%- include('partials/navbar', { active: '' }) %>
