@@ -1,11 +1,4 @@
 <%- include('partials/header', { title: 'Generator' }) %>
-<!-- Page-local control: Advanced switch -->
-<div class="header-options" style="display:block;">
-  <label for="advancedModeToggle" class="header-option-label">
-    <input type="checkbox" id="advancedModeToggle" class="header-option-checkbox" />
-    <span>Advanced</span>
-  </label>
-</div>
 <div class="carousel-container">
   <div class="carousel-slide"></div>
 </div>
@@ -127,5 +120,12 @@
     </div>
   </div>
 </form>
-<!-- Advanced mode visibility now controlled via header checkbox -->
+<!-- Advanced mode toggle placed under page content (above bottom navbar) -->
+<div class="header-options" style="display:flex; justify-content:center; padding:.5rem .85rem; margin: .75rem auto calc(var(--bottom-nav-height) + .5rem);">
+  <label for="advancedModeToggle" class="header-option-label">
+    <input type="checkbox" id="advancedModeToggle" class="header-option-checkbox" />
+    <span>Advanced</span>
+  </label>
+  
+</div>
 <%- include('partials/navbar', { active: 'generator' }) %>
