@@ -3,7 +3,7 @@ import path from 'path';
 import axios from 'axios';
 // import { v4 as uuidv4 } from 'uuid'; // (unused) keep commented for potential future use
 import Logger from '../../../NudeShared/serverLogger.js';
-import { COMFYUI_URL, WORKFLOW_PATH, OUTPUT_DIR, INPUT_DIR, COMFYUI_HOST } from '../config/config.js';
+import { COMFYUI_URL, WORKFLOW_PATH, WORKFLOWS_DIR, OUTPUT_DIR, INPUT_DIR, COMFYUI_HOST } from '../config/config.js';
 import crypto from 'crypto';
 
 const processingQueue = [];
@@ -76,7 +76,7 @@ async function processQueue(io) {
     }
 
     isProcessing = true;
-    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI } = processingQueue.shift();
+    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI, workflowName } = processingQueue.shift();
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
@@ -90,7 +90,24 @@ async function processQueue(io) {
     });
 
     try {
-        const workflowJson = fs.readFileSync(WORKFLOW_PATH, "utf-8");
+        // Resolve workflow path: prefer selected workflow under WORKFLOWS_DIR, else default WORKFLOW_PATH
+        let selectedWorkflowPath = WORKFLOW_PATH;
+        try {
+            if (workflowName && typeof workflowName === 'string') {
+                const safeBase = path.basename(workflowName);
+                if (/\.json$/i.test(safeBase)) {
+                    const candidate = path.join(WORKFLOWS_DIR, safeBase);
+                    const rel = path.relative(WORKFLOWS_DIR, candidate);
+                    if (!rel.startsWith('..') && !path.isAbsolute(rel) && fs.existsSync(candidate)) {
+                        selectedWorkflowPath = candidate;
+                        Logger.info('WORKFLOWS', `Using selected workflow: ${safeBase}`);
+                    } else {
+                        Logger.warn('WORKFLOWS', `Selected workflow not found or invalid: ${safeBase}. Falling back to default.`);
+                    }
+                }
+            }
+        } catch {}
+        const workflowJson = fs.readFileSync(selectedWorkflowPath, "utf-8");
         let workflow = JSON.parse(workflowJson);
 
         const actualNodes = Object.values(workflow).filter(

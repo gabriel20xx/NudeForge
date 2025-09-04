@@ -39,8 +39,25 @@ router.get('/health', (req, res) => {
 });
 
 // Default route: generator (moved former index content into generator view)
-router.get('/', (req, res) => {
-    res.render('generator', { title: 'Generator', siteTitle: SITE_TITLE, maxUploadFiles: MAX_UPLOAD_FILES });
+router.get('/', async (req, res) => {
+    try {
+        const { WORKFLOWS_DIR, WORKFLOW_PATH } = await import('../config/config.js');
+        let workflows = [];
+        try {
+            const entries = await fs.promises.readdir(WORKFLOWS_DIR, { withFileTypes: true });
+            workflows = entries
+                .filter(e => e.isFile() && e.name.toLowerCase().endsWith('.json'))
+                .map(e => e.name)
+                .sort((a,b)=> a.localeCompare(b, undefined, { sensitivity:'base' }));
+        } catch (e) {
+            Logger.warn('WORKFLOWS', `Failed to read workflows directory ${WORKFLOWS_DIR}: ${e.message}`);
+        }
+        const defaultWorkflow = path.basename(WORKFLOW_PATH);
+        res.render('generator', { title: 'Generator', siteTitle: SITE_TITLE, maxUploadFiles: MAX_UPLOAD_FILES, workflows, defaultWorkflow });
+    } catch (e) {
+        Logger.error('GENERATOR', 'Failed to render generator page:', e);
+        res.render('generator', { title: 'Generator', siteTitle: SITE_TITLE, maxUploadFiles: MAX_UPLOAD_FILES, workflows: [], defaultWorkflow: 'workflow.json' });
+    }
 });
 
 // Library & Profile placeholder pages (reuse layout or supply minimal placeholders)
@@ -413,7 +430,7 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
             return res.status(400).send("No file uploaded");
         }
 
-        const { prompt, steps, outputHeight, ...loraSettings } = req.body;
+    const { prompt, steps, outputHeight, workflow: workflowNameRaw, ...loraSettings } = req.body;
         const initialQueueSize = getProcessingQueue().length;
         const createdIds = [];
 
@@ -427,12 +444,21 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
             Logger.info('UPLOAD', `Received upload: filename=${uploadedFilename}, original=${originalFilename}, requestId=${requestId}`);
             Logger.debug('UPLOAD_SETTINGS', 'Raw body settings: ' + JSON.stringify({ prompt, steps, outputHeight, ...loraSettings }));
 
+            // Sanitize workflow name: keep basename only and enforce .json
+            const workflowName = (() => {
+                const base = path.basename(String(workflowNameRaw||''));
+                if (!base) return '';
+                if (!/\.json$/i.test(base)) return '';
+                return base;
+            })();
+
             getRequestStatus()[requestId] = {
                 status: "pending",
                 totalNodesInWorkflow: 0,
                 originalFilename: originalFilename,
                 uploadedFilename: uploadedFilename,
                 settings: { prompt, steps, outputHeight, ...loraSettings },
+                workflowName,
             };
 
             getProcessingQueue().push({
@@ -440,6 +466,7 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
                 uploadedFilename,
                 originalFilename,
                 uploadedPathForComfyUI,
+                workflowName,
             });
         }
 

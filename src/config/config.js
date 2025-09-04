@@ -19,7 +19,8 @@ const INPUT_DIR = process.env.INPUT_DIR || path.join(PARENT_OF_PROJECT, 'input')
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(PARENT_OF_PROJECT, 'output');  
 const UPLOAD_COPY_DIR = process.env.UPLOAD_COPY_DIR || path.join(PARENT_OF_PROJECT, 'copy');
 const LORAS_DIR = process.env.LORAS_DIR || path.join(PARENT_OF_PROJECT, 'loras');
-const WORKFLOW_PATH = process.env.WORKFLOW_PATH || path.resolve(__dirname, '../../workflow.json');
+const WORKFLOWS_DIR = process.env.WORKFLOWS_DIR || path.resolve(__dirname, '../../workflows');
+const WORKFLOW_PATH = process.env.WORKFLOW_PATH || path.resolve(WORKFLOWS_DIR, 'workflow.json');
 // Site branding
 const SITE_TITLE = process.env.SITE_TITLE || 'NudeForge';
 
@@ -60,6 +61,7 @@ Logger.info('CONFIG', `OUTPUT_DIR: ${OUTPUT_DIR}`);
 Logger.info('CONFIG', `UPLOAD_COPY_DIR: ${UPLOAD_COPY_DIR}`);
 Logger.info('CONFIG', `LORAS_DIR: ${LORAS_DIR}`);
 Logger.info('CONFIG', `WORKFLOW_PATH: ${WORKFLOW_PATH}`);
+Logger.info('CONFIG', `WORKFLOWS_DIR: ${WORKFLOWS_DIR}`);
 Logger.info('CONFIG', `HTTPS Enabled: ${ENABLE_HTTPS}`);
 if (ENABLE_HTTPS) {
   if (SSL_KEY_PATH && !fs.existsSync(SSL_KEY_PATH)) {
@@ -93,6 +95,7 @@ export {
   UPLOAD_COPY_DIR,
   LORAS_DIR,
   WORKFLOW_PATH,
+  WORKFLOWS_DIR,
   COMFYUI_HOST,
   COMFYUI_URL,
   COMFYUI_WS_URL,

@@ -83,6 +83,11 @@ window.addEventListener('DOMContentLoaded', async function() {
       });
     }
   }catch{}
+  // Persist workflow selection
+  try{
+    const wfSel = document.getElementById('workflowSelect');
+    if(wfSel){ wfSel.addEventListener('change', ()=>{ try{ saveGeneratorState(); }catch{} }); }
+  }catch{}
   // Output image overlay (shared design with Library)
   try{
     const grid = document.getElementById('outputGrid');
@@ -447,11 +452,16 @@ function saveGeneratorState(){
       } catch { return { model:'', enable:false, strength:'1.0' }; }
     });
     const isAdvancedMode = applyBool(advancedModeToggle && advancedModeToggle.checked);
+    // Capture selected workflow (independent of Advanced mode)
+    const workflowSelect = document.getElementById('workflowSelect');
+    const selectedWorkflow = workflowSelect ? String(workflowSelect.value || '') : '';
+
     const state = {
       selectedPreviewSources: __persist.selectedPreviewSources||[],
       outputGrid: imgGrid,
       activeRequestId,
       activeRequestIds,
+      workflow: selectedWorkflow,
       advancedMode: isAdvancedMode,
       comparisonSplitPct: getComparisonSplitPct(),
       settings: isAdvancedMode ? {
@@ -480,6 +490,17 @@ function restoreGeneratorState(){
     const raw = localStorage.getItem(key);
     if(!raw) return;
     const state = JSON.parse(raw);
+    // Restore selected workflow if present
+    try {
+      const wf = (state && typeof state.workflow === 'string') ? state.workflow : '';
+      if (wf) {
+        const sel = document.getElementById('workflowSelect');
+        if (sel) {
+          const has = Array.from(sel.options||[]).some(o => String(o.value) === wf);
+          if (has) sel.value = wf;
+        }
+      }
+    } catch {}
     // Restore Advanced/settings visibility first so subsequent UI respects it
     if(typeof state?.advancedMode === 'boolean' && advancedModeToggle){
       try { advancedModeToggle.checked = !!state.advancedMode; } catch {}
