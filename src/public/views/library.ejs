@@ -1,7 +1,16 @@
 <%- include('partials/header', { title: 'Library' }) %>
 <main id="library-container" class="page-wrapper" aria-label="Library media">
   <div id="libConfig" data-preload-radius="<%= typeof preloadRadius !== 'undefined' ? preloadRadius : 2 %>" style="display:none"></div>
-  <!-- Mode toggle moved to header via showLibraryModeToggle -->
+  <!-- Page-local mode toggle (API vs Local) -->
+  <div class="header-options" style="display:block; margin-bottom:.5rem;">
+    <label for="libraryMode" class="header-option-label">
+      <span style="margin-right:.5rem;">Mode</span>
+      <select id="libraryMode">
+        <option value="local">Local</option>
+        <option value="api">Server API</option>
+      </select>
+    </label>
+  </div>
   <section id="libraryGrid" class="results-grid" aria-live="polite"></section>
   <!-- Preload radius controlled via server env; no visible control in UI -->
   <p id="libraryEmpty" class="library-empty" style="display:none;">No items yet.</p>
