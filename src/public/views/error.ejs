@@ -1,7 +1,3 @@
 <%- include('partials/header', { title: 'Server Error' }) %>
-<main class="status-page" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);display:flex;flex-direction:column;align-items:center;gap:1.2rem;max-width:640px;margin:0 auto;">
-  <h1 style="font-size:2rem;line-height:1;font-weight:650;color:var(--color-danger);">Something went wrong</h1>
-  <p style="font-size:1rem;color:var(--color-text-dim);text-align:center;line-height:1.4;">An unexpected error occurred. Please try again or return home.</p>
-  <a href="/" class="btn" style="text-decoration:none;">Return Home</a>
-</main>
+<%- include('shared/error', { message }) %>
 <%- include('partials/navbar', { active: '' }) %>
