@@ -200,12 +200,14 @@ router.get('/api/my-media', async (req, res) => {
         const uid = user.id;
         const { rows } = await dbQuery('SELECT media_key, original_filename, created_at FROM media WHERE user_id = $1 ORDER BY id DESC LIMIT 1000', [uid]);
         const images = (rows || []).map(r => {
-            const name = String(r.media_key || '').trim();
-            const enc = encodeURIComponent(name);
+            const key = String(r.media_key || '').trim().replace(/\\/g, '/');
+            // Encode each segment for safe URLs
+            const encoded = key.split('/').map(encodeURIComponent).join('/');
+            const name = key.split('/').pop() || key;
             return {
                 name,
-                url: `/output/${enc}`,
-                thumbnail: `/thumbs/output/${enc}?w=480`
+                url: `/output/${encoded}`,
+                thumbnail: `/thumbs/output/${encoded}?w=480`
             };
         });
         return res.json({ success: true, images });
@@ -456,9 +458,35 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
             return res.status(400).send("No file uploaded");
         }
 
-    const { prompt, steps, outputHeight, workflow: workflowNameRaw, ...loraSettings } = req.body;
+    const { prompt, steps, outputHeight, workflow: workflowNameRaw, saveNodeTarget, ...loraSettings } = req.body;
         const initialQueueSize = getProcessingQueue().length;
         const createdIds = [];
+
+        // Resolve a username string for directory naming
+        let resolvedUserName = null;
+        try {
+            const sessUser = req.session && req.session.user;
+            if (sessUser && sessUser.id) {
+                // Try DB username first
+                try {
+                    const { rows } = await dbQuery('SELECT username, email FROM users WHERE id = $1', [sessUser.id]);
+                    if (rows && rows[0]) {
+                        const dbUsername = (rows[0].username || '').trim();
+                        if (dbUsername) resolvedUserName = dbUsername;
+                        if (!resolvedUserName && rows[0].email) {
+                            const email = String(rows[0].email);
+                            resolvedUserName = email.includes('@') ? email.split('@')[0] : email;
+                        }
+                    }
+                } catch {}
+                // Fallbacks
+                if (!resolvedUserName) {
+                    const email = (sessUser.email || '').toString();
+                    if (email) resolvedUserName = email.includes('@') ? email.split('@')[0] : email;
+                }
+                if (!resolvedUserName) resolvedUserName = `user-${sessUser.id}`;
+            }
+        } catch {}
 
         for (const f of files) {
             const uploadedFilename = f.filename;
@@ -486,6 +514,8 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
                 settings: { prompt, steps, outputHeight, ...loraSettings },
                 workflowName,
                 userId: (req.session && req.session.user && req.session.user.id) ? req.session.user.id : null,
+                userName: resolvedUserName || null,
+                saveNodeTarget: saveNodeTarget || null,
             };
 
             getProcessingQueue().push({
@@ -495,6 +525,8 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
                 uploadedPathForComfyUI,
                 workflowName,
                 userId: (req.session && req.session.user && req.session.user.id) ? req.session.user.id : null,
+                userName: resolvedUserName || null,
+                saveNodeTarget: saveNodeTarget || null,
             });
         }
 

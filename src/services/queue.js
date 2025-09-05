@@ -29,6 +29,29 @@ function getIsProcessing() {
     return isProcessing;
 }
 
+// Sanitize a username to a safe folder name
+function sanitizeFolderName(name) {
+    if (!name) return '';
+    // Normalize unicode, remove leading/trailing whitespace
+    let n = name.toString().normalize('NFKC').trim();
+    // Replace path separators and control chars
+    n = n.replace(/[\/:*?"<>|\x00-\x1F]/g, '');
+    // Collapse spaces -> underscore
+    n = n.replace(/\s+/g, '_');
+    // Allow only common characters: letters, numbers, underscore, hyphen
+    n = n.replace(/[^A-Za-z0-9_-]/g, '');
+    // Lowercase for consistency
+    n = n.toLowerCase();
+    // Avoid empty
+    if (!n) n = 'user';
+    // Trim length
+    if (n.length > 64) n = n.slice(0, 64);
+    // Avoid Windows reserved names
+    const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+    if (reserved.test(n)) n = `_${n}`;
+    return n;
+}
+
 // Function to send workflow with retry logic for connection errors
 async function sendWorkflowWithRetry(workflow, requestId) {
     let attempt = 0;
@@ -77,7 +100,7 @@ async function processQueue(io) {
     }
 
     isProcessing = true;
-    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI, workflowName, userId } = processingQueue.shift();
+    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI, workflowName, userId, userName, saveNodeTarget } = processingQueue.shift();
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
@@ -109,7 +132,7 @@ async function processQueue(io) {
             }
         } catch {}
         const workflowJson = fs.readFileSync(selectedWorkflowPath, "utf-8");
-        let workflow = JSON.parse(workflowJson);
+    let workflow = JSON.parse(workflowJson);
 
         const actualNodes = Object.values(workflow).filter(
             (node) => typeof node === "object" && node !== null && node.class_type
@@ -188,6 +211,56 @@ async function processQueue(io) {
         const inputNameNode = Object.values(workflow).find((node) => node.class_type === "PrimitiveString" && node._meta?.title === "Input Name");
         if (inputNameNode) inputNameNode.inputs.value = path.parse(uploadedFilename).name;
 
+        // Adjust SaveImagePlus custom_path to include username subfolder for a targeted node when available
+        try {
+            // Collect SaveImagePlus nodes with their ids
+            const saveNodes = Object.entries(workflow)
+                .filter(([id, node]) => node && node.class_type === 'LayerUtility: SaveImagePlus')
+                .map(([id, node]) => ({ id, node }));
+
+            // Helper: choose node based on target preference
+            const chooseSaveNode = () => {
+                const target = (saveNodeTarget || requestStatus[requestId]?.settings?.saveNodeTarget || '').toString().toLowerCase();
+                if (target.startsWith('id:')) {
+                    const idWanted = target.slice(3);
+                    return saveNodes.find(s => String(s.id) === idWanted);
+                }
+                if (target === 'single') {
+                    return saveNodes.find(s => String(s.node?.inputs?.custom_path || '').toLowerCase().includes('/nudify/single/'))
+                        || saveNodes[0];
+                }
+                if (target === 'comparison') {
+                    return saveNodes.find(s => String(s.node?.inputs?.custom_path || '').toLowerCase().includes('/nudify/comparison/'))
+                        || saveNodes[0];
+                }
+                if (target.startsWith('path:')) {
+                    const sub = target.slice(5);
+                    return saveNodes.find(s => String(s.node?.inputs?.custom_path || '').toLowerCase().includes(sub));
+                }
+                // Default heuristic: prefer 'Single' path if present
+                return saveNodes.find(s => String(s.node?.inputs?.custom_path || '').toLowerCase().includes('/nudify/single/'))
+                    || saveNodes[0];
+            };
+
+            const chosen = chooseSaveNode();
+            const saveNode = chosen && chosen.node;
+            if (saveNode && saveNode.inputs && typeof saveNode.inputs.custom_path === 'string') {
+                const base = saveNode.inputs.custom_path || '';
+                // Normalize to forward slashes and ensure trailing slash
+                const normBase = base.replace(/\\/g,'/');
+                const hasSlash = normBase.endsWith('/') ? normBase : normBase + '/';
+                // Choose folder name: userName or fallback from request status
+        const rawUser = (userName || requestStatus[requestId]?.userName || '').toString().trim();
+        const userFolder = sanitizeFolderName(rawUser);
+                if (userFolder) {
+                    saveNode.inputs.custom_path = hasSlash + userFolder + '/';
+                } else {
+                    // If no user, keep original path
+                    saveNode.inputs.custom_path = hasSlash;
+                }
+            }
+        } catch { /* non-fatal */ }
+
         const imageNode = Object.values(workflow).find((node) => node.class_type === "VHS_LoadImagePath");
         if (imageNode) imageNode.inputs["image"] = uploadedPathForComfyUI;
 
@@ -199,19 +272,45 @@ async function processQueue(io) {
         await sendWorkflowWithRetry(workflow, requestId);
 
         const expectedOutputSuffix = `${path.parse(uploadedFilename).name}-nudified_00001.png`;
-        let foundOutputFilename = null;
-        while (!foundOutputFilename) {
+        // Helper: recursively search OUTPUT_DIR for a file whose basename ends with expected suffix
+        async function findOutputRelPath(baseDir) {
+            const stack = ['']; // relative paths
+            while (stack.length) {
+                if (cancelRequestedFor === requestId) throw new Error('CANCELLED_BY_USER');
+                const rel = stack.pop();
+                const abs = path.join(baseDir, rel);
+                let entries;
+                try {
+                    entries = await fs.promises.readdir(abs, { withFileTypes: true });
+                } catch {
+                    continue;
+                }
+                for (const e of entries) {
+                    if (e.name.startsWith('.')) continue;
+                    if (e.isDirectory()) {
+                        stack.push(path.join(rel, e.name));
+                    } else if (e.isFile()) {
+                        if (e.name.endsWith(expectedOutputSuffix)) {
+                            return path.join(rel, e.name);
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        let foundOutputRelPath = null;
+        while (!foundOutputRelPath) {
             if (cancelRequestedFor === requestId) {
                 throw new Error('CANCELLED_BY_USER');
             }
-            const filesInOutputDir = await fs.promises.readdir(OUTPUT_DIR);
-            foundOutputFilename = filesInOutputDir.find((file) => file.endsWith(expectedOutputSuffix));
-            if (!foundOutputFilename) {
+            foundOutputRelPath = await findOutputRelPath(OUTPUT_DIR);
+            if (!foundOutputRelPath) {
                 await new Promise((resolve) => setTimeout(resolve, 500));
             }
         }
         // Wait for file size to stabilize (ensure fully written)
-        const outputPath = path.join(OUTPUT_DIR, foundOutputFilename);
+        const outputPath = path.join(OUTPUT_DIR, foundOutputRelPath);
         let lastSize = -1, stableCount = 0;
         while (stableCount < 2) {
             if (cancelRequestedFor === requestId) {
@@ -232,11 +331,13 @@ async function processQueue(io) {
         }
         // Add a short delay to further ensure file is ready
         await new Promise((resolve) => setTimeout(resolve, 300));
-    const finalOutputRelativePath = `/output/${foundOutputFilename}`;
+        // Normalize to URL-style forward slashes for client
+        const finalOutputRelUrl = foundOutputRelPath.split(path.sep).map(encodeURIComponent).join('/');
+        const finalOutputRelativePath = `/output/${finalOutputRelUrl}`;
         // --- Integrity / Non-copy validation ---
         try {
             const inputPath = path.join(INPUT_DIR, uploadedFilename);
-            const outputPathAbs = path.join(OUTPUT_DIR, foundOutputFilename);
+            const outputPathAbs = path.join(OUTPUT_DIR, foundOutputRelPath);
             if (fs.existsSync(inputPath) && fs.existsSync(outputPathAbs)) {
                 const hashFile = (p)=> crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
                 const inHash = hashFile(inputPath);
@@ -258,7 +359,8 @@ async function processQueue(io) {
         };
         // Persist media ownership to DB
         try {
-            const mediaKey = foundOutputFilename;
+            // Store relative path under OUTPUT_DIR using forward slashes
+            const mediaKey = foundOutputRelPath.split(path.sep).join('/');
             const uid = userId || requestStatus[requestId]?.userId || null;
             const origName = _originalFilename || requestStatus[requestId]?.originalFilename || null;
             await dbQuery('INSERT INTO media (user_id, media_key, app, original_filename) VALUES ($1,$2,$3,$4)', [uid, mediaKey, 'NudeForge', origName]);
