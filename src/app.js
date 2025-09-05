@@ -11,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import Logger from '../../NudeShared/serverLogger.js';
 import { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } from './config/config.js';
+import { initDb, query as dbQuery } from '../../NudeShared/db.js';
 import { connectToComfyUIWebSocket } from './services/websocket.js';
 import { router as routes } from './routes/routes.js';
 import { generateAllCarouselThumbnails } from './services/carousel.js';
@@ -75,6 +76,15 @@ app.use('/', routes);
 // Lightweight health route (before static to ensure quick response)
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+// DB health route (optional)
+app.get('/health/db', async (req, res) => {
+    try {
+        const { rows } = await dbQuery('SELECT 1 as ok');
+        res.json({ status: 'ok', rows });
+    } catch (e) {
+        res.status(500).json({ status: 'error', message: String(e.message || e) });
+    }
 });
 
 // Serve static assets from src/public (standard layout)
@@ -168,7 +178,7 @@ function attachTerminalMiddleware() {
 async function startServer(port = PORT) {
     attachTerminalMiddleware();
     return new Promise((resolve) => {
-        const listener = server.listen(port, () => {
+        const listener = server.listen(port, async () => {
             const protocol = ENABLE_HTTPS ? 'https' : 'http';
             Logger.success('SERVER', `Server running at ${protocol}://localhost:${port}`);
             Logger.info('STARTUP', `Platform: ${process.platform}`);
@@ -177,6 +187,16 @@ async function startServer(port = PORT) {
             Logger.info('STARTUP', `Output directory: ${OUTPUT_DIR}`);
             Logger.info('STARTUP', `Copy directory: ${UPLOAD_COPY_DIR}`);
             Logger.info('STARTUP', `LoRAs directory: ${LORAS_DIR}`);
+            // Initialize PostgreSQL if env present
+            try {
+                if (process.env.DATABASE_URL || process.env.PGHOST || process.env.PGDATABASE) {
+                    await initDb();
+                } else {
+                    Logger.warn('STARTUP', 'PostgreSQL not configured (set DATABASE_URL or PGHOST/PGDATABASE to enable)');
+                }
+            } catch (e) {
+                Logger.error('STARTUP', 'PostgreSQL initialization failed', e);
+            }
             (async () => {
             try {
                 Logger.info('STARTUP', 'Discovering available LoRA models...');
