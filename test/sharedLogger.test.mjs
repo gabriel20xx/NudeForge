@@ -52,7 +52,7 @@ function postMultipart(pathUrl, base, fields, fileField){
 
   // 1. Shared client logger asset
   {
-    const res = await get('/shared/clientLogger.js', base);
+  const res = await get('/shared/client/clientLogger.js', base);
     assert.strictEqual(res.statusCode, 200, 'clientLogger.js 200');
     assert.ok(/ClientLogger/.test(res.body), 'client logger content snippet');
   }
