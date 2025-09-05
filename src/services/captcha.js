@@ -1,6 +1,6 @@
 import svgCaptcha from 'svg-captcha';
 import crypto from 'crypto';
-import Logger from '../../shared/serverLogger.js';
+import Logger from '../../../NudeShared/server/logger/serverLogger.js';
 
 // In-memory store for CAPTCHA tokens and solutions
 const captchaStore = {};

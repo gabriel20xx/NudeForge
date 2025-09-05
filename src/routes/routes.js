@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import Logger from '../../../NudeShared/serverLogger.js';
+import Logger from '../../../NudeShared/server/logger/serverLogger.js';
 import archiver from 'archiver';
 import { cancelAll, cancelRequest } from "../services/queue.js";
 import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';

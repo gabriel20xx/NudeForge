@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
 import { fileURLToPath } from 'url';
-import Logger from '../../../NudeShared/serverLogger.js';
+import Logger from '../../../NudeShared/server/logger/serverLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

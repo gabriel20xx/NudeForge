@@ -12,15 +12,18 @@
     "deploy": "chmod +x deploy.sh && ./deploy.sh",
     "lint": "eslint \"src/**/*.js\" --max-warnings=0",
     "lint:fix": "eslint \"src/**/*.js\" --fix",
-    "test": "powershell -Command \"$env:NODE_ENV='test'; $env:SKIP_WEBSOCKET='true'; $env:SKIP_CAROUSEL_THUMBS='true'; $env:SKIP_QUEUE_PROCESSING='true'; node --experimental-vm-modules test/sharedLogger.test.mjs; node --experimental-vm-modules test/progressUI.test.mjs\""
+  "test": "powershell -Command \"$env:NODE_ENV='test'; $env:SKIP_WEBSOCKET='true'; $env:SKIP_CAROUSEL_THUMBS='true'; $env:SKIP_QUEUE_PROCESSING='true'; node --experimental-vm-modules test/progressUI.test.mjs; node --experimental-vm-modules test/authHealth.test.mjs\""
   },
   "dependencies": {
     "archiver": "^7.0.1",
     "axios": "^1.7.7",
+    "better-sqlite3": "^9.6.0",
+    "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
+    "express-session": "^1.18.2",
     "img-comparison-slider": "^8.0.6",
     "multer": "^2.0.1",
     "pg": "^8.16.3",

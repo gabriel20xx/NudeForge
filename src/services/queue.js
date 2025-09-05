@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 // import { v4 as uuidv4 } from 'uuid'; // (unused) keep commented for potential future use
-import Logger from '../../../NudeShared/serverLogger.js';
+import Logger from '../../../NudeShared/server/logger/serverLogger.js';
 import { COMFYUI_URL, WORKFLOW_PATH, WORKFLOWS_DIR, OUTPUT_DIR, INPUT_DIR, COMFYUI_HOST } from '../config/config.js';
 import crypto from 'crypto';
 

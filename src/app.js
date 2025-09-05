@@ -9,9 +9,13 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import Logger from '../../NudeShared/serverLogger.js';
+import { Logger } from '../../NudeShared/server/index.js';
 import { PORT, INPUT_DIR, OUTPUT_DIR, UPLOAD_COPY_DIR, LORAS_DIR, ENABLE_HTTPS, SSL_KEY_PATH, SSL_CERT_PATH } from './config/config.js';
-import { initDb, query as dbQuery } from '../../NudeShared/db.js';
+import { initDb, query as dbQuery } from '../../NudeShared/server/index.js';
+import { runMigrations } from '../../NudeShared/server/index.js';
+import { buildAuthRouter } from '../../NudeShared/server/index.js';
+import session from 'express-session';
+import connectPg from 'connect-pg-simple';
 import { connectToComfyUIWebSocket } from './services/websocket.js';
 import { router as routes } from './routes/routes.js';
 import { generateAllCarouselThumbnails } from './services/carousel.js';
@@ -70,6 +74,28 @@ app.set('io', io);
 
 app.use(cors());
 app.use(express.json());
+// Sessions (cookie-based, in-memory store sufficient for dev; users can switch to a store for prod)
+const SESSION_SECRET = process.env.SESSION_SECRET || 'dev_secret_change_me';
+const PgStore = connectPg(session);
+const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
+app.set('trust proxy', 1);
+app.use(session({
+    store: process.env.DATABASE_URL ? new PgStore({ conString: process.env.DATABASE_URL }) : undefined,
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: !!ENABLE_HTTPS,
+        domain: cookieDomain,
+        maxAge: 1000 * 60 * 60 * 24 * 7
+    }
+}));
+// Auth routes mounted at /auth
+app.use('/auth', buildAuthRouter(express.Router));
+app.get('/admin/users', async (req, res) => res.render('admin/users'));
+app.get('/auth/reset/request', (req, res) => res.render('auth/request-reset'));
 
 // Routes must come before static middleware to take priority
 app.use('/', routes);
@@ -109,8 +135,10 @@ if (fs.existsSync(themeLocal)) {
     Logger.info('STARTUP', `Exposed local theme at /assets/theme.css (path=${themeLocal})`);
 } else {
     const themeCandidates = [
+        path.resolve(__dirname, '..', '..', 'NudeShared', 'client', 'theme.css'),
         path.resolve(__dirname, '..', '..', 'NudeShared', 'theme.css'),
         path.resolve(__dirname, '..', '..', 'shared', 'theme.css'),
+        '/app/NudeShared/client/theme.css',
         '/app/NudeShared/theme.css'
     ];
     const foundTheme = themeCandidates.find(p => { try { return p && fs.existsSync(p); } catch { return false; } });
@@ -187,15 +215,12 @@ async function startServer(port = PORT) {
             Logger.info('STARTUP', `Output directory: ${OUTPUT_DIR}`);
             Logger.info('STARTUP', `Copy directory: ${UPLOAD_COPY_DIR}`);
             Logger.info('STARTUP', `LoRAs directory: ${LORAS_DIR}`);
-            // Initialize PostgreSQL if env present
+            // Initialize DB (PostgreSQL or SQLite fallback)
             try {
-                if (process.env.DATABASE_URL || process.env.PGHOST || process.env.PGDATABASE) {
-                    await initDb();
-                } else {
-                    Logger.warn('STARTUP', 'PostgreSQL not configured (set DATABASE_URL or PGHOST/PGDATABASE to enable)');
-                }
+                await initDb();
+                await runMigrations();
             } catch (e) {
-                Logger.error('STARTUP', 'PostgreSQL initialization failed', e);
+                Logger.error('STARTUP', 'Database initialization failed', e);
             }
             (async () => {
             try {
