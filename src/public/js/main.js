@@ -1087,6 +1087,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         }catch{}
         setTimeout(poll, 2000);
       }
+  // Initialize immediately with placeholder to avoid flicker
+  try{ renderQueueMeta(0); }catch{}
       poll();
     })();
   }catch{}
@@ -1132,15 +1134,7 @@ function setStatus(text){
   if(!statusEl) return;
   if(typeof text !== 'string'){ statusEl.textContent = ''; return; }
   const norm = text.trim();
-  // Preserve lowercase for known states expected by tests/UI, title-case for Idle/Finished
-  const known = ['queued','processing','failed','completed','idle'];
-  const lower = norm.toLowerCase();
-  if(known.includes(lower)){
-    statusEl.textContent = lower;
-    return;
-  }
-  // Fallback pretty formatting
-  // eslint: remove unnecessary escapes and keep readable
+  // Always show Title Case for user-facing values
   const pretty = norm.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
   const title = pretty.split(' ').map(w=> w ? (w[0].toUpperCase()+w.slice(1).toLowerCase()) : w).join(' ');
   statusEl.textContent = title;
@@ -1250,12 +1244,13 @@ function updateUnifiedStatus({ status, yourPosition, queueSize, progress, stage 
 // Render queue size (and position when queued) in the header meta, without affecting other UI state
 function renderQueueMeta(queueSize, yourPosition, status){
   try{
-    const meta = document.getElementById('queueMeta'); if(!meta) return;
-    const parts = [];
-    if(Number.isFinite(Number(queueSize))) parts.push(`queue ${Number(queueSize)}`);
-    if(status === 'queued' && typeof yourPosition === 'number') parts.push(`position ${yourPosition}`);
-    if(parts.length){ meta.textContent = `(${parts.join(' • ')})`; meta.style.display='inline'; }
-    else { meta.textContent=''; meta.style.display='none'; }
+  const meta = document.getElementById('queueMeta'); if(!meta) return;
+  const parts = [];
+  if(Number.isFinite(Number(queueSize))) parts.push(`Queue ${Number(queueSize)}`);
+  if(status && String(status).toLowerCase() === 'queued' && typeof yourPosition === 'number') parts.push(`Position ${yourPosition}`);
+  // Always keep visible to avoid flicker; show placeholder when empty
+  meta.textContent = parts.length ? `(${parts.join(' • ')})` : '(Queue 0)';
+  meta.style.display = 'inline';
   }catch{}
 }
 function updateProgressBar(pct, stage, stagePct){
@@ -1484,6 +1479,32 @@ function handleProcessingComplete(payload){
       }catch{}
       setUploadBusy(false);
       try{ if(allowConcurrentUploadCheckbox){ allowConcurrentUploadCheckbox.disabled = false; allowConcurrentUploadCheckbox.removeAttribute('title'); } }catch{}
+      // After a short delay, reset UI back to Idle to be ready for the next run
+      try{
+        setTimeout(()=>{
+          try{
+            // Status text back to Idle
+            setStatus('Idle');
+            // Local bar reset
+            const w = document.getElementById('processingProgressBarWrapper');
+            const b = document.getElementById('processingProgressBar');
+            const l = document.getElementById('processingProgressLabel');
+            if(w) w.classList.add('idle');
+            if(b){ b.style.width='0%'; b.classList.remove('success'); b.classList.remove('error'); b.classList.remove('complete'); }
+            if(l) l.textContent = 'Idle';
+            // Header/global bar reset
+            const gW = document.getElementById('globalProcessingProgressBarWrapper');
+            const gB = document.getElementById('globalProcessingProgressBar');
+            const gL = document.getElementById('globalProcessingProgressLabel');
+            const pctSpan = document.getElementById('progressPct');
+            if(gW) gW.classList.add('idle');
+            if(gB){ gB.style.width='0%'; gB.classList.remove('success'); gB.classList.remove('error'); gB.classList.remove('complete'); }
+            if(gL) gL.textContent = 'Idle';
+            if(pctSpan) pctSpan.textContent = '';
+            __lastOverallPct = null;
+          } catch {}
+        }, 2000);
+      }catch{}
     }
   } catch {}
 }

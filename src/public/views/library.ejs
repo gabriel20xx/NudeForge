@@ -8,6 +8,7 @@
       <select id="libraryMode">
         <option value="local">Local</option>
         <option value="api">Server API</option>
+        <option value="my">My Media</option>
       </select>
     </label>
   </div>
@@ -36,7 +37,7 @@
       const floatCtrls = document.getElementById('libFloatControls');
       const btnUp = document.getElementById('libUpBtn');
       const key = 'nudeforge:library:v1';
-      const modeKey = 'nudeforge:library:mode';
+  const modeKey = 'nudeforge:library:mode';
       let items = [];
       let currentIndex = -1;
       // API mode folder navigation state
@@ -57,7 +58,7 @@
 
       function getMode() {
         const stored = localStorage.getItem(modeKey);
-        return (stored === 'api' || stored === 'local') ? stored : 'local';
+        return (stored === 'api' || stored === 'local' || stored === 'my') ? stored : 'local';
       }
       function setMode(m) { localStorage.setItem(modeKey, m); }
       function goUpOneLevel(){
@@ -90,6 +91,13 @@
         const url = folder ? `/api/library-images?folder=${encodeURIComponent(folder)}` : '/api/library-images';
         const res = await fetch(url);
         if (!res.ok) throw new Error('API failed');
+        const data = await res.json();
+        const arr = (data && data.images) || [];
+        return arr.map(x => ({ url: x.url, thumbnail: x.thumbnail || x.url, downloadUrl: x.url }));
+      }
+      async function fetchFromMyMedia(){
+        const res = await fetch('/api/my-media');
+        if(!res.ok) throw new Error('Not authenticated or failed');
         const data = await res.json();
         const arr = (data && data.images) || [];
         return arr.map(x => ({ url: x.url, thumbnail: x.thumbnail || x.url, downloadUrl: x.url }));
@@ -240,6 +248,10 @@
         try {
           if (mode === 'api') {
             await renderApi();
+            return;
+          } else if (mode === 'my') {
+            items = await fetchFromMyMedia();
+            renderLocal();
             return;
           } else {
             items = fetchFromLocal();

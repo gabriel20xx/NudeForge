@@ -3,6 +3,7 @@ import path from 'path';
 import axios from 'axios';
 // import { v4 as uuidv4 } from 'uuid'; // (unused) keep commented for potential future use
 import Logger from '../../../NudeShared/server/logger/serverLogger.js';
+import { query as dbQuery } from '../../../NudeShared/server/index.js';
 import { COMFYUI_URL, WORKFLOW_PATH, WORKFLOWS_DIR, OUTPUT_DIR, INPUT_DIR, COMFYUI_HOST } from '../config/config.js';
 import crypto from 'crypto';
 
@@ -76,7 +77,7 @@ async function processQueue(io) {
     }
 
     isProcessing = true;
-    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI, workflowName } = processingQueue.shift();
+    const { requestId, uploadedFilename, originalFilename: _originalFilename, uploadedPathForComfyUI, workflowName, userId } = processingQueue.shift();
     currentlyProcessingRequestId = requestId;
     requestStatus[requestId].status = "processing";
 
@@ -231,7 +232,7 @@ async function processQueue(io) {
         }
         // Add a short delay to further ensure file is ready
         await new Promise((resolve) => setTimeout(resolve, 300));
-        const finalOutputRelativePath = `/output/${foundOutputFilename}`;
+    const finalOutputRelativePath = `/output/${foundOutputFilename}`;
         // --- Integrity / Non-copy validation ---
         try {
             const inputPath = path.join(INPUT_DIR, uploadedFilename);
@@ -255,6 +256,16 @@ async function processQueue(io) {
             outputImage: finalOutputRelativePath,
             downloadUrl: downloadUrl
         };
+        // Persist media ownership to DB
+        try {
+            const mediaKey = foundOutputFilename;
+            const uid = userId || requestStatus[requestId]?.userId || null;
+            const origName = _originalFilename || requestStatus[requestId]?.originalFilename || null;
+            await dbQuery('INSERT INTO media (user_id, media_key, app, original_filename) VALUES ($1,$2,$3,$4)', [uid, mediaKey, 'NudeForge', origName]);
+            Logger.info('DB', `Recorded media for user_id=${uid || 'null'} key=${mediaKey}`);
+        } catch (dbErr) {
+            Logger.warn('DB', 'Failed to record media ownership: ' + (dbErr && dbErr.message ? dbErr.message : dbErr));
+        }
 
         Logger.success('PROCESS', `Completed for requestId=${requestId}, output=${finalOutputRelativePath}, download=${downloadUrl}`);
         io.to(requestId).emit("processingComplete", {

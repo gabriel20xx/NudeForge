@@ -45,12 +45,12 @@ assert.strictEqual(document.getElementById('processingStatus').textContent,'Idle
 
 // 2. Simulate queued update
 api.updateStatusUI({ status:'queued', yourPosition:3, progress:{ value:0, max:100 } });
-assert.strictEqual(document.getElementById('processingStatus').textContent,'queued');
-assert.ok(document.getElementById('queueMeta').textContent.includes('position 3'));
+assert.strictEqual(document.getElementById('processingStatus').textContent,'Queued');
+assert.ok(document.getElementById('queueMeta').textContent.toLowerCase().includes('position 3'));
 
 // 3. Simulate processing progress
 api.updateStatusUI({ status:'processing', queueSize:5, progress:{ value:25, max:100, stage:'Stage A' } });
-assert.strictEqual(document.getElementById('processingStatus').textContent,'processing');
+assert.strictEqual(document.getElementById('processingStatus').textContent,'Processing');
 assert.ok(document.getElementById('progressPct').textContent.includes('25'));
 assert.strictEqual(document.getElementById('processingProgressBar').style.width,'25%');
 

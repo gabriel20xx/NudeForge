@@ -9,6 +9,7 @@ import { cancelAll, cancelRequest } from "../services/queue.js";
 import { SITE_TITLE, MAX_UPLOAD_FILES } from '../config/config.js';
 import { upload, uploadCopy } from '../services/uploads.js';
 import { getProcessingQueue, getRequestStatus, getCurrentlyProcessingRequestId, getIsProcessing, processQueue } from '../services/queue.js';
+import { query as dbQuery } from '../../../NudeShared/server/index.js';
 import { /* generateAllCarouselThumbnails, */ getThumbnailPath, getOriginalPath } from '../services/carousel.js';
 import { getOrCreateOutputThumbnail } from '../services/thumbnails.js';
 import { getAvailableLoRAs, getAvailableLoRAsWithSubdirs } from '../services/loras.js';
@@ -186,6 +187,31 @@ router.get('/api/library-images', async (req, res) => {
     } catch (err) {
         Logger.error('LIBRARY', 'Failed to list output images:', err);
         res.status(500).json({ success: false, error: 'Failed to list library images' });
+    }
+});
+
+// API: list current user's generated media
+router.get('/api/my-media', async (req, res) => {
+    try {
+        const user = req.session && req.session.user;
+        if (!user || !user.id) {
+            return res.status(401).json({ success: false, error: 'Not authenticated' });
+        }
+        const uid = user.id;
+        const { rows } = await dbQuery('SELECT media_key, original_filename, created_at FROM media WHERE user_id = $1 ORDER BY id DESC LIMIT 1000', [uid]);
+        const images = (rows || []).map(r => {
+            const name = String(r.media_key || '').trim();
+            const enc = encodeURIComponent(name);
+            return {
+                name,
+                url: `/output/${enc}`,
+                thumbnail: `/thumbs/output/${enc}?w=480`
+            };
+        });
+        return res.json({ success: true, images });
+    } catch (e) {
+        Logger.error('MY_MEDIA', 'Failed to list user media', e);
+        return res.status(500).json({ success: false, error: 'Failed to list media' });
     }
 });
 
@@ -459,6 +485,7 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
                 uploadedFilename: uploadedFilename,
                 settings: { prompt, steps, outputHeight, ...loraSettings },
                 workflowName,
+                userId: (req.session && req.session.user && req.session.user.id) ? req.session.user.id : null,
             };
 
             getProcessingQueue().push({
@@ -467,6 +494,7 @@ router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req, res)
                 originalFilename,
                 uploadedPathForComfyUI,
                 workflowName,
+                userId: (req.session && req.session.user && req.session.user.id) ? req.session.user.id : null,
             });
         }
 
