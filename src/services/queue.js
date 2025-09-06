@@ -32,23 +32,20 @@ function getIsProcessing() {
 // Sanitize a username to a safe folder name
 function sanitizeFolderName(name) {
     if (!name) return '';
-    // Normalize unicode, remove leading/trailing whitespace
     let n = name.toString().normalize('NFKC').trim();
-    // Replace path separators and control chars
-    n = n.replace(/[\/:*?"<>|\x00-\x1F]/g, '');
-    // Collapse spaces -> underscore
+    // Filter characters manually to avoid control range regex (ESLint no-control-regex)
+    n = Array.from(n).filter(ch => {
+        const code = ch.codePointAt(0);
+        if (code !== undefined && code < 32) return false; // control chars
+        if (/[:*?"<>|\\/]/.test(ch)) return false; // forbidden path symbols
+        return true;
+    }).join('');
     n = n.replace(/\s+/g, '_');
-    // Allow only common characters: letters, numbers, underscore, hyphen
     n = n.replace(/[^A-Za-z0-9_-]/g, '');
-    // Lowercase for consistency
     n = n.toLowerCase();
-    // Avoid empty
     if (!n) n = 'user';
-    // Trim length
     if (n.length > 64) n = n.slice(0, 64);
-    // Avoid Windows reserved names
-    const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
-    if (reserved.test(n)) n = `_${n}`;
+    if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(n)) n = '_' + n;
     return n;
 }
 
@@ -215,7 +212,8 @@ async function processQueue(io) {
         try {
             // Collect SaveImagePlus nodes with their ids
             const saveNodes = Object.entries(workflow)
-                .filter(([id, node]) => node && node.class_type === 'LayerUtility: SaveImagePlus')
+                // Use _id to indicate the first destructured element is intentionally unused in the filter predicate
+                .filter(([_id, node]) => node && node.class_type === 'LayerUtility: SaveImagePlus')
                 .map(([id, node]) => ({ id, node }));
 
             // Helper: choose node based on target preference

@@ -10,8 +10,8 @@
     "sync:shared": "node ../scripts/sync-shared.mjs",
     "postinstall": "npm rebuild sharp",
     "deploy": "chmod +x deploy.sh && ./deploy.sh",
-    "lint": "eslint 'src/**/*.js' --max-warnings=0",
-    "lint:fix": "eslint 'src/**/*.js' --fix",
+  "lint": "eslint \"src/**/*.js\" --max-warnings=0",
+  "lint:fix": "eslint \"src/**/*.js\" --fix",
     "test": "powershell -Command \"$env:NODE_ENV='test'; $env:SKIP_WEBSOCKET='true'; $env:SKIP_CAROUSEL_THUMBS='true'; $env:SKIP_QUEUE_PROCESSING='true'; node --experimental-vm-modules test/progressUI.test.mjs; node --experimental-vm-modules test/authHealth.test.mjs; node test/generationRoutes.test.mjs\""
   },
   "dependencies": {
