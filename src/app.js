@@ -156,6 +156,25 @@ app.use((req, res, next) => {
     }
     express.static(staticDir)(req, res, next);
 });
+// Root-level carousel folder (../carousal) static mount
+(() => {
+    try {
+        const rootCarousel = path.resolve(__dirname, '..', 'carousal'); // if NudeForge/src/app.js, '..' -> NudeForge
+        const siblingCarousel = path.resolve(__dirname, '..', '..', 'carousal'); // sibling to NudeForge
+        const useDir = fs.existsSync(siblingCarousel) ? siblingCarousel : (fs.existsSync(rootCarousel) ? rootCarousel : null);
+        if (useDir) {
+            app.use('/images/carousel', express.static(useDir));
+            const thumbDir = path.join(useDir, '_thumbnails');
+            if (fs.existsSync(thumbDir)) {
+                app.use('/images/carousel/thumbnails', express.static(thumbDir));
+            }
+            Logger.info('CAROUSEL', `Mounted carousel images from ${useDir}`);
+        } else {
+            Logger.warn('CAROUSEL', 'Root carousal directory not found; falling back to legacy public path');
+            app.use('/images/carousel', express.static(path.join(staticDir, 'images', 'carousel')));
+        }
+    } catch (e) { Logger.error('CAROUSEL', 'Failed mounting root carousel', e); }
+})();
 app.use('/input', express.static(INPUT_DIR));
 app.use('/output', express.static(OUTPUT_DIR));
 app.use('/copy', express.static(UPLOAD_COPY_DIR));
@@ -256,7 +275,8 @@ async function startServer(port = PORT) {
                     Logger.info('CAROUSEL', 'Skipping thumbnail generation in test mode');
                 } else {
                     const thumbStats = await generateAllCarouselThumbnails();
-                const carouselDir = path.join(__dirname, 'public/images/carousel');
+                const rootCarousel = path.resolve(__dirname, '..', '..', 'carousal');
+                const carouselDir = fs.existsSync(rootCarousel) ? rootCarousel : path.join(__dirname, 'public/images/carousel');
                 const existing = await fs.promises.readdir(carouselDir);
                 const imgs = existing.filter(f=>/\.(jpg|jpeg|png|gif)$/i.test(f));
                 if(imgs.length===0){

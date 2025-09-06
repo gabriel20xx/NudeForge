@@ -1,21 +1,64 @@
+###############################################
+# NudeForge .gitignore (Unified Template)     #
+###############################################
+
 # Dependencies
-/node_modules
+node_modules/
 
-# Environment variables file
-# This file contains secrets and should NOT be committed.
+# Environment / secrets
 .env
+.env.*
+!.env.example
 
-# Log files
+# Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
+pnpm-debug.log*
 
-# Build output
+# Build artifacts
 dist/
 build/
+.cache/
+
+# Runtime / generated media
+input/
+output/
+copy/
+uploads/
+processed/
+carousal/_thumbnails/
+public/images/carousel/thumbnails/
+
+# Database / local data
+database/*.db
+*.sqlite
+*.db
+
+# Coverage
+coverage/
+.nyc_output/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Optional lockfiles
 package-lock.json
-processed/*
-uploads/*
-input/*
-public/images/carousel/thumbnails/*
+pnpm-lock.yaml
+yarn.lock
+
+# Temp
+tmp/
+temp/
+
+# Archives / bundles
+*.tgz
+*.zip
+*.tar*
+
+# Core dumps
+core*

@@ -23,9 +23,16 @@ async function generateAllCarouselThumbnails() {
         
         // Handle both development and production paths
         // In dev, __dirname = .../src/services; public assets live at src/public
-    const publicRoot = path.join(__dirname, '../public');
-        const carouselDir = path.join(publicRoot, 'images/carousel');
-        const thumbnailsDir = path.join(publicRoot, 'images/carousel/thumbnails');
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    // Root-level folder (sibling to NudeForge) per requirement: /carousal
+    // Maintain backwards compatibility: if root carousal missing, fall back to legacy public/images/carousel
+    const rootCarousel = path.resolve(projectRoot, '..', 'carousal');
+    const legacyPublic = path.join(__dirname, '../public');
+    const legacyCarousel = path.join(legacyPublic, 'images/carousel');
+    const carouselDir = fs.existsSync(rootCarousel) ? rootCarousel : legacyCarousel;
+    const thumbnailsDir = fs.existsSync(rootCarousel)
+        ? path.join(rootCarousel, '_thumbnails') // store thumbnails inside root carousal folder
+        : path.join(legacyPublic, 'images/carousel/thumbnails');
         
         // Ensure thumbnails directory exists
         await fs.promises.mkdir(thumbnailsDir, { recursive: true });
@@ -143,12 +150,15 @@ async function generateThumbnail(filename, carouselDir, thumbnailsDir) {
  * @returns {string} Path to the thumbnail
  */
 function getThumbnailPath(filename) {
-    const thumbnailsDir = path.join(__dirname, '../public/images/carousel/thumbnails');
-    
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    const rootCarousel = path.resolve(projectRoot, '..', 'carousal');
+    const legacyThumbs = path.join(__dirname, '../public/images/carousel/thumbnails');
+    const thumbnailsDir = fs.existsSync(rootCarousel)
+        ? path.join(rootCarousel, '_thumbnails')
+        : legacyThumbs;
     const ext = path.extname(filename);
     const nameWithoutExt = path.basename(filename, ext);
     const thumbnailFilename = `thumb_${nameWithoutExt}.jpg`;
-    
     return path.join(thumbnailsDir, thumbnailFilename);
 }
 
@@ -158,6 +168,9 @@ function getThumbnailPath(filename) {
  * @returns {string} Path to the original image
  */
 function getOriginalPath(filename) {
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    const rootCarousel = path.resolve(projectRoot, '..', 'carousal');
+    if (fs.existsSync(rootCarousel)) return path.join(rootCarousel, filename);
     return path.join(__dirname, '../public/images/carousel', filename);
 }
 
